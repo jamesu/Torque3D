@@ -52,7 +52,7 @@ void SimConsoleEvent::process(SimObject* object)
    //    Con::printf("Executing schedule: %d", sequenceCount);
    // #endif
    if(mOnObject)
-      Con::execute(object, mArgc, const_cast<const char**>( mArgv ));
+      Con::execute(object, mArgc, mArgv );
    else
    {
       // Grab the function name. If '::' doesn't exist, then the schedule is

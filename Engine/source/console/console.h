@@ -122,7 +122,6 @@ public:
    virtual ~ConsoleValueStore() { if (stringValue) delete stringValue; }
 
    String *stringValue; // cached string value
-   U32 refCount;
 
    virtual String& getClassStringValue() = 0;
    virtual const char *getStringValue() { return getClassStringValue().utf8(); }
@@ -151,17 +150,17 @@ public:
 
    ConsoleValueStore *unreferencedValue();
 
-   inline operator const char*() { return value ? value->getStringValue() : NULL; }
-   inline operator S32() { return value ? value->getIntValue() : 0; }
-   inline operator F32() { return value ? value->getFloatValue() : 0.0f; }
-   inline operator String() { return value ? value->getClassStringValue() : String(""); }
-   inline operator F64() { return value ? value->getDoubleValue() : 0.0; }
+   inline const char *getStringValue() { return !value.isNull() ? getClassStringValue().utf8() : ""; }
+   inline String getClassStringValue() { return !value.isNull() ? value->getClassStringValue() : String(""); }
+   inline S32 getIntValue() { return !value.isNull() ? value->getIntValue() : NULL; }
+   inline F32 getFloatValue() { return !value.isNull() ? value->getFloatValue() : NULL; }
+   inline F64 getDoubleValue() { return !value.isNull() ? value->getDoubleValue() : NULL; }
 
-   inline const char *getStringValue() { return getClassStringValue().utf8(); }
-   inline String getClassStringValue() { return value ? value->getClassStringValue() : String(""); }
-   inline S32 getIntValue() { return value ? value->getIntValue() : 0; }
-   inline F32 getFloatValue() { return value ? value->getFloatValue() : 0.0f; }
-   inline F64 getDoubleValue() { return value ? value->getDoubleValue() : 0.0; }
+   inline operator const char*() { return getStringValue(); }
+   inline operator S32() { return getIntValue(); }
+   inline operator F32() { return getFloatValue(); }
+   inline operator String() { return getClassStringValue(); }
+   inline operator F64() { return getDoubleValue(); }
 
    inline bool isString();
    inline bool isInt();
@@ -178,13 +177,13 @@ public:
    ~ConsoleValue();
 
    // Note: operators replace value
-   ConsoleValue& operator=(const ConsoleValue &other);
+   inline ConsoleValue& operator=(const ConsoleValue &other);
    //ConsoleValue& operator=(ConsoleValueStore *newValue);
-   ConsoleValue& operator=(const char *newValue);
-   ConsoleValue& operator=(String &newValue);
-   ConsoleValue& operator=(S32 newValue);
-   ConsoleValue& operator=(F32 newValue);
-   ConsoleValue& operator=(F64 newValue);
+   inline ConsoleValue& operator=(const char *newValue);
+   inline ConsoleValue& operator=(String &newValue);
+   inline ConsoleValue& operator=(S32 newValue);
+   inline ConsoleValue& operator=(F32 newValue);
+   inline ConsoleValue& operator=(F64 newValue);
 
 
    void setValueStore(ConsoleValueStore *newValue);
@@ -269,6 +268,42 @@ public:
 inline bool ConsoleValue::isString() { return dynamic_cast<ConsoleStringValue*>(value.getPointer()) != NULL; }
 inline bool ConsoleValue::isInt() { return dynamic_cast<ConsoleIntValue*>(value.getPointer()) != NULL; }
 inline bool ConsoleValue::isFloat() { return dynamic_cast<ConsoleFloatValue*>(value.getPointer()) != NULL; }
+
+ConsoleValue& ConsoleValue::operator=(const ConsoleValue &newValue)
+{
+   value = newValue.value;
+   return *this;
+}
+
+ConsoleValue& ConsoleValue::operator=(const char *newValue)
+{
+   value = new ConsoleStringValue(newValue);
+   return *this;
+}
+
+ConsoleValue& ConsoleValue::operator=(String &newValue)
+{
+   value = new ConsoleStringValue(newValue);
+   return *this;
+}
+
+ConsoleValue& ConsoleValue::operator=(S32 newValue)
+{
+   value = new ConsoleIntValue(newValue);
+   return *this;
+}
+
+ConsoleValue& ConsoleValue::operator=(F32 newValue)
+{
+   value = new ConsoleFloatValue(newValue);
+   return *this;
+}
+
+ConsoleValue& ConsoleValue::operator=(F64 newValue)
+{
+   value = new ConsoleDoubleValue(newValue);
+   return *this;
+}
 
 // Transparently converts ConsoleValue[] to const char**
 class StringStackWrapper

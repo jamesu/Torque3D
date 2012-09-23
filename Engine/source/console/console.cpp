@@ -1468,7 +1468,6 @@ DefineEngineFunction( logWarning, void, ( const char* message ),,
    Con::warnf( "%s", message );
 }
 
-
 ConsoleValue::ConsoleValue() : value(NULL)
 {
 }
@@ -1514,48 +1513,10 @@ ConsoleValue::~ConsoleValue()
    value = NULL;
 }
 
-// Note: operators replace value
-ConsoleValue& ConsoleValue::operator=(const ConsoleValue &newValue)
-{
-   value = newValue.value;
-   return *this;
-}
-
 void ConsoleValue::setValueStore(ConsoleValueStore *newValue)
 {
    value = newValue;
 }
-
-ConsoleValue& ConsoleValue::operator=(const char *newValue)
-{
-   value = new ConsoleStringValue(newValue);
-   return *this;
-}
-
-ConsoleValue& ConsoleValue::operator=(String &newValue)
-{
-   value = new ConsoleStringValue(newValue);
-   return *this;
-}
-
-ConsoleValue& ConsoleValue::operator=(S32 newValue)
-{
-   value = new ConsoleIntValue(newValue);
-   return *this;
-}
-
-ConsoleValue& ConsoleValue::operator=(F32 newValue)
-{
-   value = new ConsoleFloatValue(newValue);
-   return *this;
-}
-
-ConsoleValue& ConsoleValue::operator=(F64 newValue)
-{
-   value = new ConsoleDoubleValue(newValue);
-   return *this;
-}
-
 
 ConsoleValueStore *ConsoleValue::unreferencedValue()
 {
