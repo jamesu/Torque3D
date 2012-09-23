@@ -2758,7 +2758,7 @@ void WorldEditor::initPersistFields()
 //------------------------------------------------------------------------------
 // These methods are needed for the console interfaces.
 
-void WorldEditor::ignoreObjClass( U32 argc, const char **argv )
+void WorldEditor::ignoreObjClass( U32 argc, ConsoleValue *argv )
 {
    for(S32 i = 2; i < argc; i++)
    {

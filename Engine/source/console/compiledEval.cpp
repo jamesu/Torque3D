@@ -102,7 +102,11 @@ IterStackRecord iterStack[ MaxStackSize ];
 F64 floatStack[MaxStackSize];
 S64 intStack[MaxStackSize];
 
+
+
+
 StringStack STR;
+ConsoleValueStack CSTK;
 
 U32 _FLT = 0;     ///< Stack pointer for floatStack.
 U32 _UINT = 0;    ///< Stack pointer for intStack.
@@ -401,10 +405,11 @@ static void setFieldComponent( SimObject* object, StringTableEntry field, const 
    }
 }
 
-const char *CodeBlock::exec(U32 ip, const char *functionName, Namespace *thisNamespace, U32 argc, const char **argv, bool noCalls, StringTableEntry packageName, S32 setFrame)
+const char *CodeBlock::exec(U32 ip, const char *functionName, Namespace *thisNamespace, U32 argc, ConsoleValue *argv, bool noCalls, StringTableEntry packageName, S32 setFrame)
 {
 #ifdef TORQUE_DEBUG
    U32 stackStart = STR.mStartStackSize;
+   U32 consoleStackStart = CSTK.mStackPos;
 #endif
 
    static char traceBuffer[1024];
@@ -460,7 +465,15 @@ const char *CodeBlock::exec(U32 ip, const char *functionName, Namespace *thisNam
       {
          StringTableEntry var = U32toSTE(code[ip + i + 6]);
          gEvalState.setCurVarNameCreate(var);
-         gEvalState.setStringVariable(argv[i+1]);
+
+		 if (argv[i+1].isString())
+			gEvalState.setStringVariable(argv[i+1]);
+		 else if (argv[i+1].isInt())
+			gEvalState.setIntVariable(argv[i+1]);
+		 else if (argv[i+1].isFloat())
+			gEvalState.setFloatVariable(argv[i+1]);
+		 else
+			gEvalState.setStringVariable(argv[i+1]);
       }
       ip = ip + fnArgc + 6;
       curFloatTable = functionFloats;
@@ -530,7 +543,7 @@ const char *CodeBlock::exec(U32 ip, const char *functionName, Namespace *thisNam
    char nsDocBlockClass[nsDocLength];
 
    U32 callArgc;
-   const char **callArgv;
+   ConsoleValue *callArgv;
 
    static char curFieldArray[256];
    static char prevFieldArray[256];
@@ -615,8 +628,8 @@ breakContinue:
             objectCreationStack[ objectCreationStackIndex++ ].failJump = failJump;
 
             // Get the constructor information off the stack.
-            STR.getArgcArgv(NULL, &callArgc, &callArgv);
-            const char* objectName = callArgv[ 2 ];
+            CSTK.getArgcArgv(NULL, &callArgc, &callArgv);
+            ConsoleValue objectName = callArgv[ 2 ];
 
             // Con::printf("Creating object...");
 
@@ -630,14 +643,15 @@ breakContinue:
                // Con::printf("  - is a datablock");
 
                // Find the old one if any.
-               SimObject *db = Sim::getDataBlockGroup()->findObject( objectName );
+               SimObject *db = Sim::getDataBlockGroup()->findObject( (const char*)objectName );
                
                // Make sure we're not changing types on ourselves...
-               if(db && dStricmp(db->getClassName(), callArgv[1]))
+               if(db && dStricmp(db->getClassName(),  (const char*)callArgv[1]))
                {
                   Con::errorf(ConsoleLogEntry::General, "%s: Cannot re-declare data block %s with a different class.", getFileLine(ip), objectName);
                   ip = failJump;
                   STR.popFrame();
+				  CSTK.popFrame();
                   break;
                }
 
@@ -650,18 +664,19 @@ breakContinue:
                // IF we aren't looking at a local/internal object, then check if 
                // this object already exists in the global space
 
-               SimObject *obj = Sim::findObject( objectName );
+               SimObject *obj = Sim::findObject( (const char*)objectName );
                if (obj /*&& !obj->isLocalName()*/)
                {
                   if ( isSingleton )
                   {
                      // Make sure we're not trying to change types
-                     if ( dStricmp( obj->getClassName(), callArgv[1] ) != 0 )
+                     if ( dStricmp( obj->getClassName(), (const char*)callArgv[1] ) != 0 )
                      {
                         Con::errorf(ConsoleLogEntry::General, "%s: Cannot re-declare object [%s] with a different class [%s] - was [%s].",
-                           getFileLine(ip), objectName, callArgv[1], obj->getClassName());
+                           getFileLine(ip), objectName, (const char*)callArgv[1], obj->getClassName());
                         ip = failJump;
                         STR.popFrame();
+                        CSTK.popFrame();
                         break;
                      }
 
@@ -679,13 +694,19 @@ breakContinue:
                         // string stack and may get stomped if deleteObject triggers
                         // script execution.
                         
-                        const char* savedArgv[ StringStack::MaxArgs ];
-                        dMemcpy( savedArgv, callArgv, sizeof( savedArgv[ 0 ] ) * callArgc );
+                        ConsoleValue savedArgv[ StringStack::MaxArgs ];
+						for (int i=0; i<callArgc; i++) {
+							savedArgv[i] = callArgv[i];
+						}
+                        //dMemcpy( savedArgv, callArgv, sizeof( savedArgv[ 0 ] ) * callArgc );
                         
                         obj->deleteObject();
                         obj = NULL;
 
-                        dMemcpy( callArgv, savedArgv, sizeof( callArgv[ 0 ] ) * callArgc );
+                        //dMemcpy( callArgv, savedArgv, sizeof( callArgv[ 0 ] ) * callArgc );
+						for (int i=0; i<callArgc; i++) {
+							callArgv[i] = savedArgv[i];
+						}
                      }
                      else if( dStricmp( redefineBehavior, "renameNew" ) == 0 )
                      {
@@ -714,6 +735,7 @@ breakContinue:
                               getFileLine(ip), newName.c_str() );
                            ip = failJump;
                            STR.popFrame();
+						   CSTK.popFrame();
                            break;
                         }
                         else
@@ -725,6 +747,7 @@ breakContinue:
                            getFileLine(ip), objectName);
                         ip = failJump;
                         STR.popFrame();
+						CSTK.popFrame();
                         break;
                      }
                   }
@@ -732,16 +755,17 @@ breakContinue:
             }
 
             STR.popFrame();
+			CSTK.popFrame();
             
             if(!currentNewObject)
             {
                // Well, looks like we have to create a new object.
-               ConsoleObject *object = ConsoleObject::create(callArgv[1]);
+               ConsoleObject *object = ConsoleObject::create((const char*)callArgv[1]);
 
                // Deal with failure!
                if(!object)
                {
-                  Con::errorf(ConsoleLogEntry::General, "%s: Unable to instantiate non-conobject class %s.", getFileLine(ip), callArgv[1]);
+                  Con::errorf(ConsoleLogEntry::General, "%s: Unable to instantiate non-conobject class %s.", getFileLine(ip), (const char*)callArgv[1]);
                   ip = failJump;
                   break;
                }
@@ -757,7 +781,7 @@ breakContinue:
                   else
                   {
                      // They tried to make a non-datablock with a datablock keyword!
-                     Con::errorf(ConsoleLogEntry::General, "%s: Unable to instantiate non-datablock class %s.", getFileLine(ip), callArgv[1]);
+                     Con::errorf(ConsoleLogEntry::General, "%s: Unable to instantiate non-datablock class %s.", getFileLine(ip), (const char*)callArgv[1]);
                      // Clean up...
                      delete object;
                      ip = failJump;
@@ -771,7 +795,7 @@ breakContinue:
                // Deal with the case of a non-SimObject.
                if(!currentNewObject)
                {
-                  Con::errorf(ConsoleLogEntry::General, "%s: Unable to instantiate non-SimObject class %s.", getFileLine(ip), callArgv[1]);
+                  Con::errorf(ConsoleLogEntry::General, "%s: Unable to instantiate non-SimObject class %s.", getFileLine(ip), (const char*)callArgv[1]);
                   delete object;
                   ip = failJump;
                   break;
@@ -798,7 +822,7 @@ breakContinue:
                   else
                   {
                      if ( Con::gObjectCopyFailures == -1 )
-                        Con::errorf(ConsoleLogEntry::General, "%s: Unable to find parent object %s for %s.", getFileLine(ip), objParent, callArgv[1]);
+                        Con::errorf(ConsoleLogEntry::General, "%s: Unable to find parent object %s for %s.", getFileLine(ip), objParent, (const char*)callArgv[1]);
                      else
                         ++Con::gObjectCopyFailures;
 
@@ -1514,6 +1538,7 @@ breakContinue:
                   getFileLine(ip-4), fnNamespace ? fnNamespace : "",
                   fnNamespace ? "::" : "", fnName);
                STR.popFrame();
+			   CSTK.popFrame();
                break;
             }
             // Now fall through to OP_CALLFUNC...
@@ -1538,7 +1563,7 @@ breakContinue:
             U32 callType = code[ip+2];
 
             ip += 3;
-            STR.getArgcArgv(fnName, &callArgc, &callArgv);
+            CSTK.getArgcArgv(fnName, &callArgc, &callArgv);
 
             const char *componentReturnValue = "";
 
@@ -1555,14 +1580,15 @@ breakContinue:
             else if(callType == FuncCallExprNode::MethodCall)
             {
                saveObject = gEvalState.thisObject;
-               gEvalState.thisObject = Sim::findObject(callArgv[1]);
+               gEvalState.thisObject = Sim::findObject((const char*)callArgv[1]);
                if(!gEvalState.thisObject)
                {
                   // Go back to the previous saved object.
                   gEvalState.thisObject = saveObject;
 
-                  Con::warnf(ConsoleLogEntry::General,"%s: Unable to find object: '%s' attempting to call function '%s'", getFileLine(ip-4), callArgv[1], fnName);
+                  Con::warnf(ConsoleLogEntry::General,"%s: Unable to find object: '%s' attempting to call function '%s'", getFileLine(ip-4), (const char*)callArgv[1], fnName);
                   STR.popFrame();
+				  CSTK.popFrame();
                   break;
                }
                
@@ -1618,6 +1644,7 @@ breakContinue:
                   }
                }
                STR.popFrame();
+			   CSTK.popFrame();
 
                if( routingId == MethodOnComponent )
                   STR.setStringValue( componentReturnValue );
@@ -1633,6 +1660,7 @@ breakContinue:
                   ret = nsEntry->mCode->exec(nsEntry->mFunctionOffset, fnName, nsEntry->mNamespace, callArgc, callArgv, false, nsEntry->mPackage);
                
                STR.popFrame();
+			   CSTK.popFrame();
                STR.setStringValue(ret);
             }
             else
@@ -1654,6 +1682,7 @@ breakContinue:
                      callArgc, nsEntry->mMinArgs, nsEntry->mMaxArgs);
                   Con::warnf(ConsoleLogEntry::Script, "%s: usage: %s", getFileLine(ip-4), nsEntry->mUsage);
                   STR.popFrame();
+				  CSTK.popFrame();
                }
                else
                {
@@ -1663,16 +1692,18 @@ breakContinue:
                      {
                         const char *ret = nsEntry->cb.mStringCallbackFunc(gEvalState.thisObject, callArgc, callArgv);
                         STR.popFrame();
+						CSTK.popFrame();
                         if(ret != STR.getStringValue())
                            STR.setStringValue(ret);
-                        else
-                           STR.setLen(dStrlen(ret));
+                        //else
+                        //   STR.setLen(dStrlen(ret));
                         break;
                      }
                      case Namespace::Entry::IntCallbackType:
                      {
                         S32 result = nsEntry->cb.mIntCallbackFunc(gEvalState.thisObject, callArgc, callArgv);
                         STR.popFrame();
+						CSTK.popFrame();
                         if(code[ip] == OP_STR_TO_UINT)
                         {
                            ip++;
@@ -1695,6 +1726,7 @@ breakContinue:
                      {
                         F64 result = nsEntry->cb.mFloatCallbackFunc(gEvalState.thisObject, callArgc, callArgv);
                         STR.popFrame();
+						CSTK.popFrame();
                         if(code[ip] == OP_STR_TO_UINT)
                         {
                            ip++;
@@ -1719,12 +1751,14 @@ breakContinue:
                            Con::warnf(ConsoleLogEntry::General, "%s: Call to %s in %s uses result of void function call.", getFileLine(ip-4), fnName, functionName);
                         
                         STR.popFrame();
+						CSTK.popFrame();
                         STR.setStringValue("");
                         break;
                      case Namespace::Entry::BoolCallbackType:
                      {
                         bool result = nsEntry->cb.mBoolCallbackFunc(gEvalState.thisObject, callArgc, callArgv);
                         STR.popFrame();
+						CSTK.popFrame();
                         if(code[ip] == OP_STR_TO_UINT)
                         {
                            ip++;
@@ -1778,11 +1812,24 @@ breakContinue:
             intStack[++_UINT] = STR.compare();
             break;
          case OP_PUSH:
-            STR.push();
+			STR.push();
+			//Con::printf("Pushing str: %s",STR.getPreviousStringValue());
+            CSTK.push(ConsoleValue(STR.getPreviousStringValue()));
+            break;
+         case OP_PUSH_UINT:
+			//Con::printf("Pushing int: %i",(S32)intStack[_UINT]);
+            CSTK.push(ConsoleValue((S32)intStack[_UINT]));
+			_UINT--;
+            break;
+         case OP_PUSH_FLT:
+			//Con::printf("Pushing float: %f",(F32)intStack[_UINT]);
+            CSTK.push(ConsoleValue((F32)floatStack[_FLT]));
+			_FLT--;
             break;
 
          case OP_PUSH_FRAME:
             STR.pushFrame();
+			CSTK.pushFrame();
             break;
 
          case OP_ASSERT:
@@ -1961,8 +2008,9 @@ execFinished:
    if ( telDebuggerOn && setFrame < 0 )
       TelDebugger->popStackFrame();
 
-   if ( popFrame )
+   if ( popFrame ) {
       gEvalState.popFrame();
+   }
 
    if(argv)
    {

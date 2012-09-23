@@ -79,7 +79,7 @@ void ConsoleLogger::initPersistFields()
 
 //-----------------------------------------------------------------------------
 
-bool ConsoleLogger::processArguments( S32 argc, const char **argv )
+bool ConsoleLogger::processArguments( S32 argc, ConsoleValue *argv )
 {
    if( argc == 0 )
       return false;

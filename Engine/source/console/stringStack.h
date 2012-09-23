@@ -36,6 +36,8 @@
 #endif
 
 
+
+
 /// Core stack for interpreter operations.
 ///
 /// This class provides some powerful semantics for working with strings, and is
@@ -185,6 +187,11 @@ struct StringStack
       return mBuffer + mStart;
    }
 
+   inline const char *getPreviousStringValue()
+   {
+      return mBuffer + mStartOffsets[mStartStackSize-1];
+   }
+
    /// Advance the start stack, placing a zero length string on the top.
    ///
    /// @note You should use StringStack::push, not this, if you want to
@@ -273,6 +280,37 @@ struct StringStack
 
    /// Get the arguments for a function call from the stack.
    void getArgcArgv(StringTableEntry name, U32 *argc, const char ***in_argv, bool popStackFrame = false);
+};
+
+
+// New console value stack
+class ConsoleValueStack
+{
+   enum {
+      MaxStackDepth = 1024,
+      MaxArgs = 20,
+      ReturnBufferSpace = 512
+   };
+public:
+	ConsoleValueStack();
+	~ConsoleValueStack();
+
+	void push(Dictionary::Entry *variable);
+	void push(ConsoleValue &value);
+	ConsoleValue& pop();
+
+	void pushFrame();
+	void popFrame();
+
+    void getArgcArgv(StringTableEntry name, U32 *argc, ConsoleValue **in_argv, bool popStackFrame = false);
+
+	ConsoleValue mStack[MaxStackDepth];
+	U32 mStackFrames[MaxStackDepth];
+
+	U32 mFrame;
+	U32 mStackPos;
+
+	ConsoleValue mArgv[MaxArgs];
 };
 
 #endif

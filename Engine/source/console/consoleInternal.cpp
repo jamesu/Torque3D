@@ -558,6 +558,36 @@ void Dictionary::Entry::setStringValue(const char * value)
       notify->trigger();
 }
 
+S32 Dictionary::getIntVariable(StringTableEntry name, bool *entValid)
+{
+    Entry *ent = lookup(name);
+    if(ent)
+    {
+        if(entValid)
+            *entValid = true;
+        return ent->getIntValue();
+    }
+    if(entValid)
+        *entValid = false;
+
+    return 0;
+}
+
+F32 Dictionary::getFloatVariable(StringTableEntry name, bool *entValid)
+{
+    Entry *ent = lookup(name);
+    if(ent)
+    {
+        if(entValid)
+            *entValid = true;
+        return ent->getFloatValue();
+    }
+    if(entValid)
+        *entValid = false;
+
+    return 0;
+}
+
 void Dictionary::setVariable(StringTableEntry name, const char *value)
 {
    Entry *ent = add(name);
@@ -1268,7 +1298,7 @@ void Namespace::markGroup(const char* name, const char* usage)
 
 extern S32 executeBlock(StmtNode *block, ExprEvalState *state);
 
-const char *Namespace::Entry::execute(S32 argc, const char **argv, ExprEvalState *state)
+const char *Namespace::Entry::execute(S32 argc, ConsoleValue *argv, ExprEvalState *state)
 {
    if(mType == ConsoleFunctionType)
    {

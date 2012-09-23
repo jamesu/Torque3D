@@ -1347,8 +1347,11 @@ U32 FuncCallExprNode::precompile(TypeReq type)
       size++;
    precompileIdent(funcName);
    precompileIdent(nameSpace);
-   for(ExprNode *walk = args; walk; walk = (ExprNode *) walk->getNext())
-      size += walk->precompile(TypeReqString) + 1;
+   for(ExprNode *walk = args; walk; walk = (ExprNode *) walk->getNext()) {
+      TypeReq walkType = walk->getPreferredType();
+	  if (walkType == TypeReqNone) walkType = TypeReqString;
+      size += walk->precompile(walkType) + 1;
+   }
    return size + 5;
 }
 
@@ -1357,8 +1360,20 @@ U32 FuncCallExprNode::compile(U32 *codeStream, U32 ip, TypeReq type)
    codeStream[ip++] = OP_PUSH_FRAME;
    for(ExprNode *walk = args; walk; walk = (ExprNode *) walk->getNext())
    {
-      ip = walk->compile(codeStream, ip, TypeReqString);
-      codeStream[ip++] = OP_PUSH;
+      TypeReq walkType = walk->getPreferredType();
+	  if (walkType == TypeReqNone) walkType = TypeReqString;
+      ip = walk->compile(codeStream, ip, walkType);
+	  switch (walk->getPreferredType()) {
+            case TypeReqFloat:
+               codeStream[ip++] = OP_PUSH_FLT;
+               break;
+            case TypeReqUInt:
+               codeStream[ip++] = OP_PUSH_UINT;
+               break;
+            default:
+               codeStream[ip++] = OP_PUSH;
+               break;
+	  }
    }
    if(callType == MethodCall || callType == ParentCall)
       codeStream[ip++] = OP_CALLFUNC;
@@ -1729,8 +1744,11 @@ U32 ObjectDeclNode::precompileSubObject(bool)
 
    U32 argSize = 0;
    precompileIdent(parentObject);
-   for(ExprNode *exprWalk = argList; exprWalk; exprWalk = (ExprNode *) exprWalk->getNext())
-      argSize += exprWalk->precompile(TypeReqString) + 1;
+   for(ExprNode *exprWalk = argList; exprWalk; exprWalk = (ExprNode *) exprWalk->getNext()) {
+      TypeReq walkType = exprWalk->getPreferredType();
+	  if (walkType == TypeReqNone) walkType = TypeReqString;
+      argSize += exprWalk->precompile(walkType) + 1;
+   }
    argSize += classNameExpr->precompile(TypeReqString) + 1;
 
    U32 nameSize = objectNameExpr->precompile(TypeReqString) + 1;
@@ -1775,8 +1793,20 @@ U32 ObjectDeclNode::compileSubObject(U32 *codeStream, U32 ip, bool root)
    codeStream[ip++] = OP_PUSH;
    for(ExprNode *exprWalk = argList; exprWalk; exprWalk = (ExprNode *) exprWalk->getNext())
    {
-      ip = exprWalk->compile(codeStream, ip, TypeReqString);
-      codeStream[ip++] = OP_PUSH;
+      TypeReq walkType = exprWalk->getPreferredType();
+	  if (walkType == TypeReqNone) walkType = TypeReqString;
+      ip = exprWalk->compile(codeStream, ip, walkType);
+	  switch (exprWalk->getPreferredType()) {
+            case TypeReqFloat:
+               codeStream[ip++] = OP_PUSH_FLT;
+               break;
+            case TypeReqUInt:
+               codeStream[ip++] = OP_PUSH_UINT;
+               break;
+            default:
+               codeStream[ip++] = OP_PUSH;
+               break;
+	  }
    }
    codeStream[ip++] = OP_CREATE_OBJECT;
    codeStream[ip] = STEtoU32(parentObject, ip);

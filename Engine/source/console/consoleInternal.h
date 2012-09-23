@@ -151,7 +151,7 @@ class Namespace
          void clear();
 
          ///
-         const char *execute( S32 argc, const char** argv, ExprEvalState* state );
+         const char *execute( S32 argc, ConsoleValue* argv, ExprEvalState* state );
          
          /// Return a one-line documentation text string for the function.
          String getBriefDescription( String* outRemainingDocText = NULL ) const;
@@ -473,6 +473,9 @@ public:
 
     void setVariable(StringTableEntry name, const char *value);
     const char *getVariable(StringTableEntry name, bool *valid = NULL);
+    
+    S32 getIntVariable(StringTableEntry name, bool *valid = NULL);
+    F32 getFloatVariable(StringTableEntry name, bool *valid = NULL);
     
     U32 getCount() const
     {

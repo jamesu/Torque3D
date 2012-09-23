@@ -228,11 +228,11 @@ void SimSet::scriptSort( const String &scriptCallbackFn )
 
 //-----------------------------------------------------------------------------
 
-void SimSet::callOnChildren( const String &method, S32 argc, const char *argv[], bool executeOnChildGroups )
+void SimSet::callOnChildren( const String &method, S32 argc, ConsoleValue argv[], bool executeOnChildGroups )
 {
    // Prep the arguments for the console exec...
    // Make sure and leave args[1] empty.
-   const char* args[21];
+   ConsoleValue args[21];
    args[0] = method.c_str();
    for (S32 i = 0; i < argc; i++)
       args[i + 2] = argv[i];
@@ -834,7 +834,7 @@ SimGroup* SimGroup::deepClone()
 
 //-----------------------------------------------------------------------------
 
-bool SimGroup::processArguments(S32, const char **)
+bool SimGroup::processArguments(S32, ConsoleValue *argv)
 {
    return true;
 }

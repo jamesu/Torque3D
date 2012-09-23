@@ -34,6 +34,7 @@
 // Forward Refs
 class SimObject;
 class Semaphore;
+class ConsoleValue;
 
 /// Represents a queued event in the sim.
 ///
@@ -90,7 +91,7 @@ class SimConsoleEvent : public SimEvent
 {
 protected:
    S32 mArgc;
-   char **mArgv;
+   ConsoleValue *mArgv;
    bool mOnObject;
 public:
 
@@ -107,7 +108,7 @@ public:
    ///
    /// @see Con::execute(S32 argc, const char *argv[])
    /// @see Con::execute(SimObject *object, S32 argc, const char *argv[])
-   SimConsoleEvent(S32 argc, const char **argv, bool onObject);
+   SimConsoleEvent(S32 argc, ConsoleValue *argv, bool onObject);
 
    ~SimConsoleEvent();
    virtual void process(SimObject *object);
@@ -131,7 +132,7 @@ class SimConsoleThreadExecEvent : public SimConsoleEvent
    SimConsoleThreadExecCallback *cb;
 
 public:
-   SimConsoleThreadExecEvent(S32 argc, const char **argv, bool onObject, SimConsoleThreadExecCallback *callback);
+   SimConsoleThreadExecEvent(S32 argc, ConsoleValue *argv, bool onObject, SimConsoleThreadExecCallback *callback);
 
    virtual void process(SimObject *object);
 };

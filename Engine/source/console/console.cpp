@@ -1032,7 +1032,7 @@ const char *evaluatef(const char* string, ...)
    return newCodeBlock->compileExec(NULL, buffer, false, 0);
 }
 
-const char *execute(S32 argc, const char *argv[])
+const char *execute(S32 argc, ConsoleValue argv[])
 {
 #ifdef TORQUE_MULTITHREAD
    if(isMainThread())
@@ -1064,8 +1064,14 @@ const char *execute(S32 argc, const char *argv[])
 #endif
 }
 
+const char *execute(S32 argc, const char *argv[])
+{
+   StringStackConsoleWrapper args(argc, argv);
+   return execute(args.count(), args);
+}
+
 //------------------------------------------------------------------------------
-const char *execute(SimObject *object, S32 argc, const char *argv[], bool thisCallOnly)
+const char *execute(SimObject *object, S32 argc, ConsoleValue argv[], bool thisCallOnly)
 {
    static char idBuf[16];
    if(argc < 2)
@@ -1117,8 +1123,14 @@ const char *execute(SimObject *object, S32 argc, const char *argv[], bool thisCa
    return "";
 }
 
-#define B( a ) const char* a = NULL
-#define A const char*
+const char *execute(SimObject *object, S32 argc, const char *argv[], bool thisCallOnly)
+{
+   StringStackConsoleWrapper args(argc, argv);
+   return execute(object, args.count(), args, thisCallOnly);
+}
+
+#define B( a ) ConsoleValue *a = NULL
+#define A ConsoleValue*
 inline const char*_executef(SimObject *obj, S32 checkArgc, S32 argc, 
                             A a, B(b), B(c), B(d), B(e), B(f), B(g), B(h), B(i), B(j), B(k))
 {
@@ -1127,40 +1139,40 @@ inline const char*_executef(SimObject *obj, S32 checkArgc, S32 argc,
    const U32 maxArg = 12;
    AssertWarn(checkArgc == argc, "Incorrect arg count passed to Con::executef(SimObject*)");
    AssertFatal(argc <= maxArg - 1, "Too many args passed to Con::_executef(SimObject*). Please update the function to handle more.");
-   const char* argv[maxArg];
-   argv[0] = a;
-   argv[1] = a;
-   argv[2] = b;
-   argv[3] = c;
-   argv[4] = d;
-   argv[5] = e;
-   argv[6] = f;
-   argv[7] = g;
-   argv[8] = h;
-   argv[9] = i;
-   argv[10] = j;
-   argv[11] = k;
+   ConsoleValue argv[maxArg];
+   argv[0] = a ? *a : ConsoleValue();
+   argv[1] = a ? *a : ConsoleValue();
+   argv[2] = b ? *b : ConsoleValue();
+   argv[3] = c ? *c : ConsoleValue();
+   argv[4] = d ? *d : ConsoleValue();
+   argv[5] = e ? *e : ConsoleValue();
+   argv[6] = f ? *f : ConsoleValue();
+   argv[7] = g ? *g : ConsoleValue();
+   argv[8] = h ? *h : ConsoleValue();
+   argv[9] = i ? *i : ConsoleValue();
+   argv[10] = j ? *j : ConsoleValue();
+   argv[11] = k ? *k : ConsoleValue();
    return execute(obj, argc+1, argv);
 }
 
-#define A const char*
+#define A ConsoleValue
 #define OBJ SimObject* obj
-const char *executef(OBJ, A a)                                    { return _executef(obj, 1, 1, a); }
-const char *executef(OBJ, A a, A b)                               { return _executef(obj, 2, 2, a, b); }
-const char *executef(OBJ, A a, A b, A c)                          { return _executef(obj, 3, 3, a, b, c); }
-const char *executef(OBJ, A a, A b, A c, A d)                     { return _executef(obj, 4, 4, a, b, c, d); }
-const char *executef(OBJ, A a, A b, A c, A d, A e)                { return _executef(obj, 5, 5, a, b, c, d, e); }
-const char *executef(OBJ, A a, A b, A c, A d, A e, A f)           { return _executef(obj, 6, 6, a, b, c, d, e, f); }
-const char *executef(OBJ, A a, A b, A c, A d, A e, A f, A g)      { return _executef(obj, 7, 7, a, b, c, d, e, f, g); }
-const char *executef(OBJ, A a, A b, A c, A d, A e, A f, A g, A h) { return _executef(obj, 8, 8, a, b, c, d, e, f, g, h); }
-const char *executef(OBJ, A a, A b, A c, A d, A e, A f, A g, A h, A i) { return _executef(obj, 9, 9, a, b, c, d, e, f, g, h, i); }
-const char *executef(OBJ, A a, A b, A c, A d, A e, A f, A g, A h, A i, A j) { return _executef(obj,10,10, a, b, c, d, e, f, g, h, i, j); }
-const char *executef(OBJ, A a, A b, A c, A d, A e, A f, A g, A h, A i, A j, A k) { return _executef(obj,11,11, a, b, c, d, e, f, g, h, i, j, k); }
+const char *executef(OBJ, A a)                                    { return _executef(obj, 1, 1, &a); }
+const char *executef(OBJ, A a, A b)                               { return _executef(obj, 2, 2, &a, &b); }
+const char *executef(OBJ, A a, A b, A c)                          { return _executef(obj, 3, 3, &a, &b, &c); }
+const char *executef(OBJ, A a, A b, A c, A d)                     { return _executef(obj, 5, 5, &a, &b, &c, &d); }
+const char *executef(OBJ, A a, A b, A c, A d, A e)                { return _executef(obj, 5, 5, &a, &b, &c, &d, &e); }
+const char *executef(OBJ, A a, A b, A c, A d, A e, A f)           { return _executef(obj, 6, 6, &a, &b, &c, &d, &e, &f); }
+const char *executef(OBJ, A a, A b, A c, A d, A e, A f, A g)      { return _executef(obj, 7, 7, &a, &b, &c, &d, &e, &f, &g); }
+const char *executef(OBJ, A a, A b, A c, A d, A e, A f, A g, A h) { return _executef(obj, 8, 8, &a, &b, &c, &d, &e, &f, &g, &h); }
+const char *executef(OBJ, A a, A b, A c, A d, A e, A f, A g, A h, A i) { return _executef(obj, 9, 9, &a, &b, &c, &d, &e, &f, &g, &h, &i); }
+const char *executef(OBJ, A a, A b, A c, A d, A e, A f, A g, A h, A i, A j) { return _executef(obj,10,10, &a, &b, &c, &d, &e, &f, &g, &h, &i, &j); }
+const char *executef(OBJ, A a, A b, A c, A d, A e, A f, A g, A h, A i, A j, A k) { return _executef(obj,11,11, &a, &b, &c, &d, &e, &f, &g, &h, &i, &j, &k); }
 #undef A
 
 //------------------------------------------------------------------------------
-#define B( a ) const char* a = NULL
-#define A const char*
+#define B( a ) ConsoleValue* a = NULL
+#define A ConsoleValue*
 inline const char*_executef(S32 checkArgc, S32 argc, A a, B(b), B(c), B(d), B(e), B(f), B(g), B(h), B(i), B(j))
 {
 #undef A
@@ -1168,31 +1180,31 @@ inline const char*_executef(S32 checkArgc, S32 argc, A a, B(b), B(c), B(d), B(e)
    const U32 maxArg = 10;
    AssertFatal(checkArgc == argc, "Incorrect arg count passed to Con::executef()");
    AssertFatal(argc <= maxArg, "Too many args passed to Con::_executef(). Please update the function to handle more.");
-   const char* argv[maxArg];
-   argv[0] = a;
-   argv[1] = b;
-   argv[2] = c;
-   argv[3] = d;
-   argv[4] = e;
-   argv[5] = f;
-   argv[6] = g;
-   argv[7] = h;
-   argv[8] = i;
-   argv[9] = j;
+   ConsoleValue argv[maxArg];
+   argv[0] = a ? *a : ConsoleValue();
+   argv[1] = b ? *b : ConsoleValue();
+   argv[2] = c ? *c : ConsoleValue();
+   argv[3] = d ? *d : ConsoleValue();
+   argv[4] = e ? *e : ConsoleValue();
+   argv[5] = f ? *f : ConsoleValue();
+   argv[6] = g ? *g : ConsoleValue();
+   argv[7] = h ? *h : ConsoleValue();
+   argv[8] = i ? *i : ConsoleValue();
+   argv[9] = j ? *j : ConsoleValue();
    return execute(argc, argv);
 }
    
-#define A const char*
-const char *executef(A a)                                    { return _executef(1, 1, a); }
-const char *executef(A a, A b)                               { return _executef(2, 2, a, b); }
-const char *executef(A a, A b, A c)                          { return _executef(3, 3, a, b, c); }
-const char *executef(A a, A b, A c, A d)                     { return _executef(4, 4, a, b, c, d); }
-const char *executef(A a, A b, A c, A d, A e)                { return _executef(5, 5, a, b, c, d, e); }
-const char *executef(A a, A b, A c, A d, A e, A f)           { return _executef(6, 6, a, b, c, d, e, f); }
-const char *executef(A a, A b, A c, A d, A e, A f, A g)      { return _executef(7, 7, a, b, c, d, e, f, g); }
-const char *executef(A a, A b, A c, A d, A e, A f, A g, A h) { return _executef(8, 8, a, b, c, d, e, f, g, h); }
-const char *executef(A a, A b, A c, A d, A e, A f, A g, A h, A i) { return _executef(9, 9, a, b, c, d, e, f, g, h, i); }
-const char *executef(A a, A b, A c, A d, A e, A f, A g, A h, A i, A j) { return _executef(10,10,a, b, c, d, e, f, g, h, i, j); }
+#define A ConsoleValue
+const char *executef(A a)                                    { return _executef(1, 1, &a); }
+const char *executef(A a, A b)                               { return _executef(2, 2, &a, &b); }
+const char *executef(A a, A b, A c)                          { return _executef(3, 3, &a, &b, &c); }
+const char *executef(A a, A b, A c, A d)                     { return _executef(4, 4, &a, &b, &c, &d); }
+const char *executef(A a, A b, A c, A d, A e)                { return _executef(5, 5, &a, &b, &c, &d, &e); }
+const char *executef(A a, A b, A c, A d, A e, A f)           { return _executef(6, 6, &a, &b, &c, &d, &e, &f); }
+const char *executef(A a, A b, A c, A d, A e, A f, A g)      { return _executef(7, 7, &a, &b, &c, &d, &e, &f, &g); }
+const char *executef(A a, A b, A c, A d, A e, A f, A g, A h) { return _executef(8, 8, &a, &b, &c, &d, &e, &f, &g, &h); }
+const char *executef(A a, A b, A c, A d, A e, A f, A g, A h, A i) { return _executef(9, 9, &a, &b, &c, &d, &e, &f, &g, &h, &i); }
+const char *executef(A a, A b, A c, A d, A e, A f, A g, A h, A i, A j) { return _executef(10,10,&a, &b, &c, &d, &e, &f, &g, &h, &i, &j); }
 #undef A
 
 
@@ -1389,10 +1401,10 @@ StringTableEntry getModNameFromPath(const char *path)
 void postConsoleInput( RawData data )
 {
    // Schedule this to happen at the next time event.
-   char *argv[2];
+   ConsoleValue argv[2];
    argv[0] = "eval";
-   argv[1] = ( char* ) data.data;
-   Sim::postCurrentEvent(Sim::getRootGroup(), new SimConsoleEvent(2, const_cast<const char**>(argv), false));
+   argv[1] = ( const char* ) data.data;
+   Sim::postCurrentEvent(Sim::getRootGroup(), new SimConsoleEvent(2, argv, false));
 }
 
 //------------------------------------------------------------------------------
@@ -1455,3 +1467,205 @@ DefineEngineFunction( logWarning, void, ( const char* message ),,
 {
    Con::warnf( "%s", message );
 }
+
+
+ConsoleValue::ConsoleValue() : value(NULL)
+{
+}
+
+ConsoleValue::ConsoleValue(ConsoleValueStore *store)
+{
+   value = store;
+}
+
+ConsoleValue::ConsoleValue(const ConsoleValue &ref)
+{
+   *this = ref;
+}
+
+ConsoleValue::ConsoleValue(const char *newValue) : value(NULL)
+{
+   *this = newValue;
+}
+
+ConsoleValue::ConsoleValue(String &newValue) : value(NULL)
+{
+   *this = newValue;
+}
+
+ConsoleValue::ConsoleValue(S32 newValue) : value(NULL)
+{
+   *this = newValue;
+}
+
+ConsoleValue::ConsoleValue(F32 newValue) : value(NULL)
+{
+   *this = newValue;
+}
+
+ConsoleValue::ConsoleValue(F64 newValue) : value(NULL)
+{
+   *this = newValue;
+}
+
+
+ConsoleValue::~ConsoleValue()
+{
+   value = NULL;
+}
+
+// Note: operators replace value
+ConsoleValue& ConsoleValue::operator=(const ConsoleValue &newValue)
+{
+   value = newValue.value;
+   return *this;
+}
+
+void ConsoleValue::setValueStore(ConsoleValueStore *newValue)
+{
+   value = newValue;
+}
+
+ConsoleValue& ConsoleValue::operator=(const char *newValue)
+{
+   value = new ConsoleStringValue(newValue);
+   return *this;
+}
+
+ConsoleValue& ConsoleValue::operator=(String &newValue)
+{
+   value = new ConsoleStringValue(newValue);
+   return *this;
+}
+
+ConsoleValue& ConsoleValue::operator=(S32 newValue)
+{
+   value = new ConsoleIntValue(newValue);
+   return *this;
+}
+
+ConsoleValue& ConsoleValue::operator=(F32 newValue)
+{
+   value = new ConsoleFloatValue(newValue);
+   return *this;
+}
+
+ConsoleValue& ConsoleValue::operator=(F64 newValue)
+{
+   value = new ConsoleDoubleValue(newValue);
+   return *this;
+}
+
+
+ConsoleValueStore *ConsoleValue::unreferencedValue()
+{
+   return value ? value->cloneUnreferenced() : NULL;
+}
+
+
+StringStackWrapper::StringStackWrapper(int targc, ConsoleValue targv[])
+{
+   argv = new const char*[targc];
+   argc = targc;
+
+   for (int i=0; i<targc; i++) {
+      argv[i] = dStrdup(targv[i]);
+   }
+}
+
+StringStackWrapper::~StringStackWrapper()
+{
+   for (int i=0; i<argc; i++) {
+      dFree(argv[i]);
+   }
+   delete[] argv;
+}
+
+
+StringStackConsoleWrapper::StringStackConsoleWrapper(int targc, const char** targ)
+{
+   argv = new ConsoleValue[targc];
+   argc = targc;
+
+   for (int i=0; i<targc; i++) {
+      argv[i] = ConsoleValue(targ[i]);
+   }
+}
+
+StringStackConsoleWrapper::~StringStackConsoleWrapper()
+{
+   for (int i=0; i<argc; i++) {
+      argv[i] = NULL;
+   }
+   delete[] argv;
+}
+
+
+ConsoleReferencedValue::ConsoleReferencedValue(void *entry)
+{
+   dictionaryEntry = entry;
+}
+
+String& ConsoleReferencedValue::getClassStringValue()
+{
+   if (stringValue) delete stringValue;
+   stringValue = new String(((Dictionary::Entry*)dictionaryEntry)->getStringValue());
+   return *stringValue;
+}
+
+S32 ConsoleReferencedValue::getIntValue()
+{
+   return ((Dictionary::Entry*)dictionaryEntry)->getIntValue();
+}
+
+F32 ConsoleReferencedValue::getFloatValue()
+{
+   return ((Dictionary::Entry*)dictionaryEntry)->getFloatValue();
+}
+
+F64 ConsoleReferencedValue::getDoubleValue()
+{
+   return ((Dictionary::Entry*)dictionaryEntry)->getFloatValue();
+}
+
+ConsoleValueStore *ConsoleReferencedValue::clone()
+{
+   return new ConsoleReferencedValue(dictionaryEntry);
+}
+
+String& ConsoleStringValue::getClassStringValue() { return *stringValue; }
+const char *ConsoleStringValue::getStringValue() { return stringValue->utf8(); }
+S32 ConsoleStringValue::getIntValue() { return dAtoi(stringValue->utf8()); }
+F32 ConsoleStringValue::getFloatValue() { return dAtof(stringValue->utf8()); }
+F64 ConsoleStringValue::getDoubleValue() { return dAtof(stringValue->utf8()); }
+
+String& ConsoleFloatValue::getClassStringValue()
+{
+   if (!stringValue) {
+      char buffer[64];
+      dSprintf(buffer, 64, "%f", value);
+      stringValue = new String(buffer);
+   }
+   return *stringValue;
+}
+
+String& ConsoleDoubleValue::getClassStringValue()
+{
+   if (!stringValue) {
+      char buffer[64];
+      dSprintf(buffer, 64, "%f", value);
+      stringValue = new String(buffer);
+   }
+   return *stringValue;
+}
+
+String& ConsoleIntValue::getClassStringValue()
+{
+   if (!stringValue) {
+      char buffer[64];
+      dSprintf(buffer, 64, "%i", value);
+      stringValue = new String(buffer);
+   }
+   return *stringValue;
+}
+

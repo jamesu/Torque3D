@@ -20,22 +20,170 @@
 // IN THE SOFTWARE.
 //-----------------------------------------------------------------------------
 
+#include "console/consoleInternal.h"
 #include "console/stringStack.h"
 
-void StringStack::getArgcArgv(StringTableEntry name, U32 *argc, const char ***in_argv, bool popStackFrame /* = false */)
-{
-   U32 startStack = mFrameOffsets[mNumFrames-1] + 1;
-   U32 argCount   = getMin(mStartStackSize - startStack, (U32)MaxArgs - 1);
 
-   *in_argv = mArgV;
-   mArgV[0] = name;
+void ConsoleValueStack::getArgcArgv(StringTableEntry name, U32 *argc, ConsoleValue **in_argv, bool popStackFrame /* = false */)
+{
+   U32 startStack = mStackFrames[mFrame-1];
+   U32 argCount   = getMin(mStackPos - startStack, (U32)MaxArgs - 1);
+
+   *in_argv = mArgv;
+   mArgv[0] = name;
    
    for(U32 i = 0; i < argCount; i++)
-      mArgV[i+1] = mBuffer + mStartOffsets[startStack + i];
+      mArgv[i+1] = mStack[startStack + i];
    argCount++;
    
    *argc = argCount;
 
    if(popStackFrame)
       popFrame();
+}
+
+ConsoleValueStack::ConsoleValueStack() : 
+mFrame(0),
+mStackPos(0)
+{
+}
+
+ConsoleValueStack::~ConsoleValueStack()
+{
+}
+
+void ConsoleValueStack::push(Dictionary::Entry *variable)
+{
+	if (mStackPos == ConsoleValueStack::MaxStackDepth) {
+		AssertFatal(false, "Console Value Stack is empty");
+		return;
+	}
+
+	switch (variable->type)
+	{
+	case Dictionary::Entry::TypeInternalInt:
+		mStack[mStackPos++] = (S32)variable->getIntValue();
+	case Dictionary::Entry::TypeInternalFloat:
+		mStack[mStackPos++] = (F32)variable->getFloatValue();
+	default:
+		mStack[mStackPos++] = variable->getStringValue();
+	}
+}
+
+void ConsoleValueStack::push(ConsoleValue &value)
+{
+	if (mStackPos == ConsoleValueStack::MaxStackDepth) {
+		AssertFatal(false, "Console Value Stack is empty");
+		return;
+	}
+
+	mStack[mStackPos++] = value;
+}
+
+static ConsoleValue gNothing(0);
+static ConsoleValue gPop(0);
+ConsoleValue& ConsoleValueStack::pop()
+{
+	if (mStackPos == 0) {
+		AssertFatal(false, "Console Value Stack is empty");
+		return gNothing;
+	}
+
+	gPop = mStack[mStackPos-1];
+	mStack[mStackPos-1] = 0;
+	mStackPos--;
+	return gPop;
+}
+
+void ConsoleValueStack::pushFrame()
+{
+	//Con::printf("CSTK pushFrame");
+	mStackFrames[mFrame++] = mStackPos;
+}
+
+void ConsoleValueStack::popFrame()
+{
+	//Con::printf("CSTK popFrame");
+	if (mFrame == 0)
+		return;
+
+	U32 start = mStackFrames[mFrame-1];
+	for (U32 i=start; i<mStackPos; i++) {
+		mStack[i] = ConsoleValue();
+	}
+	mStackPos = start;
+	mFrame--;
+}
+
+ConsoleValueStack::ConsoleValueStack() :
+mFrame(0),
+mStackPos(0)
+{
+}
+
+ConsoleValueStack::~ConsoleValueStack()
+{
+}
+
+void ConsoleValueStack::push(Dictionary::Entry *variable)
+{
+	if (mStackPos == ConsoleValueStack::MaxStackDepth) {
+		AssertFatal(false, "Console Value Stack is empty");
+		return;
+	}
+
+	switch (variable->type)
+	{
+	case Dictionary::Entry::TypeInternalInt:
+		mStack[mStackPos++] = (S32)variable->getIntValue();
+	case Dictionary::Entry::TypeInternalFloat:
+		mStack[mStackPos++] = (F32)variable->getFloatValue();
+	default:
+		mStack[mStackPos++] = variable->getStringValue();
+	}
+}
+
+void ConsoleValueStack::push(ConsoleValue &value)
+{
+	if (mStackPos == ConsoleValueStack::MaxStackDepth) {
+		AssertFatal(false, "Console Value Stack is empty");
+		return;
+	}
+
+	mStack[mStackPos++] = value;
+}
+
+static ConsoleValue gNothing(0);
+static ConsoleValue gPop(0);
+ConsoleValue& ConsoleValueStack::pop()
+{
+	if (mStackPos == 0) {
+		AssertFatal(false, "Console Value Stack is empty");
+		return gNothing;
+	}
+
+	gPop = mStack[mStackPos-1];
+	mStack[mStackPos-1] = 0;
+	mStackPos--;
+	return gPop;
+}
+
+void ConsoleValueStack::pushFrame()
+{
+	//Con::printf("CSTK pushFrame");
+	mStackFrames[mFrame++] = mStackPos;
+}
+
+void ConsoleValueStack::popFrame()
+{
+	//Con::printf("CSTK popFrame");
+	if (mFrame == 0)
+		return;
+
+	U32 start = mStackFrames[mFrame-1];
+	for (U32 i=start; i<mStackPos; i++) {
+		mStack[i] = ConsoleValue();
+	}
+	mStackPos = start;
+	mFrame--;
 }
