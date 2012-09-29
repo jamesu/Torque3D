@@ -405,7 +405,7 @@ static void setFieldComponent( SimObject* object, StringTableEntry field, const 
    }
 }
 
-const char *CodeBlock::exec(U32 ip, const char *functionName, Namespace *thisNamespace, U32 argc, ConsoleValue *argv, bool noCalls, StringTableEntry packageName, S32 setFrame)
+ConsoleValueRef CodeBlock::exec(U32 ip, const char *functionName, Namespace *thisNamespace, U32 argc, ConsoleValueRef *argv, bool noCalls, StringTableEntry packageName, S32 setFrame)
 {
 #ifdef TORQUE_DEBUG
    U32 stackStart = STR.mStartStackSize;
@@ -413,7 +413,7 @@ const char *CodeBlock::exec(U32 ip, const char *functionName, Namespace *thisNam
 #endif
 
    static char traceBuffer[1024];
-   U32 i;
+   S32 i;
    
    U32 iterDepth = 0;
 
@@ -429,7 +429,7 @@ const char *CodeBlock::exec(U32 ip, const char *functionName, Namespace *thisNam
       // assume this points into a function decl:
       U32 fnArgc = code[ip + 5];
       thisFunctionName = U32toSTE(code[ip]);
-      argc = getMin(argc-1, fnArgc); // argv[0] is func name
+      S32 wantedArgc = getMin(argc-1, fnArgc); // argv[0] is func name
       if(gEvalState.traceOn)
       {
          traceBuffer[0] = 0;
@@ -461,10 +461,13 @@ const char *CodeBlock::exec(U32 ip, const char *functionName, Namespace *thisNam
       }
       gEvalState.pushFrame(thisFunctionName, thisNamespace);
       popFrame = true;
-      for(i = 0; i < argc; i++)
+
+      for(i = 0; i < wantedArgc; i++)
       {
          StringTableEntry var = U32toSTE(code[ip + i + 6]);
          gEvalState.setCurVarNameCreate(var);
+
+		 ConsoleValueRef ref = argv[i+1];
 
 		 if (argv[i+1].isString())
 			gEvalState.setStringVariable(argv[i+1]);
@@ -510,6 +513,11 @@ const char *CodeBlock::exec(U32 ip, const char *functionName, Namespace *thisNam
       }
    }
 
+   // jamesu - reset the console stack frame which at this point will contain 
+   // either nothing or argv[] which we just copied
+   // NOTE: it might be better to do this when we are finished?
+   CSTK.resetFrame();
+
    // Grab the state of the telenet debugger here once
    // so that the push and pop frames are always balanced.
    const bool telDebuggerOn = TelDebugger && TelDebugger->isConnected();
@@ -543,7 +551,7 @@ const char *CodeBlock::exec(U32 ip, const char *functionName, Namespace *thisNam
    char nsDocBlockClass[nsDocLength];
 
    U32 callArgc;
-   ConsoleValue *callArgv;
+   ConsoleValueRef *callArgv;
 
    static char curFieldArray[256];
    static char prevFieldArray[256];
@@ -556,6 +564,10 @@ const char *CodeBlock::exec(U32 ip, const char *functionName, Namespace *thisNam
       Con::gCurrentRoot = this->modPath;
    }
    const char * val;
+   const char *retValue;
+
+    // note: anything returned is pushed to CSTK and will be invalidated on the next exec()
+   ConsoleValueRef returnValue;
 
    // The frame temp is used by the variable accessor ops (OP_SAVEFIELD_* and
    // OP_LOADFIELD_*) to store temporary values for the fields.
@@ -629,7 +641,7 @@ breakContinue:
 
             // Get the constructor information off the stack.
             CSTK.getArgcArgv(NULL, &callArgc, &callArgv);
-            ConsoleValue objectName = callArgv[ 2 ];
+            const char *objectName = callArgv[ 2 ];
 
             // Con::printf("Creating object...");
 
@@ -643,10 +655,10 @@ breakContinue:
                // Con::printf("  - is a datablock");
 
                // Find the old one if any.
-               SimObject *db = Sim::getDataBlockGroup()->findObject( (const char*)objectName );
+               SimObject *db = Sim::getDataBlockGroup()->findObject( objectName );
                
                // Make sure we're not changing types on ourselves...
-               if(db && dStricmp(db->getClassName(),  (const char*)callArgv[1]))
+               if(db && dStricmp(db->getClassName(), callArgv[1]))
                {
                   Con::errorf(ConsoleLogEntry::General, "%s: Cannot re-declare data block %s with a different class.", getFileLine(ip), objectName);
                   ip = failJump;
@@ -694,19 +706,19 @@ breakContinue:
                         // string stack and may get stomped if deleteObject triggers
                         // script execution.
                         
-                        ConsoleValue savedArgv[ StringStack::MaxArgs ];
-						for (int i=0; i<callArgc; i++) {
-							savedArgv[i] = callArgv[i];
-						}
+                        ConsoleValueRef savedArgv[ StringStack::MaxArgs ];
+                        for (int i=0; i<callArgc; i++) {
+                           savedArgv[i] = callArgv[i];
+                        }
                         //dMemcpy( savedArgv, callArgv, sizeof( savedArgv[ 0 ] ) * callArgc );
                         
                         obj->deleteObject();
                         obj = NULL;
 
                         //dMemcpy( callArgv, savedArgv, sizeof( callArgv[ 0 ] ) * callArgc );
-						for (int i=0; i<callArgc; i++) {
-							callArgv[i] = savedArgv[i];
-						}
+                        for (int i=0; i<callArgc; i++) {
+                           callArgv[i] = savedArgv[i];
+                        }
                      }
                      else if( dStricmp( redefineBehavior, "renameNew" ) == 0 )
                      {
@@ -1052,6 +1064,29 @@ breakContinue:
       		// We're falling thru here on purpose.
             
          case OP_RETURN:
+			retValue = STR.getStringValue();
+
+            if( iterDepth > 0 )
+            {
+               // Clear iterator state.
+               while( iterDepth > 0 )
+               {
+                  iterStack[ -- _ITER ].mIsStringIter = false;
+                  -- iterDepth;
+               }
+
+               STR.rewind();
+               STR.setStringValue( retValue ); // Not nice but works.
+			   retValue = STR.getStringValue();
+            }
+
+			// Previously the return value was on the stack and would be returned using STR.getStringValue().
+			// Now though we need to wrap it in a ConsoleValueRef 
+			returnValue.value = CSTK.pushStackString(retValue);
+               
+            goto execFinished;
+
+         case OP_RETURN_FLT:
          
             if( iterDepth > 0 )
             {
@@ -1062,10 +1097,27 @@ breakContinue:
                   -- iterDepth;
                }
                
-               const char* returnValue = STR.getStringValue();
-               STR.rewind();
-               STR.setStringValue( returnValue ); // Not nice but works.
             }
+
+            returnValue.value = CSTK.pushFLT(floatStack[_FLT]);
+            _FLT--;
+               
+            goto execFinished;
+
+         case OP_RETURN_UINT:
+         
+            if( iterDepth > 0 )
+            {
+               // Clear iterator state.
+               while( iterDepth > 0 )
+               {
+                  iterStack[ -- _ITER ].mIsStringIter = false;
+                  -- iterDepth;
+               }
+            }
+
+			returnValue.value = CSTK.pushUINT(intStack[_UINT]);
+			_UINT--;
                
             goto execFinished;
             
@@ -1655,13 +1707,30 @@ breakContinue:
             }
             if(nsEntry->mType == Namespace::Entry::ConsoleFunctionType)
             {
-               const char *ret = "";
+               ConsoleValueRef ret;
                if(nsEntry->mFunctionOffset)
                   ret = nsEntry->mCode->exec(nsEntry->mFunctionOffset, fnName, nsEntry->mNamespace, callArgc, callArgv, false, nsEntry->mPackage);
-               
-               STR.popFrame();
+
+			   STR.popFrame();
+			   // Functions are assumed to return strings, so look ahead to see if we can skip the conversion
+			   if(code[ip] == OP_STR_TO_UINT)
+               {
+                  ip++;
+                  intStack[++_UINT] = (U32)((S32)ret);
+               }
+               else if(code[ip] == OP_STR_TO_FLT)
+               {
+                  ip++;
+                  floatStack[++_FLT] = (F32)ret;
+               }
+               else if(code[ip] == OP_STR_TO_NONE)
+                  ip++;
+               else
+                  STR.setStringValue((const char*)ret);
+			   
+			   // This will clear everything including returnValue
 			   CSTK.popFrame();
-               STR.setStringValue(ret);
+			   STR.clearFunctionOffset();
             }
             else
             {
@@ -1814,16 +1883,16 @@ breakContinue:
          case OP_PUSH:
 			STR.push();
 			//Con::printf("Pushing str: %s",STR.getPreviousStringValue());
-            CSTK.push(ConsoleValue(STR.getPreviousStringValue()));
+            CSTK.pushString(STR.getPreviousStringValue());
             break;
          case OP_PUSH_UINT:
 			//Con::printf("Pushing int: %i",(S32)intStack[_UINT]);
-            CSTK.push(ConsoleValue((S32)intStack[_UINT]));
+            CSTK.pushUINT(intStack[_UINT]);
 			_UINT--;
             break;
          case OP_PUSH_FLT:
 			//Con::printf("Pushing float: %f",(F32)intStack[_UINT]);
-            CSTK.push(ConsoleValue((F32)floatStack[_FLT]));
+            CSTK.pushFLT(floatStack[_FLT]);
 			_FLT--;
             break;
 
@@ -2060,7 +2129,8 @@ execFinished:
    AssertFatal(!(STR.mStartStackSize > stackStart), "String stack not popped enough in script exec");
    AssertFatal(!(STR.mStartStackSize < stackStart), "String stack popped too much in script exec");
 #endif
-   return STR.getStringValue();
+
+   return returnValue;
 }
 
 //------------------------------------------------------------

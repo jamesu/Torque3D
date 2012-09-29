@@ -83,6 +83,8 @@ public:
    virtual void process(SimObject *object)=0;
 };
 
+class ConsoleValueRef;
+
 /// Implementation of schedule() function.
 ///
 /// This allows you to set a console function to be
@@ -91,7 +93,7 @@ class SimConsoleEvent : public SimEvent
 {
 protected:
    S32 mArgc;
-   ConsoleValue *mArgv;
+   ConsoleValueRef *mArgv;
    bool mOnObject;
 public:
 
@@ -108,7 +110,7 @@ public:
    ///
    /// @see Con::execute(S32 argc, const char *argv[])
    /// @see Con::execute(SimObject *object, S32 argc, const char *argv[])
-   SimConsoleEvent(S32 argc, ConsoleValue *argv, bool onObject);
+   SimConsoleEvent(S32 argc, ConsoleValueRef *argv, bool onObject);
 
    ~SimConsoleEvent();
    virtual void process(SimObject *object);
@@ -132,7 +134,7 @@ class SimConsoleThreadExecEvent : public SimConsoleEvent
    SimConsoleThreadExecCallback *cb;
 
 public:
-   SimConsoleThreadExecEvent(S32 argc, ConsoleValue *argv, bool onObject, SimConsoleThreadExecCallback *callback);
+   SimConsoleThreadExecEvent(S32 argc, ConsoleValueRef *argv, bool onObject, SimConsoleThreadExecCallback *callback);
 
    virtual void process(SimObject *object);
 };

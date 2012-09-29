@@ -119,7 +119,7 @@ void DynamicConsoleMethodComponent::injectMethodCall( const char* method )
 }
 #endif
 
-const char* DynamicConsoleMethodComponent::callMethodArgList( U32 argc, ConsoleValue argv[], bool callThis /* = true  */ )
+const char* DynamicConsoleMethodComponent::callMethodArgList( U32 argc, ConsoleValueRef argv[], bool callThis /* = true  */ )
 {
 #ifdef TORQUE_DEBUG
    injectMethodCall( argv[0] );
@@ -130,7 +130,7 @@ const char* DynamicConsoleMethodComponent::callMethodArgList( U32 argc, ConsoleV
 
 // Call all components that implement methodName giving them a chance to operate
 // Components are called in reverse order of addition
-const char *DynamicConsoleMethodComponent::_callMethod( U32 argc, ConsoleValue argv[], bool callThis /* = true  */ )
+const char *DynamicConsoleMethodComponent::_callMethod( U32 argc, ConsoleValueRef argv[], bool callThis /* = true  */ )
 {
    // Set Owner
    SimObject *pThis = dynamic_cast<SimObject *>( this );

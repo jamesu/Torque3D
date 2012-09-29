@@ -76,7 +76,7 @@ extern "C" {
       if (!entry)
          return "";
 
-      ConsoleValue argv[] = {"consoleExportXML"};
+      ConsoleValueRef argv[] = {"consoleExportXML"};
 
       return entry->cb.mStringCallbackFunc(NULL, 1, argv);      
    }

@@ -295,14 +295,21 @@ public:
 	ConsoleValueStack();
 	~ConsoleValueStack();
 
-	void push(Dictionary::Entry *variable);
-	void push(ConsoleValue &value);
-	ConsoleValue& pop();
+	void pushVar(ConsoleValue *variable);
+	void pushValue(ConsoleValue &value);
+	ConsoleValue* pop();
+
+    ConsoleValue *pushString(const char *value);
+    ConsoleValue *pushStackString(const char *value);
+    ConsoleValue *pushUINT(U32 value);
+    ConsoleValue *pushFLT(float value);
 
 	void pushFrame();
 	void popFrame();
 
-    void getArgcArgv(StringTableEntry name, U32 *argc, ConsoleValue **in_argv, bool popStackFrame = false);
+	void resetFrame();
+
+    void getArgcArgv(StringTableEntry name, U32 *argc, ConsoleValueRef **in_argv, bool popStackFrame = false);
 
 	ConsoleValue mStack[MaxStackDepth];
 	U32 mStackFrames[MaxStackDepth];
@@ -310,7 +317,7 @@ public:
 	U32 mFrame;
 	U32 mStackPos;
 
-	ConsoleValue mArgv[MaxArgs];
+	ConsoleValueRef mArgv[MaxArgs];
 };
 
 #endif

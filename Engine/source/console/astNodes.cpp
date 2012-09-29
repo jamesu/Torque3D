@@ -236,7 +236,14 @@ U32 ExprNode::compileStmt(U32 *codeStream, U32 ip, U32, U32)
 U32 ReturnStmtNode::precompileStmt(U32)
 {
    addBreakCount();
-   return 1 + (expr ? expr->precompile(TypeReqString) : 0);
+   U32 size = 0;
+   if (expr) {
+      TypeReq walkType = expr->getPreferredType();
+	  if (walkType == TypeReqNone) walkType = TypeReqString;
+      size = expr->precompile(walkType);
+   }
+
+   return 1 + size;
 }
 
 U32 ReturnStmtNode::compileStmt(U32 *codeStream, U32 ip, U32, U32)
@@ -246,8 +253,22 @@ U32 ReturnStmtNode::compileStmt(U32 *codeStream, U32 ip, U32, U32)
       codeStream[ip++] = OP_RETURN_VOID;
    else
    {
-      ip = expr->compile(codeStream, ip, TypeReqString);
-      codeStream[ip++] = OP_RETURN;
+      TypeReq walkType = expr->getPreferredType();
+	  if (walkType == TypeReqNone) walkType = TypeReqString;
+      ip = expr->compile(codeStream, ip, walkType);
+
+	  // Return the correct type
+	  switch (walkType) {
+	  case TypeReqUInt:
+		codeStream[ip++] = OP_RETURN_UINT;
+		break;
+	  case TypeReqFloat:
+		codeStream[ip++] = OP_RETURN_FLT;
+		break;
+	  default:
+		codeStream[ip++] = OP_RETURN;
+		break;
+	  }
    }
    return ip;
 }

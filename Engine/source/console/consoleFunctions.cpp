@@ -2399,7 +2399,7 @@ ConsoleFunction( pushInstantGroup, void, 1, 2, "([group])"
 				"@internal")
 {
    if( argc > 1 )
-      Con::pushInstantGroup( argv[ 1 ] );
+      Con::pushInstantGroup( (const char*)argv[ 1 ] );
    else
       Con::pushInstantGroup();
 }

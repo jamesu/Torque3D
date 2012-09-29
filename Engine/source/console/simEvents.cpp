@@ -28,21 +28,25 @@
 // Stupid globals not declared in a header
 extern ExprEvalState gEvalState;
 
-SimConsoleEvent::SimConsoleEvent(S32 argc, ConsoleValue *argv, bool onObject)
+SimConsoleEvent::SimConsoleEvent(S32 argc, ConsoleValueRef *argv, bool onObject)
 {
    mOnObject = onObject;
    mArgc = argc;
 
-   mArgv = new ConsoleValue[argc];
+   mArgv = new ConsoleValueRef[argc];
    for (int i=0; i<argc; i++) {
-	   mArgv[i] = mArgv[i].unreferencedValue();
+	  mArgv[i].value = new ConsoleValue();
+	  mArgv[i].value->type = ConsoleValue::TypeInternalString;
+	  mArgv[i].value->init();
+      mArgv[i].value->setStringValue((const char*)argv[i]);
    }
 }
 
 SimConsoleEvent::~SimConsoleEvent()
 {
-   for (int i=0; i<mArgc; i++)
-      mArgv[i] = ConsoleValue();
+   for (int i=0; i<mArgc; i++) {
+      delete mArgv[i].value;
+   }
    delete[] mArgv;
 }
 
@@ -116,7 +120,7 @@ const char *SimConsoleThreadExecCallback::waitForResult()
 
 //-----------------------------------------------------------------------------
 
-SimConsoleThreadExecEvent::SimConsoleThreadExecEvent(S32 argc, ConsoleValue *argv, bool onObject, SimConsoleThreadExecCallback *callback) :
+SimConsoleThreadExecEvent::SimConsoleThreadExecEvent(S32 argc, ConsoleValueRef *argv, bool onObject, SimConsoleThreadExecCallback *callback) :
    SimConsoleEvent(argc, argv, onObject), cb(callback)
 {
 }
