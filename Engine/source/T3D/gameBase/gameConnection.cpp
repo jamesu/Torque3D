@@ -431,7 +431,7 @@ bool GameConnection::readConnectRequest(BitStream *stream, const char **errorStr
       *errorString = "CR_INVALID_ARGS";
       return false;
    }
-   const char *connectArgv[MaxConnectArgs + 3];
+   ConsoleValueRef connectArgv[MaxConnectArgs + 3];
    for(U32 i = 0; i < mConnectArgc; i++)
    {
       char argString[256];

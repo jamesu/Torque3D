@@ -914,7 +914,7 @@ const char *getObjectTokenField(const char *name)
    const char *dot = dStrchr(name, '.');
    if(name[0] != '$' && dot)
    {
-      S32 len = dot - name;
+      S32 len = dStrlen(name);
       AssertFatal(len < sizeof(scratchBuffer)-1, "Sim::getVariable - object name too long");
       dMemcpy(scratchBuffer, name, len+1);
 
@@ -923,7 +923,7 @@ const char *getObjectTokenField(const char *name)
       if(!obj)
          return("");
 
-      token = dStrtok(0, ".");
+      token = dStrtok(0, ".\0");
       if(!token)
          return("");
 
@@ -1185,7 +1185,7 @@ const char *execute(S32 argc, const char *argv[])
 const char *execute(SimObject *object, S32 argc, ConsoleValueRef argv[], bool thisCallOnly)
 {
    //static char idBuf[16];
-   if(argc < 1) // jamesu - argc == argc
+   if(argc < 2)
       return "";
 
    // [neo, 10/05/2007 - #3010]
@@ -1194,15 +1194,21 @@ const char *execute(SimObject *object, S32 argc, ConsoleValueRef argv[], bool th
    if( !thisCallOnly )
    {
       ICallMethod *com = dynamic_cast<ICallMethod *>(object);
-      if(com)
+      if(com) {
+         STR.pushFrame();
+         CSTK.pushFrame();
          com->callMethodArgList(argc, argv, false);
+         STR.popFrame();
+         CSTK.popFrame();
+	  }
    }
 
    if(object->getNamespace())
    {
-      //dSprintf(idBuf, sizeof(idBuf), "%d", object->getId());
+	  ConsoleValueRef internalArgv[StringStack::MaxArgs];
+
 	  U32 ident = object->getId();
-      argv[1] = (S32)ident;
+	  ConsoleValueRef oldIdent = argv[1];
 
       StringTableEntry funcName = StringTable->insert(argv[0]);
       Namespace::Entry *ent = object->getNamespace()->lookup(funcName);
@@ -1219,9 +1225,7 @@ const char *execute(SimObject *object, S32 argc, ConsoleValueRef argv[], bool th
       }
 
       // Twiddle %this argument
-      //const char *oldArg1 = argv[1];
-      //dSprintf(idBuf, sizeof(idBuf), "%d", object->getId());
-      //argv[1] = idBuf;
+	  argv[1] = (S32)ident;
 
       SimObject *save = gEvalState.thisObject;
       gEvalState.thisObject = object;
@@ -1229,7 +1233,7 @@ const char *execute(SimObject *object, S32 argc, ConsoleValueRef argv[], bool th
       gEvalState.thisObject = save;
 
       // Twiddle it back
-      //argv[1] = oldArg1;
+      argv[1] = oldIdent;
 
       return ret;
    }
@@ -1253,17 +1257,17 @@ inline const char*_executef(SimObject *obj, S32 checkArgc, S32 argc, ConsoleValu
 
 #define A ConsoleValueRef
 #define OBJ SimObject* obj
-const char *executef(OBJ, A a)                                    { ConsoleValueRef params[] = {a}; return _executef(obj, 1, 1, params); }
-const char *executef(OBJ, A a, A b)                               { ConsoleValueRef params[] = {a,b}; return _executef(obj, 2, 2, params); }
-const char *executef(OBJ, A a, A b, A c)                          { ConsoleValueRef params[] = {a,b,c}; return _executef(obj, 3, 3, params); }
-const char *executef(OBJ, A a, A b, A c, A d)                     { ConsoleValueRef params[] = {a,b,c,d}; return _executef(obj, 4, 4, params); }
-const char *executef(OBJ, A a, A b, A c, A d, A e)                { ConsoleValueRef params[] = {a,b,c,d,e}; return _executef(obj, 5, 5, params); }
-const char *executef(OBJ, A a, A b, A c, A d, A e, A f)           { ConsoleValueRef params[] = {a,b,c,d,e,f}; return _executef(obj, 6, 6, params); }
-const char *executef(OBJ, A a, A b, A c, A d, A e, A f, A g)      { ConsoleValueRef params[] = {a,b,c,d,e,f,g}; return _executef(obj, 7, 7, params); }
-const char *executef(OBJ, A a, A b, A c, A d, A e, A f, A g, A h) { ConsoleValueRef params[] = {a,b,c,d,e,f,g,h}; return _executef(obj, 8, 8, params); }
-const char *executef(OBJ, A a, A b, A c, A d, A e, A f, A g, A h, A i) { ConsoleValueRef params[] = {a,b,c,d,e,f,g,h,i}; return _executef(obj, 9, 9, params); }
-const char *executef(OBJ, A a, A b, A c, A d, A e, A f, A g, A h, A i, A j) { ConsoleValueRef params[] = {a,b,c,d,e,f,g,h,i,j}; return _executef(obj, 10, 10, params); }
-const char *executef(OBJ, A a, A b, A c, A d, A e, A f, A g, A h, A i, A j, A k) { ConsoleValueRef params[] = {a,b,c,d,e,f,g,h,i,j,k}; return _executef(obj, 11, 11, params); }
+const char *executef(OBJ, A a)                                    { ConsoleValueRef params[] = {a,ConsoleValueRef()}; return _executef(obj, 2, 2, params); }
+const char *executef(OBJ, A a, A b)                               { ConsoleValueRef params[] = {a,ConsoleValueRef(),b}; return _executef(obj, 3, 3, params); }
+const char *executef(OBJ, A a, A b, A c)                          { ConsoleValueRef params[] = {a,ConsoleValueRef(),b,c}; return _executef(obj, 4, 4, params); }
+const char *executef(OBJ, A a, A b, A c, A d)                     { ConsoleValueRef params[] = {a,ConsoleValueRef(),b,c,d}; return _executef(obj, 5, 5, params); }
+const char *executef(OBJ, A a, A b, A c, A d, A e)                { ConsoleValueRef params[] = {a,ConsoleValueRef(),b,c,d,e}; return _executef(obj, 6, 6, params); }
+const char *executef(OBJ, A a, A b, A c, A d, A e, A f)           { ConsoleValueRef params[] = {a,ConsoleValueRef(),b,c,d,e,f}; return _executef(obj, 7, 7, params); }
+const char *executef(OBJ, A a, A b, A c, A d, A e, A f, A g)      { ConsoleValueRef params[] = {a,ConsoleValueRef(),b,c,d,e,f,g}; return _executef(obj, 8, 8, params); }
+const char *executef(OBJ, A a, A b, A c, A d, A e, A f, A g, A h) { ConsoleValueRef params[] = {a,ConsoleValueRef(),b,c,d,e,f,g,h}; return _executef(obj, 9, 9, params); }
+const char *executef(OBJ, A a, A b, A c, A d, A e, A f, A g, A h, A i) { ConsoleValueRef params[] = {a,ConsoleValueRef(),b,c,d,e,f,g,h,i}; return _executef(obj, 10, 10, params); }
+const char *executef(OBJ, A a, A b, A c, A d, A e, A f, A g, A h, A i, A j) { ConsoleValueRef params[] = {a,ConsoleValueRef(),b,c,d,e,f,g,h,i,j}; return _executef(obj, 11, 11, params); }
+const char *executef(OBJ, A a, A b, A c, A d, A e, A f, A g, A h, A i, A j, A k) { ConsoleValueRef params[] = {a,ConsoleValueRef(),b,c,d,e,f,g,h,i,j,k}; return _executef(obj, 12, 12, params); }
 
 //------------------------------------------------------------------------------
 inline const char*_executef(S32 checkArgc, S32 argc, ConsoleValueRef *argv)

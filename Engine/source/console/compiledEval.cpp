@@ -712,8 +712,18 @@ breakContinue:
                         }
                         //dMemcpy( savedArgv, callArgv, sizeof( savedArgv[ 0 ] ) * callArgc );
                         
+						// Prevent stack value corruption
+						CSTK.pushFrame();
+						STR.pushFrame();
+						// --
+
                         obj->deleteObject();
                         obj = NULL;
+
+						// Prevent stack value corruption
+						CSTK.popFrame();
+						STR.popFrame();
+						// --
 
                         //dMemcpy( callArgv, savedArgv, sizeof( callArgv[ 0 ] ) * callArgc );
                         for (int i=0; i<callArgc; i++) {
@@ -857,14 +867,29 @@ breakContinue:
                   currentNewObject->setOriginalName( objectName );
                }
 
+			   // Prevent stack value corruption
+			   CSTK.pushFrame();
+			   STR.pushFrame();
+			   // --
+
                // Do the constructor parameters.
                if(!currentNewObject->processArguments(callArgc-3, callArgv+3))
                {
                   delete currentNewObject;
                   currentNewObject = NULL;
                   ip = failJump;
+
+                  // Prevent stack value corruption
+                  CSTK.popFrame();
+                  STR.popFrame();
+                  // --
                   break;
                }
+
+               // Prevent stack value corruption
+               CSTK.popFrame();
+               STR.popFrame();
+               // --
 
                // If it's not a datablock, allow people to modify bits of it.
                if(!isDataBlock)
@@ -890,6 +915,11 @@ breakContinue:
 
             // Con::printf("Adding object %s", currentNewObject->getName());
 
+            // Prevent stack value corruption
+            CSTK.pushFrame();
+            STR.pushFrame();
+            // --
+
             // Make sure it wasn't already added, then add it.
             if(currentNewObject->isProperlyAdded() == false)
             {
@@ -913,6 +943,10 @@ breakContinue:
                   Con::warnf(ConsoleLogEntry::General, "%s: Register object failed for object %s of class %s.", getFileLine(ip), currentNewObject->getName(), currentNewObject->getClassName());
                   delete currentNewObject;
                   ip = failJump;
+                  // Prevent stack value corruption
+                  CSTK.popFrame();
+                  STR.popFrame();
+                  // --
                   break;
                }
             }
@@ -921,6 +955,8 @@ breakContinue:
             SimDataBlock *dataBlock = dynamic_cast<SimDataBlock *>(currentNewObject);
             static String errorStr;
 
+
+
             // If so, preload it.
             if(dataBlock && !dataBlock->preload(true, errorStr))
             {
@@ -928,6 +964,11 @@ breakContinue:
                            currentNewObject->getName(), errorStr.c_str());
                dataBlock->deleteObject();
                ip = failJump;
+			   
+               // Prevent stack value corruption
+               CSTK.popFrame();
+               STR.popFrame();
+               // --
                break;
             }
 
@@ -982,6 +1023,10 @@ breakContinue:
             else
                intStack[++_UINT] = currentNewObject->getId();
 
+			// Prevent stack value corruption
+			CSTK.popFrame();
+			STR.popFrame();
+			// --
             break;
          }
 
