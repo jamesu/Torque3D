@@ -34,45 +34,6 @@
 
 //#define DEBUG_SPEW
 
-
-Dictionary::Entry smLocalDictionaryEntryStack[4096*4];
-Dictionary::Entry *smLocalDictionaryEntryStackHead = NULL;
-
-void setupDictionaryStack()
-{
-   smLocalDictionaryEntryStackHead = &smLocalDictionaryEntryStack[0];
-   
-   for (int i=0; i<4096*4; i++) {
-      (smLocalDictionaryEntryStackHead + i)->mNext = i == (4096*4)-1 ? NULL : smLocalDictionaryEntryStackHead + (i+1);
-   }
-}
-
-Dictionary::Entry * getDictionaryStackEntry()
-{
-   Dictionary::Entry *entry = smLocalDictionaryEntryStackHead;
-   AssertFatal(entry, "No more local variables");
-   
-   entry->reset();
-   
-   Dictionary::Entry *next = entry->mNext;
-   
-   smLocalDictionaryEntryStackHead = next;
-   
-   entry->mNext = NULL;
-   
-   return entry;
-}
-
-void disposeDictionaryStackEntry(Dictionary::Entry *entry)
-{
-   Dictionary::Entry *prevHead = smLocalDictionaryEntryStackHead;
-   smLocalDictionaryEntryStackHead = entry;
-   
-   smLocalDictionaryEntryStackHead->mNext = prevHead;
-}
-
-
-
 #define ST_INIT_SIZE 15
 
 static char scratchBuffer[1024];
@@ -325,10 +286,8 @@ Dictionary::Entry *Dictionary::add(StringTableEntry name)
    //printf("Add Variable %s\n", name);
    
    Entry* ret = lookup( name );
-   if( ret ) {
-      //printf("Found Variable %s (named %s)\n", name, ret->name);
+   if( ret )
       return ret;
-   }
    
    // Rehash if the table get's too crowded.  Be aware that this might
    // modify a table that we don't own.
@@ -337,7 +296,6 @@ Dictionary::Entry *Dictionary::add(StringTableEntry name)
    if( hashTable->count > hashTable->size * 2 )
    {
       // Allocate a new table.
-      printf("Re-hashing dictionary...\n");
       
       const U32 newTableSize = hashTable->size * 4 - 1;
       Entry** newTableData = new Entry*[ newTableSize ];
@@ -350,9 +308,6 @@ Dictionary::Entry *Dictionary::add(StringTableEntry name)
          {
             Entry* next = entry->nextEntry;
             U32 index = HashPointer( entry->name ) % newTableSize;
-            
-            
-            //printf("  Variable(%s) in bucket %i moved to bucket %i\n", entry->name, i, index);
             
             entry->nextEntry = newTableData[ index ];
             newTableData[ index ] = entry;
@@ -373,9 +328,8 @@ Dictionary::Entry *Dictionary::add(StringTableEntry name)
    
    // Add the new entry.
 
-   ret = getDictionaryStackEntry();//hashTable->mChunker.alloc();
-   ret->name = name;
-   //constructInPlace( ret, name );
+   ret = hashTable->mChunker.alloc();
+   constructInPlace( ret, name );
    U32 idx = HashPointer(name) % hashTable->size;
    ret->nextEntry = hashTable->data[idx];
    hashTable->data[idx] = ret;
@@ -396,8 +350,8 @@ void Dictionary::remove(Dictionary::Entry *ent)
 
    *walk = (ent->nextEntry);
 
-   disposeDictionaryStackEntry( ent );
-   //hashTable->mChunker.free( ent );
+   destructInPlace( ent );
+   hashTable->mChunker.free( ent );
 
    hashTable->count--;
 }
@@ -458,13 +412,13 @@ void Dictionary::reset()
       while( walk )
       {
          Entry* temp = walk->nextEntry;
-         disposeDictionaryStackEntry( walk );
+         destructInPlace( walk );
          walk = temp;
       }
    }
 
    dMemset( ownHashTable.data, 0, ownHashTable.size * sizeof( Entry* ) );
-   //ownHashTable.mChunker.freeBlocks( true );
+   ownHashTable.mChunker.freeBlocks( true );
    
    ownHashTable.count = 0;
    hashTable = NULL;
@@ -1145,8 +1099,6 @@ void Namespace::init()
    mGlobalNamespace->mName = NULL;
    mGlobalNamespace->mNext = NULL;
    mNamespaceList = mGlobalNamespace;
-
-   setupDictionaryStack();
 }
 
 Namespace *Namespace::global()
