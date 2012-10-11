@@ -2626,12 +2626,12 @@ struct _EngineConsoleCallbackHelper
          if( mThis )
          {
             // Cannot invoke callback until object has been registered
-			if (mThis->isProperlyAdded()) {
-				return Con::execute( mThis, mArgc, mArgv );
-			} else {
-				Con::resetStackFrame(); // jamesu - we might have pushed some vars here
-				return "";
-			}
+            if (mThis->isProperlyAdded()) {
+               return Con::execute( mThis, mArgc, mArgv );
+            } else {
+               Con::resetStackFrame(); // We might have pushed some vars here
+               return "";
+            }
          }
          else
             return Con::execute( mArgc, mArgv );

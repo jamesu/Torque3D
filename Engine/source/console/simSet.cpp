@@ -973,7 +973,7 @@ ConsoleMethod( SimSet, callOnChildren, void, 3, 0,
    "@note This method recurses into all SimSets that are children to the set.\n\n"
    "@see callOnChildrenNoRecurse" )
 {
-   object->callOnChildren( (const char*)argv[2], argc - 3, argv + 3 );
+   object->callOnChildren( argv[2], argc - 3, argv + 3 );
 }
 
 //-----------------------------------------------------------------------------
@@ -985,7 +985,7 @@ ConsoleMethod( SimSet, callOnChildrenNoRecurse, void, 3, 0,
    "@note This method does not recurse into child SimSets.\n\n"
    "@see callOnChildren" )
 {
-   object->callOnChildren( (const char*)argv[2], argc - 3, argv + 3, false );
+   object->callOnChildren( argv[2], argc - 3, argv + 3, false );
 }
 
 //-----------------------------------------------------------------------------
@@ -1121,7 +1121,7 @@ DefineEngineMethod( SimSet, pushToBack, void, ( SimObject* obj ),,
 ConsoleMethod( SimSet, sort, void, 3, 3, "( string callbackFunction ) Sort the objects in the set using the given comparison function.\n"
    "@param callbackFunction Name of a function that takes two object arguments A and B and returns -1 if A is less, 1 if B is less, and 0 if both are equal." )
 {
-   object->scriptSort( (const char*)argv[2] );
+   object->scriptSort( argv[2] );
 }
 
 //-----------------------------------------------------------------------------

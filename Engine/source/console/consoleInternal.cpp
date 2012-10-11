@@ -556,15 +556,16 @@ void ConsoleValue::setStringValue(const char * value)
          return;
       }
 */
-	  if (value == typeValueEmpty) {
-		 if (sval && sval != typeValueEmpty && type != TypeInternalStackString) dFree(sval);
-		 sval = typeValueEmpty;
-		 bufferLen = 0;
-         fval = 0.f;
-         ival = 0;
-		 type = TypeInternalString;
-		 return;
-	  }
+	   if (value == typeValueEmpty)
+      {
+            if (sval && sval != typeValueEmpty && type != TypeInternalStackString) dFree(sval);
+            sval = typeValueEmpty;
+            bufferLen = 0;
+            fval = 0.f;
+            ival = 0;
+            type = TypeInternalString;
+            return;
+      }
 
       U32 stringLen = dStrlen(value);
 
@@ -586,7 +587,7 @@ void ConsoleValue::setStringValue(const char * value)
       // may as well pad to the next cache line
       U32 newLen = ((stringLen + 1) + 15) & ~15;
 	  
-	  if(sval == typeValueEmpty || type == TypeInternalStackString)
+      if(sval == typeValueEmpty || type == TypeInternalStackString)
          sval = (char *) dMalloc(newLen);
       else if(newLen > bufferLen)
          sval = (char *) dRealloc(sval, newLen);
@@ -607,15 +608,16 @@ void ConsoleValue::setStackStringValue(const char * value)
 
    if(type <= ConsoleValue::TypeInternalString)
    {
-	  if (value == typeValueEmpty) {
-		 if (sval && sval != typeValueEmpty && type != ConsoleValue::TypeInternalStackString) dFree(sval);
-		 sval = typeValueEmpty;
-		 bufferLen = 0;
+	   if (value == typeValueEmpty)
+      {
+         if (sval && sval != typeValueEmpty && type != ConsoleValue::TypeInternalStackString) dFree(sval);
+         sval = typeValueEmpty;
+         bufferLen = 0;
          fval = 0.f;
          ival = 0;
-		 type = TypeInternalString;
-		 return;
-	  }
+         type = TypeInternalString;
+         return;
+      }
 
       U32 stringLen = dStrlen(value);
       if(stringLen < 256)
@@ -640,32 +642,34 @@ void ConsoleValue::setStackStringValue(const char * value)
 
 S32 Dictionary::getIntVariable(StringTableEntry name, bool *entValid)
 {
-    Entry *ent = lookup(name);
-    if(ent)
-    {
-        if(entValid)
-            *entValid = true;
-        return ent->getIntValue();
-    }
-    if(entValid)
-        *entValid = false;
+   Entry *ent = lookup(name);
+   if(ent)
+   {
+      if(entValid)
+         *entValid = true;
+      return ent->getIntValue();
+   }
+
+   if(entValid)
+      *entValid = false;
 
     return 0;
 }
 
 F32 Dictionary::getFloatVariable(StringTableEntry name, bool *entValid)
 {
-    Entry *ent = lookup(name);
-    if(ent)
-    {
-        if(entValid)
-            *entValid = true;
-        return ent->getFloatValue();
-    }
-    if(entValid)
-        *entValid = false;
+   Entry *ent = lookup(name);
+   if(ent)
+   {
+      if(entValid)
+         *entValid = true;
+      return ent->getFloatValue();
+   }
 
-    return 0;
+   if(entValid)
+      *entValid = false;
+
+   return 0;
 }
 
 void Dictionary::setVariable(StringTableEntry name, const char *value)
@@ -726,7 +730,7 @@ void Dictionary::addVariableNotify( const char *name, const Con::NotifyDelegate 
     return;
 
    if ( !ent->notify )
-    ent->notify = new Entry::NotifySignal();
+      ent->notify = new Entry::NotifySignal();
 
    ent->notify->notify( callback );
 }

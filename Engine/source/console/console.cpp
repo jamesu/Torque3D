@@ -745,9 +745,9 @@ bool getVariableObjectField(const char *name, SimObject **object, const char **f
          }
          else
          {
-			*object = obj;
-			*field = fieldToken;
-			return true;
+            *object = obj;
+            *field = fieldToken;
+            return true;
          }
       }
    }
@@ -778,9 +778,8 @@ Dictionary::Entry *getAddVariableEntry(const char *name)
    name = prependDollar(name);
    StringTableEntry stName = StringTable->insert(name);
    Dictionary::Entry *entry = gEvalState.globalVars.lookup(stName);
-   if (!entry) {
+   if (!entry)
 	   entry = gEvalState.globalVars.add(stName);
-   }
    return entry;
 }
 
@@ -789,9 +788,8 @@ Dictionary::Entry *getAddLocalVariableEntry(const char *name)
    name = prependPercent(name);
    StringTableEntry stName = StringTable->insert(name);
    Dictionary::Entry *entry = gEvalState.getCurrentFrame().lookup(stName);
-   if (!entry) {
+   if (!entry)
 	   entry = gEvalState.getCurrentFrame().add(stName);
-   }
    return entry;
 }
 
@@ -800,9 +798,12 @@ void setVariable(const char *name, const char *value)
    SimObject *obj = NULL;
    const char *objField = NULL;
 
-   if (getVariableObjectField(name, &obj, &objField)) {
+   if (getVariableObjectField(name, &obj, &objField))
+   {
 	   obj->setDataField(StringTable->insert(objField), 0, value);
-   } else {
+   }
+   else 
+   {
       name = prependDollar(name);
       gEvalState.globalVars.setVariable(StringTable->insert(name), value);
    }
@@ -819,9 +820,12 @@ void setBoolVariable(const char *varName, bool value)
    SimObject *obj = NULL;
    const char *objField = NULL;
 
-   if (getVariableObjectField(varName, &obj, &objField)) {
+   if (getVariableObjectField(varName, &obj, &objField))
+   {
 	   obj->setDataField(StringTable->insert(objField), 0, value ? "1" : "0");
-   } else {
+   }
+   else
+   {
       varName = prependDollar(varName);
       Dictionary::Entry *entry = getAddVariableEntry(varName);
 	  entry->setStringValue(value ? "1" : "0");
@@ -833,11 +837,14 @@ void setIntVariable(const char *varName, S32 value)
    SimObject *obj = NULL;
    const char *objField = NULL;
 
-   if (getVariableObjectField(varName, &obj, &objField)) {
+   if (getVariableObjectField(varName, &obj, &objField))
+   {
 	   char scratchBuffer[32];
 	   dSprintf(scratchBuffer, sizeof(scratchBuffer), "%d", value);
 	   obj->setDataField(StringTable->insert(objField), 0, scratchBuffer);
-   } else {
+   }
+   else
+   {
       varName = prependDollar(varName);
       Dictionary::Entry *entry = getAddVariableEntry(varName);
       entry->setIntValue(value);
@@ -849,11 +856,14 @@ void setFloatVariable(const char *varName, F32 value)
    SimObject *obj = NULL;
    const char *objField = NULL;
 
-   if (getVariableObjectField(varName, &obj, &objField)) {
+   if (getVariableObjectField(varName, &obj, &objField))
+   {
 	   char scratchBuffer[32];
 	   dSprintf(scratchBuffer, sizeof(scratchBuffer), "%g", value);
 	   obj->setDataField(StringTable->insert(objField), 0, scratchBuffer);
-   } else {
+   }
+   else
+   {
       varName = prependDollar(varName);
       Dictionary::Entry *entry = getAddVariableEntry(varName);
 	  entry->setFloatValue(value);
@@ -951,11 +961,14 @@ const char *getObjectTokenField(const char *name)
 const char *getVariable(const char *name)
 {
    const char *objField = getObjectTokenField(name);
-   if (objField) {
+   if (objField)
+   {
       return objField;
-   } else {
+   }
+   else
+   {
       Dictionary::Entry *entry = getVariableEntry(name);
-	  return entry ? entry->getStringValue() : "";
+      return entry ? entry->getStringValue() : "";
    }
 }
 
@@ -969,9 +982,12 @@ const char *getLocalVariable(const char *name)
 bool getBoolVariable(const char *varName, bool def)
 {
    const char *objField = getObjectTokenField(varName);
-   if (objField) {
+   if (objField)
+   {
       return *objField ? dAtob(objField) : def;
-   } else {
+   }
+   else
+   {
       Dictionary::Entry *entry = getVariableEntry(varName);
 	  objField = entry ? entry->getStringValue() : "";
       return *objField ? dAtob(objField) : def;
@@ -981,9 +997,12 @@ bool getBoolVariable(const char *varName, bool def)
 S32 getIntVariable(const char *varName, S32 def)
 {
    const char *objField = getObjectTokenField(varName);
-   if (objField) {
+   if (objField)
+   {
       return *objField ? dAtoi(objField) : def;
-   } else {
+   }
+   else
+   {
       Dictionary::Entry *entry = getVariableEntry(varName);
 	  return entry ? entry->getIntValue() : def;
    }
@@ -992,9 +1011,12 @@ S32 getIntVariable(const char *varName, S32 def)
 F32 getFloatVariable(const char *varName, F32 def)
 {
    const char *objField = getObjectTokenField(varName);
-   if (objField) {
+   if (objField)
+   {
       return *objField ? dAtof(objField) : def;
-   } else {
+   }
+   else
+   {
       Dictionary::Entry *entry = getVariableEntry(varName);
 	  return entry ? entry->getFloatValue() : def;
    }
@@ -1184,7 +1206,6 @@ const char *execute(S32 argc, const char *argv[])
 //------------------------------------------------------------------------------
 const char *execute(SimObject *object, S32 argc, ConsoleValueRef argv[], bool thisCallOnly)
 {
-   //static char idBuf[16];
    if(argc < 2)
       return "";
 
@@ -1218,14 +1239,13 @@ const char *execute(SimObject *object, S32 argc, ConsoleValueRef argv[], bool th
          //warnf(ConsoleLogEntry::Script, "%s: undefined for object '%s' - id %d", funcName, object->getName(), object->getId());
 
          // Clean up arg buffers, if any.
-		 //CSTK.
          STR.clearFunctionOffset();
-		 CSTK.resetFrame();
+         CSTK.resetFrame();
          return "";
       }
 
       // Twiddle %this argument
-	  argv[1] = (S32)ident;
+      argv[1] = (S32)ident;
 
       SimObject *save = gEvalState.thisObject;
       gEvalState.thisObject = object;
@@ -1252,7 +1272,7 @@ inline const char*_executef(SimObject *obj, S32 checkArgc, S32 argc, ConsoleValu
    const U32 maxArg = 12;
    AssertWarn(checkArgc == argc, "Incorrect arg count passed to Con::executef(SimObject*)");
    AssertFatal(argc <= maxArg - 1, "Too many args passed to Con::_executef(SimObject*). Please update the function to handle more.");
-   return execute(obj, argc, argv); // jamesu - argc should == argc
+   return execute(obj, argc, argv);
 }
 
 #define A ConsoleValueRef
@@ -1589,14 +1609,16 @@ StringStackWrapper::StringStackWrapper(int targc, ConsoleValueRef targv[])
    argv = new const char*[targc];
    argc = targc;
 
-   for (int i=0; i<targc; i++) {
+   for (int i=0; i<targc; i++)
+   {
       argv[i] = dStrdup(targv[i]);
    }
 }
 
 StringStackWrapper::~StringStackWrapper()
 {
-   for (int i=0; i<argc; i++) {
+   for (int i=0; i<argc; i++)
+   {
       dFree(argv[i]);
    }
    delete[] argv;
@@ -1615,7 +1637,8 @@ StringStackConsoleWrapper::StringStackConsoleWrapper(int targc, const char** tar
 
 StringStackConsoleWrapper::~StringStackConsoleWrapper()
 {
-   for (int i=0; i<argc; i++) {
+   for (int i=0; i<argc; i++)
+   {
       argv[i] = NULL;
    }
    delete[] argv;
@@ -1694,12 +1717,14 @@ StringStackConsoleWrapper::~StringStackConsoleWrapper()
 
    const char *ConsoleValueRef::getStringArgValue()
    {
-      if (value) {
-         if (stringStackValue == NULL) {
-			 stringStackValue = Con::getStringArg(value->getStringValue());
-		 }
+      if (value)
+      {
+         if (stringStackValue == NULL)
+            stringStackValue = Con::getStringArg(value->getStringValue());
          return stringStackValue;
-      } else {
+      }
+      else
+      {
          return "";
       }
    }

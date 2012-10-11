@@ -138,7 +138,7 @@ ConsoleDocFragment _spawnObject1(
 ConsoleFunction(spawnObject, S32, 3, 6, "spawnObject(class [, dataBlock, name, properties, script])"
 				"@hide")
 {
-   String spawnClass((String)argv[1]);
+   String spawnClass(argv[1]);
    String spawnDataBlock;
    String spawnName;
    String spawnProperties;

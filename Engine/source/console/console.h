@@ -123,7 +123,7 @@ public:
    {
       TypeInternalInt = -4,
       TypeInternalFloat = -3,
-	  TypeInternalStackString = -2,
+      TypeInternalStackString = -2,
       TypeInternalString = -1,
    };
    
@@ -197,8 +197,8 @@ public:
 };
 
 // Proxy class for console variables
-// Can point to existing console variables
-// or act like a free floating value
+// Can point to existing console variables,
+// or act like a free floating value.
 class ConsoleValueRef {
 public:
    ConsoleValue *value;
@@ -219,13 +219,11 @@ public:
 
    inline S32 getIntValue() { return value ? value->getIntValue() : 0; }
    inline F32 getFloatValue() { return value ? value->getFloatValue() : 0.0f; }
-   //inline F64 getDoubleValue() { return value ? value->getDoubleValue() : 0.0; }
 
    inline operator const char*() { return getStringValue(); }
    inline operator String() { return String(getStringValue()); }
    inline operator S32() { return getIntValue(); }
    inline operator F32() { return getFloatValue(); }
-   //inline operator F64() { return getDoubleValue(); }
 
    inline bool isString() { return value ? value->type >= ConsoleValue::TypeInternalStackString : true; }
    inline bool isInt() { return value ? value->type == ConsoleValue::TypeInternalInt : false; }
@@ -342,6 +340,7 @@ namespace Con
       /// 09/12/07 - CAF - 43->44 remove newmsg operator
       /// 09/27/07 - RDB - 44->45 Patch from Andreas Kirsch: Added opcode to support correct void return
       /// 01/13/09 - TMS - 45->46 Added script assert
+      /// 10/11/12 - JU  - 46->47 Added opcodes to reduce reliance on strings in function calls
       DSOVersion = 47,
 
       MaxLineLength = 512,  ///< Maximum length of a line of console input.

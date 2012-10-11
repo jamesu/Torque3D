@@ -1306,7 +1306,7 @@ ConsoleFunction(getTag, const char *, 2, 2, "(string textTagString)"
    TORQUE_UNUSED(argc);
    if(argv[1][0] == StringTagPrefixByte)
    {
-	  const char *arg  = argv[1];
+      const char *arg  = argv[1];
       const char * space = dStrchr(argv[1], ' ');
 
       U32 len;
