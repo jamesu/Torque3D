@@ -945,7 +945,7 @@ void GuiRoadEditorCtrl::setMode( String mode, bool sourceShortcut = false )
    mMode = mode;
 
 	if( sourceShortcut )
-		Con::executef( this, "paletteSync", mode.utf8() );
+		Con::executef( this, "paletteSync", mode );
 }
 
 void GuiRoadEditorCtrl::setSelectedRoad( DecalRoad *road )

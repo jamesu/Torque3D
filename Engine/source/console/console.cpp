@@ -989,7 +989,7 @@ bool getBoolVariable(const char *varName, bool def)
    else
    {
       Dictionary::Entry *entry = getVariableEntry(varName);
-	  objField = entry ? entry->getStringValue() : "";
+      objField = entry ? entry->getStringValue() : "";
       return *objField ? dAtob(objField) : def;
    }
 }
@@ -1004,7 +1004,7 @@ S32 getIntVariable(const char *varName, S32 def)
    else
    {
       Dictionary::Entry *entry = getVariableEntry(varName);
-	  return entry ? entry->getIntValue() : def;
+      return entry ? entry->getIntValue() : def;
    }
 }
 
@@ -1018,7 +1018,7 @@ F32 getFloatVariable(const char *varName, F32 def)
    else
    {
       Dictionary::Entry *entry = getVariableEntry(varName);
-	  return entry ? entry->getFloatValue() : def;
+	   return entry ? entry->getFloatValue() : def;
    }
 }
 
@@ -1180,7 +1180,7 @@ const char *execute(S32 argc, ConsoleValueRef argv[])
 
          // Clean up arg buffers, if any.
          STR.clearFunctionOffset();
-		 CSTK.resetFrame();
+         CSTK.resetFrame();
          return "";
       }
       return ent->execute(argc, argv, &gEvalState);
@@ -1215,13 +1215,14 @@ const char *execute(SimObject *object, S32 argc, ConsoleValueRef argv[], bool th
    if( !thisCallOnly )
    {
       ICallMethod *com = dynamic_cast<ICallMethod *>(object);
-      if(com) {
+      if(com)
+      {
          STR.pushFrame();
          CSTK.pushFrame();
          com->callMethodArgList(argc, argv, false);
          STR.popFrame();
          CSTK.popFrame();
-	  }
+      }
    }
 
    if(object->getNamespace())
@@ -1646,88 +1647,88 @@ StringStackConsoleWrapper::~StringStackConsoleWrapper()
 
 
 
-   U32 ConsoleValue::getIntValue()
+U32 ConsoleValue::getIntValue()
+{
+   if(type <= TypeInternalString)
+      return ival;
+   else
+      return dAtoi(Con::getData(type, dataPtr, 0, enumTable));
+}
+
+F32 ConsoleValue::getFloatValue()
+{
+   if(type <= TypeInternalString)
+      return fval;
+   else
+      return dAtof(Con::getData(type, dataPtr, 0, enumTable));
+}
+
+const char *ConsoleValue::getStringValue()
+{
+   if(type == TypeInternalString || type == TypeInternalStackString)
+      return sval;
+   if(type == TypeInternalFloat)
+      return Con::getData(TypeF32, &fval, 0);
+   else if(type == TypeInternalInt)
+      return Con::getData(TypeS32, &ival, 0);
+   else
+      return Con::getData(type, dataPtr, 0, enumTable);
+}
+
+void ConsoleValue::setIntValue(U32 val)
+{
+   if(type <= TypeInternalString)
    {
-      if(type <= TypeInternalString)
-         return ival;
-      else
-         return dAtoi(Con::getData(type, dataPtr, 0, enumTable));
-   }
-   
-   F32 ConsoleValue::getFloatValue()
-   {
-      if(type <= TypeInternalString)
-         return fval;
-      else
-         return dAtof(Con::getData(type, dataPtr, 0, enumTable));
-   }
-   
-   const char *ConsoleValue::getStringValue()
-   {
-      if(type == TypeInternalString || type == TypeInternalStackString)
-         return sval;
-      if(type == TypeInternalFloat)
-         return Con::getData(TypeF32, &fval, 0);
-      else if(type == TypeInternalInt)
-         return Con::getData(TypeS32, &ival, 0);
-      else
-         return Con::getData(type, dataPtr, 0, enumTable);
-   }
-   
-   void ConsoleValue::setIntValue(U32 val)
-   {
-      if(type <= TypeInternalString)
+      fval = (F32)val;
+      ival = val;
+      if(sval != typeValueEmpty)
       {
-         fval = (F32)val;
-         ival = val;
-         if(sval != typeValueEmpty)
-         {
-            if (type != TypeInternalStackString) dFree(sval);
-            sval = typeValueEmpty;
-         }
-         type = TypeInternalInt;
+         if (type != TypeInternalStackString) dFree(sval);
+         sval = typeValueEmpty;
       }
-      else
-      {
-         const char *dptr = Con::getData(TypeS32, &val, 0);
-         Con::setData(type, dataPtr, 0, 1, &dptr, enumTable);
-      }
+      type = TypeInternalInt;
    }
-   
-   void ConsoleValue::setFloatValue(F32 val)
+   else
    {
-      if(type <= TypeInternalString)
-      {
-         fval = val;
-         ival = static_cast<U32>(val);
-         if(sval != typeValueEmpty)
-         {
-            if (type != TypeInternalStackString) dFree(sval);
-            sval = typeValueEmpty;
-         }
-         type = TypeInternalFloat;
-      }
-      else
-      {
-         const char *dptr = Con::getData(TypeF32, &val, 0);
-         Con::setData(type, dataPtr, 0, 1, &dptr, enumTable);
-      }
+      const char *dptr = Con::getData(TypeS32, &val, 0);
+      Con::setData(type, dataPtr, 0, 1, &dptr, enumTable);
    }
+}
+
+void ConsoleValue::setFloatValue(F32 val)
+{
+   if(type <= TypeInternalString)
+   {
+      fval = val;
+      ival = static_cast<U32>(val);
+      if(sval != typeValueEmpty)
+      {
+         if (type != TypeInternalStackString) dFree(sval);
+         sval = typeValueEmpty;
+      }
+      type = TypeInternalFloat;
+   }
+   else
+   {
+      const char *dptr = Con::getData(TypeF32, &val, 0);
+      Con::setData(type, dataPtr, 0, 1, &dptr, enumTable);
+   }
+}
 
 
-   const char *ConsoleValueRef::getStringArgValue()
+const char *ConsoleValueRef::getStringArgValue()
+{
+   if (value)
    {
-      if (value)
-      {
-         if (stringStackValue == NULL)
-            stringStackValue = Con::getStringArg(value->getStringValue());
-         return stringStackValue;
-      }
-      else
-      {
-         return "";
-      }
+      if (stringStackValue == NULL)
+         stringStackValue = Con::getStringArg(value->getStringValue());
+      return stringStackValue;
    }
+   else
+   {
+      return "";
+   }
+}
 
 
 extern ConsoleValueStack CSTK;

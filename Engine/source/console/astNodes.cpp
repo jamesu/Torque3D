@@ -1134,7 +1134,8 @@ U32 AssignExprNode::precompile(TypeReq type)
    subType = expr->getPreferredType();
    if(subType == TypeReqNone)
       subType = type;
-   if(subType == TypeReqNone) {
+   if(subType == TypeReqNone)
+   {
       // What we need to do in this case is turn it into a VarNode reference. 
       // Unfortunately other nodes such as field access (SlotAccessNode) 
       // cannot be optimized in the same manner as all fields are exposed 
