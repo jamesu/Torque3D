@@ -806,8 +806,8 @@ namespace Con
    char* getReturnBuffer( const StringBuilder& str );
 
    char* getArgBuffer(U32 bufferSize);
-   char* getFloatArg(F64 arg);
-   char* getIntArg  (S32 arg);
+   ConsoleValueRef getFloatArg(F64 arg);
+   ConsoleValueRef getIntArg  (S32 arg);
    char* getStringArg( const char *arg );
    char* getStringArg( const String& arg );
    /// @}

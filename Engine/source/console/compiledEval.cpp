@@ -192,18 +192,16 @@ namespace Con
       return STR.getArgBuffer(bufferSize);
    }
 
-   char *getFloatArg(F64 arg)
+   ConsoleValueRef getFloatArg(F64 arg)
    {
-      char *ret = STR.getArgBuffer(32);
-      dSprintf(ret, 32, "%g", arg);
-      return ret;
+      ConsoleValueRef ref = arg;
+      return ref;
    }
 
-   char *getIntArg(S32 arg)
+   ConsoleValueRef getIntArg(S32 arg)
    {
-      char *ret = STR.getArgBuffer(32);
-      dSprintf(ret, 32, "%d", arg);
-      return ret;
+      ConsoleValueRef ref = arg;
+      return ref;
    }
    
    char *getStringArg( const char *arg )
@@ -775,7 +773,7 @@ breakContinue:
                               getFileLine(ip), newName.c_str() );
                            ip = failJump;
                            STR.popFrame();
-						   CSTK.popFrame();
+                           CSTK.popFrame();
                            break;
                         }
                         else
@@ -787,7 +785,7 @@ breakContinue:
                            getFileLine(ip), objectName);
                         ip = failJump;
                         STR.popFrame();
-						CSTK.popFrame();
+                        CSTK.popFrame();
                         break;
                      }
                   }
@@ -1788,9 +1786,9 @@ breakContinue:
                if(nsEntry->mFunctionOffset)
                   ret = nsEntry->mCode->exec(nsEntry->mFunctionOffset, fnName, nsEntry->mNamespace, callArgc, callArgv, false, nsEntry->mPackage);
 
-			   STR.popFrame();
-			   // Functions are assumed to return strings, so look ahead to see if we can skip the conversion
-			   if(code[ip] == OP_STR_TO_UINT)
+               STR.popFrame();
+               // Functions are assumed to return strings, so look ahead to see if we can skip the conversion
+               if(code[ip] == OP_STR_TO_UINT)
                {
                   ip++;
                   intStack[++_UINT] = (U32)((S32)ret);
@@ -2157,9 +2155,8 @@ execFinished:
    if ( telDebuggerOn && setFrame < 0 )
       TelDebugger->popStackFrame();
 
-   if ( popFrame ) {
+   if ( popFrame )
       gEvalState.popFrame();
-   }
 
    if(argv)
    {
