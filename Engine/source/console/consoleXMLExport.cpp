@@ -27,6 +27,8 @@
 #include "console/consoleXMLExport.h"
 
 
+#if 0
+
 namespace Con {
 
    XMLExport::XMLExport()
@@ -259,14 +261,18 @@ namespace Con {
 
          const EnumTable* table = enumTables[i];
 
+         mXML->setAttribute("name", table->name);
+         mXML->setAttribute("firstFlag", avar("%i", table->firstFlag));
+         mXML->setAttribute("mask", avar("%i", table->mask));
+
          mXML->pushNewElement("Enums");
 
-         for (int j = 0; j < table->getNumValues(); j++)
+         for (int j = 0; j < table->size; j++)
          {
             mXML->pushNewElement("Enum");
 
-            mXML->setAttribute("name", (*table)[j].getName());
-            mXML->setAttribute("index", avar("%i", (*table)[j].getInt()));
+            mXML->setAttribute("name", table->table[j].label);
+            mXML->setAttribute("index", avar("%i", table->table[j].index));
 
             mXML->popElement(); // Enum
 
@@ -306,22 +312,15 @@ namespace Con {
 
 }; // namespace Con
 
-#include "core/stream/fileStream.h"
 
 ConsoleFunction(consoleExportXML, const char*, 1, 1, "Exports console definition XML representation")
 {
    Con::XMLExport xmlExport;
    String xml;
    xmlExport.exportXML(xml);
-
-   FileStream fs;
-   fs.open("console.xml", Torque::FS::File::Write);
-   
-   char* ret = (char*)dMalloc(xml.length() + 1);
+   char* ret = Con::getReturnBuffer(xml.length() + 1);
    dStrcpy(ret, xml.c_str());
-   fs.write(xml.length(), ret);
-   dFree(ret);
-
-   return "";
+   return ret;
 }
 
+#endif
