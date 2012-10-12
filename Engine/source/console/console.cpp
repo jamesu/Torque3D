@@ -1176,7 +1176,7 @@ const char *execute(S32 argc, ConsoleValueRef argv[])
 
       if(!ent)
       {
-         warnf(ConsoleLogEntry::Script, "%s: Unknown command.", argv[0]);
+         warnf(ConsoleLogEntry::Script, "%s: Unknown command.", (const char*)argv[0]);
 
          // Clean up arg buffers, if any.
          STR.clearFunctionOffset();
@@ -1258,7 +1258,7 @@ const char *execute(SimObject *object, S32 argc, ConsoleValueRef argv[], bool th
 
       return ret;
    }
-   warnf(ConsoleLogEntry::Script, "Con::execute - %d has no namespace: %s", object->getId(), argv[0]);
+   warnf(ConsoleLogEntry::Script, "Con::execute - %d has no namespace: %s", object->getId(), (const char*)argv[0]);
    return "";
 }
 

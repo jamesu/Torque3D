@@ -487,5 +487,5 @@ ConsoleFunction( dumpMaterialInstances, void, 1, 1,
 ConsoleFunction( getMapEntry, const char *, 2, 2, 
    "@hide")
 {
-	return MATMGR->getMapEntry( String(argv[1]) );
+	return MATMGR->getMapEntry( argv[1] );
 }

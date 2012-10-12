@@ -199,7 +199,8 @@ public:
 // Proxy class for console variables
 // Can point to existing console variables,
 // or act like a free floating value.
-class ConsoleValueRef {
+class ConsoleValueRef
+{
 public:
    ConsoleValue *value;
    const char *stringStackValue;
