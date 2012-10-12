@@ -238,6 +238,19 @@ public:
    ConsoleValueRef& operator=(F64 newValue);
 };
 
+// Overrides to allow ConsoleValueRefs to be directly converted to S32&F32
+
+inline S32 dAtoi(ConsoleValueRef &ref)
+{
+   return ref.getIntValue();
+}
+
+inline F32 dAtof(ConsoleValueRef &ref)
+{
+   return ref.getFloatValue();
+}
+
+
 // Transparently converts ConsoleValue[] to const char**
 class StringStackWrapper
 {
