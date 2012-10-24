@@ -247,7 +247,7 @@ class InteriorInstance : public SceneZoneSpace
    private:
 
       // Protected field accessors
-      static bool _setInteriorFile( void *object, const char *, const char *data ); 
+      static bool _setInteriorFile( void *object, const char *, ConsoleValue *data ); 
 };
 
 #endif //_INTERIORBLOCK_H_

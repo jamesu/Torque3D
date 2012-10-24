@@ -187,6 +187,32 @@ namespace Con
       return buffer;
    }
 
+   ConsoleValue *getReturnValue( S32 value )
+   {
+      CSTK.returnValue.setIntValue(value);
+      return &CSTK.returnValue;
+   }
+
+   ConsoleValue *getReturnValue( F32 value )
+   {
+      CSTK.returnValue.setFloatValue(value);
+      return &CSTK.returnValue;
+   }
+
+   ConsoleValue *getReturnValue( const char *value )
+   {
+      CSTK.returnValue.cleanup();
+      CSTK.returnValue.setStringValue(value);
+      return &CSTK.returnValue;
+   }
+
+   ConsoleValue *getReturnValue( ConsoleValue &value )
+   {
+      CSTK.returnValue.cleanup();
+      value.copyInto(CSTK.returnValue);
+      return &CSTK.returnValue;
+   }
+
    char *getArgBuffer(U32 bufferSize)
    {
       return STR.getArgBuffer(bufferSize);

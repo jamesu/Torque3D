@@ -105,10 +105,10 @@ void SceneAmbientSoundObject< Base >::setSoundAmbience( SFXAmbience* ambience )
 //-----------------------------------------------------------------------------
 
 template< typename Base >
-bool SceneAmbientSoundObject< Base >::_setSoundAmbience( void* object, const char* index, const char* data )
+bool SceneAmbientSoundObject< Base >::_setSoundAmbience( void* object, const char* index, ConsoleValue* data )
 {
    SceneAmbientSoundObject* p = reinterpret_cast< SceneAmbientSoundObject* >( object );
-   SFXAmbience* ambience = EngineUnmarshallData< SFXAmbience* >()( data );
+   SFXAmbience* ambience = EngineUnmarshallData< SFXAmbience* >()( data->getStringValue() );
    p->setSoundAmbience( ambience );
    return false;
 }

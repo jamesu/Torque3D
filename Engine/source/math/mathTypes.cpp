@@ -114,17 +114,17 @@ ImplementConsoleTypeCasters( TypePoint2I, Point2I )
 ConsoleGetType( TypePoint2I )
 {
    Point2I *pt = (Point2I *) dptr;
-   char* returnBuffer = Con::getReturnBuffer(256);
+   char returnBuffer[256];
    dSprintf(returnBuffer, 256, "%d %d", pt->x, pt->y);
-   return returnBuffer;
+   return Con::getReturnValue(returnBuffer);
 }
 
 ConsoleSetType( TypePoint2I )
 {
    if(argc == 1)
-      dSscanf(argv[0], "%d %d", &((Point2I *) dptr)->x, &((Point2I *) dptr)->y);
+      dSscanf(argv[0]->getStringValue(), "%d %d", &((Point2I *) dptr)->x, &((Point2I *) dptr)->y);
    else if(argc == 2)
-      *((Point2I *) dptr) = Point2I(dAtoi(argv[0]), dAtoi(argv[1]));
+      *((Point2I *) dptr) = Point2I(argv[0]->getIntValue(), argv[1]->getIntValue());
    else
       Con::printf("Point2I must be set as { x, y } or \"x y\"");
 }
@@ -138,17 +138,17 @@ ImplementConsoleTypeCasters( TypePoint2F, Point2F )
 ConsoleGetType( TypePoint2F )
 {
    Point2F *pt = (Point2F *) dptr;
-   char* returnBuffer = Con::getReturnBuffer(256);
+   char returnBuffer[256];
    dSprintf(returnBuffer, 256, "%g %g", pt->x, pt->y);
-   return returnBuffer;
+   return Con::getReturnValue(returnBuffer);
 }
 
 ConsoleSetType( TypePoint2F )
 {
    if(argc == 1)
-      dSscanf(argv[0], "%g %g", &((Point2F *) dptr)->x, &((Point2F *) dptr)->y);
+      dSscanf(argv[0]->getStringValue(), "%g %g", &((Point2F *) dptr)->x, &((Point2F *) dptr)->y);
    else if(argc == 2)
-      *((Point2F *) dptr) = Point2F(dAtof(argv[0]), dAtof(argv[1]));
+      *((Point2F *) dptr) = Point2F(argv[0]->getFloatValue(), argv[1]->getFloatValue());
    else
       Con::printf("Point2F must be set as { x, y } or \"x y\"");
 }
@@ -162,17 +162,17 @@ ImplementConsoleTypeCasters(TypePoint3F, Point3F)
 ConsoleGetType( TypePoint3F )
 {
    Point3F *pt = (Point3F *) dptr;
-   char* returnBuffer = Con::getReturnBuffer(256);
+   char returnBuffer[256];
    dSprintf(returnBuffer, 256, "%g %g %g", pt->x, pt->y, pt->z);
-   return returnBuffer;
+   return Con::getReturnValue(returnBuffer);
 }
 
 ConsoleSetType( TypePoint3F )
 {
    if(argc == 1)
-      dSscanf(argv[0], "%g %g %g", &((Point3F *) dptr)->x, &((Point3F *) dptr)->y, &((Point3F *) dptr)->z);
+      dSscanf(argv[0]->getStringValue(), "%g %g %g", &((Point3F *) dptr)->x, &((Point3F *) dptr)->y, &((Point3F *) dptr)->z);
    else if(argc == 3)
-      *((Point3F *) dptr) = Point3F(dAtof(argv[0]), dAtof(argv[1]), dAtof(argv[2]));
+      *((Point3F *) dptr) = Point3F(argv[0]->getFloatValue(), argv[1]->getFloatValue(), argv[2]->getFloatValue());
    else
       Con::printf("Point3F must be set as { x, y, z } or \"x y z\"");
 }
@@ -186,17 +186,17 @@ ImplementConsoleTypeCasters( TypePoint4F, Point4F )
 ConsoleGetType( TypePoint4F )
 {
    Point4F *pt = (Point4F *) dptr;
-   char* returnBuffer = Con::getReturnBuffer(256);
+   char returnBuffer[256];
    dSprintf(returnBuffer, 256, "%g %g %g %g", pt->x, pt->y, pt->z, pt->w);
-   return returnBuffer;
+   return Con::getReturnValue(returnBuffer);
 }
 
 ConsoleSetType( TypePoint4F )
 {
    if(argc == 1)
-      dSscanf(argv[0], "%g %g %g %g", &((Point4F *) dptr)->x, &((Point4F *) dptr)->y, &((Point4F *) dptr)->z, &((Point4F *) dptr)->w);
+      dSscanf(argv[0]->getStringValue(), "%g %g %g %g", &((Point4F *) dptr)->x, &((Point4F *) dptr)->y, &((Point4F *) dptr)->z, &((Point4F *) dptr)->w);
    else if(argc == 4)
-      *((Point4F *) dptr) = Point4F(dAtof(argv[0]), dAtof(argv[1]), dAtof(argv[2]), dAtof(argv[3]));
+      *((Point4F *) dptr) = Point4F(argv[0]->getFloatValue(), argv[1]->getFloatValue(), argv[2]->getFloatValue(), argv[3]->getFloatValue());
    else
       Con::printf("Point4F must be set as { x, y, z, w } or \"x y z w\"");
 }
@@ -210,19 +210,19 @@ ImplementConsoleTypeCasters( TypeRectI, RectI )
 ConsoleGetType( TypeRectI )
 {
    RectI *rect = (RectI *) dptr;
-   char* returnBuffer = Con::getReturnBuffer(256);
+   char returnBuffer[256];
    dSprintf(returnBuffer, 256, "%d %d %d %d", rect->point.x, rect->point.y,
             rect->extent.x, rect->extent.y);
-   return returnBuffer;
+   return Con::getReturnValue(returnBuffer);
 }
 
 ConsoleSetType( TypeRectI )
 {
    if(argc == 1)
-      dSscanf(argv[0], "%d %d %d %d", &((RectI *) dptr)->point.x, &((RectI *) dptr)->point.y,
+      dSscanf(argv[0]->getStringValue(), "%d %d %d %d", &((RectI *) dptr)->point.x, &((RectI *) dptr)->point.y,
               &((RectI *) dptr)->extent.x, &((RectI *) dptr)->extent.y);
    else if(argc == 4)
-      *((RectI *) dptr) = RectI(dAtoi(argv[0]), dAtoi(argv[1]), dAtoi(argv[2]), dAtoi(argv[3]));
+      *((RectI *) dptr) = RectI(argv[0]->getIntValue(), argv[1]->getIntValue(), argv[2]->getIntValue(), argv[3]->getIntValue());
    else
       Con::printf("RectI must be set as { x, y, w, h } or \"x y w h\"");
 }
@@ -236,19 +236,19 @@ ImplementConsoleTypeCasters( TypeRectF, RectF )
 ConsoleGetType( TypeRectF )
 {
    RectF *rect = (RectF *) dptr;
-   char* returnBuffer = Con::getReturnBuffer(256);
+   char returnBuffer[256];
    dSprintf(returnBuffer, 256, "%g %g %g %g", rect->point.x, rect->point.y,
             rect->extent.x, rect->extent.y);
-   return returnBuffer;
+   return Con::getReturnValue(returnBuffer);
 }
 
 ConsoleSetType( TypeRectF )
 {
    if(argc == 1)
-      dSscanf(argv[0], "%g %g %g %g", &((RectF *) dptr)->point.x, &((RectF *) dptr)->point.y,
+      dSscanf(argv[0]->getStringValue(), "%g %g %g %g", &((RectF *) dptr)->point.x, &((RectF *) dptr)->point.y,
               &((RectF *) dptr)->extent.x, &((RectF *) dptr)->extent.y);
    else if(argc == 4)
-      *((RectF *) dptr) = RectF(dAtof(argv[0]), dAtof(argv[1]), dAtof(argv[2]), dAtof(argv[3]));
+      *((RectF *) dptr) = RectF(argv[0]->getFloatValue(), argv[1]->getFloatValue(), argv[2]->getFloatValue(), argv[3]->getFloatValue());
    else
       Con::printf("RectF must be set as { x, y, w, h } or \"x y w h\"");
 }
@@ -270,10 +270,10 @@ ConsoleGetType( TypeMatrixF )
    mat->getColumn(0, &col0);
    mat->getColumn(1, &col1);
    mat->getColumn(2, &col2);
-   char* returnBuffer = Con::getReturnBuffer(256);
+   char returnBuffer[256];
    dSprintf(returnBuffer,256,"%g %g %g %g %g %g %g %g %g",
             col0.x, col0.y, col0.z, col1.x, col1.y, col1.z, col2.x, col2.y, col2.z);
-   return returnBuffer;
+   return Con::getReturnValue(returnBuffer);
 }
 
 ConsoleSetType( TypeMatrixF )
@@ -285,7 +285,7 @@ ConsoleSetType( TypeMatrixF )
    }
    
    Point3F col0, col1, col2;
-   dSscanf( argv[ 0 ], "%g %g %g %g %g %g %g %g %g",
+   dSscanf( argv[ 0 ]->getStringValue(), "%g %g %g %g %g %g %g %g %g",
             &col0.x, &col0.y, &col0.z, &col1.x, &col1.y, &col1.z, &col2.x, &col2.y, &col2.z );
 
    MatrixF* mat = ( MatrixF* ) dptr;
@@ -303,12 +303,12 @@ ConsoleType( MatrixPosition, TypeMatrixPosition, MatrixF )
 ConsoleGetType( TypeMatrixPosition )
 {
    F32 *col = (F32 *) dptr + 3;
-   char* returnBuffer = Con::getReturnBuffer(256);
+   char returnBuffer[256];
    if(col[12] == 1.f)
       dSprintf(returnBuffer, 256, "%g %g %g", col[0], col[4], col[8]);
    else
       dSprintf(returnBuffer, 256, "%g %g %g %g", col[0], col[4], col[8], col[12]);
-   return returnBuffer;
+   return Con::getReturnValue(returnBuffer);
 }
 
 ConsoleSetType( TypeMatrixPosition )
@@ -318,12 +318,12 @@ ConsoleSetType( TypeMatrixPosition )
    {
       col[0] = col[4] = col[8] = 0.f;
       col[12] = 1.f;
-      dSscanf(argv[0], "%g %g %g %g", &col[0], &col[4], &col[8], &col[12]);
+      dSscanf(argv[0]->getStringValue(), "%g %g %g %g", &col[0], &col[4], &col[8], &col[12]);
    }
    else if (argc <= 4) 
    {
       for (S32 i = 0; i < argc; i++)
-         col[i << 2] = dAtof(argv[i]);
+         col[i << 2] = argv[i]->getFloatValue();
    }
    else
       Con::printf("Matrix position must be set as { x, y, z, w } or \"x y z w\"");
@@ -338,9 +338,9 @@ ConsoleGetType( TypeMatrixRotation )
 {
    AngAxisF aa(*(MatrixF *) dptr);
    aa.axis.normalize();
-   char* returnBuffer = Con::getReturnBuffer(256);
+   char returnBuffer[256];
    dSprintf(returnBuffer,256,"%g %g %g %g",aa.axis.x,aa.axis.y,aa.axis.z,mRadToDeg(aa.angle));
-   return returnBuffer;
+   return Con::getReturnValue(returnBuffer);
 }
 
 ConsoleSetType( TypeMatrixRotation )
@@ -350,13 +350,13 @@ ConsoleSetType( TypeMatrixRotation )
    AngAxisF aa(Point3F(0,0,0),0);
    if (argc == 1)
    {
-      dSscanf(argv[0], "%g %g %g %g", &aa.axis.x, &aa.axis.y, &aa.axis.z, &aa.angle);
+      dSscanf(argv[0]->getStringValue(), "%g %g %g %g", &aa.axis.x, &aa.axis.y, &aa.axis.z, &aa.angle);
       aa.angle = mDegToRad(aa.angle);
    }
    else if (argc == 4) 
    {
          for (S32 i = 0; i < argc; i++)
-            ((F32*)&aa)[i] = dAtof(argv[i]);
+            ((F32*)&aa)[i] = argv[i]->getFloatValue();
          aa.angle = mDegToRad(aa.angle);
    }
    else
@@ -382,9 +382,9 @@ ImplementConsoleTypeCasters( TypeAngAxisF, AngAxisF )
 ConsoleGetType( TypeAngAxisF )
 {
    AngAxisF* aa = ( AngAxisF* ) dptr;
-   char* returnBuffer = Con::getReturnBuffer(256);
+   char returnBuffer[256];
    dSprintf(returnBuffer,256,"%g %g %g %g",aa->axis.x,aa->axis.y,aa->axis.z,mRadToDeg(aa->angle));
-   return returnBuffer;
+   return Con::getReturnValue(returnBuffer);
 }
 
 ConsoleSetType( TypeAngAxisF )
@@ -394,13 +394,13 @@ ConsoleSetType( TypeAngAxisF )
    AngAxisF* aa = ( AngAxisF* ) dptr;
    if (argc == 1)
    {
-      dSscanf(argv[0], "%g %g %g %g", &aa->axis.x, &aa->axis.y, &aa->axis.z, &aa->angle);
+      dSscanf(argv[0]->getStringValue(), "%g %g %g %g", &aa->axis.x, &aa->axis.y, &aa->axis.z, &aa->angle);
       aa->angle = mDegToRad(aa->angle);
    }
    else if (argc == 4) 
    {
       for (S32 i = 0; i < argc; i++)
-         ((F32*)&aa)[i] = dAtof(argv[i]);
+         ((F32*)&aa)[i] = argv[i]->getFloatValue();
       aa->angle = mDegToRad(aa->angle);
    }
    else
@@ -420,11 +420,11 @@ ImplementConsoleTypeCasters( TypeTransformF, TransformF )
 ConsoleGetType( TypeTransformF )
 {
    TransformF* aa = ( TransformF* ) dptr;
-   char* returnBuffer = Con::getReturnBuffer( 256 );
+   char returnBuffer[256];
    dSprintf( returnBuffer, 256, "%g %g %g %g %g %g %g",
              aa->mPosition.x, aa->mPosition.y, aa->mPosition.z,
              aa->mOrientation.axis.x, aa->mOrientation.axis.y, aa->mOrientation.axis.z, aa->mOrientation.angle );
-   return returnBuffer;
+   return Con::getReturnValue(returnBuffer);
 }
 
 ConsoleSetType( TypeTransformF )
@@ -432,7 +432,7 @@ ConsoleSetType( TypeTransformF )
    TransformF* aa = ( TransformF* ) dptr;
    if( argc == 1 )
    {
-      U32 count = dSscanf( argv[ 0 ], "%g %g %g %g %g %g %g",
+      U32 count = dSscanf( argv[ 0 ]->getStringValue(), "%g %g %g %g %g %g %g",
                &aa->mPosition.x, &aa->mPosition.y, &aa->mPosition.z,
                &aa->mOrientation.axis.x, &aa->mOrientation.axis.y, &aa->mOrientation.axis.z, &aa->mOrientation.angle );
 
@@ -440,13 +440,13 @@ ConsoleSetType( TypeTransformF )
    }
    else if( argc == 7 )
    {
-      aa->mPosition.x = dAtof( argv[ 0 ] );
-      aa->mPosition.y = dAtof( argv[ 1 ] );
-      aa->mPosition.z = dAtof( argv[ 2 ] );
-      aa->mOrientation.axis.x = dAtof( argv[ 3 ] );
-      aa->mOrientation.axis.y = dAtof( argv[ 4 ] );
-      aa->mOrientation.axis.z = dAtof( argv[ 5 ] );
-      aa->mOrientation.angle = dAtof( argv[ 6 ] );
+      aa->mPosition.x = argv[ 0 ]->getFloatValue();
+      aa->mPosition.y = argv[ 1 ]->getFloatValue();
+      aa->mPosition.z = argv[ 2 ]->getFloatValue();
+      aa->mOrientation.axis.x = argv[ 3 ]->getFloatValue();
+      aa->mOrientation.axis.y = argv[ 4 ]->getFloatValue();
+      aa->mOrientation.axis.z = argv[ 5 ]->getFloatValue();
+      aa->mOrientation.angle = argv[ 6 ]->getFloatValue();
    }
    else
       Con::errorf( "TransformF must be set as { px, py, pz, x, y, z, angle } or \"px py pz x y z angle\"");
@@ -464,12 +464,12 @@ ConsoleGetType( TypeBox3F )
 {
    const Box3F* pBox = (const Box3F*)dptr;
 
-   char* returnBuffer = Con::getReturnBuffer(256);
+   char returnBuffer[256];
    dSprintf(returnBuffer, 256, "%g %g %g %g %g %g",
             pBox->minExtents.x, pBox->minExtents.y, pBox->minExtents.z,
             pBox->maxExtents.x, pBox->maxExtents.y, pBox->maxExtents.z);
 
-   return returnBuffer;
+   return Con::getReturnValue(returnBuffer);
 }
 
 ConsoleSetType( TypeBox3F )
@@ -478,7 +478,7 @@ ConsoleSetType( TypeBox3F )
 
    if (argc == 1) 
    {
-      U32 args = dSscanf(argv[0], "%g %g %g %g %g %g",
+      U32 args = dSscanf(argv[0]->getStringValue(), "%g %g %g %g %g %g",
                          &pDst->minExtents.x, &pDst->minExtents.y, &pDst->minExtents.z,
                          &pDst->maxExtents.x, &pDst->maxExtents.y, &pDst->maxExtents.z);
       AssertWarn(args == 6, "Warning, box probably not read properly");
@@ -500,11 +500,11 @@ ConsoleGetType( TypeEaseF )
 {
    const EaseF* pEase = (const EaseF*)dptr;
 
-   char* returnBuffer = Con::getReturnBuffer(256);
+   char returnBuffer[256];
    dSprintf(returnBuffer, 256, "%d %d %g %g",
             pEase->dir, pEase->type, pEase->param[0], pEase->param[1]);
 
-   return returnBuffer;
+   return Con::getReturnValue(returnBuffer);
 }
 
 ConsoleSetType( TypeEaseF )
@@ -515,7 +515,7 @@ ConsoleSetType( TypeEaseF )
    pDst->param[0] = -1.0f;
    pDst->param[1] = -1.0f;
    if (argc == 1) {
-      U32 args = dSscanf(argv[0], "%d %d %f %f", // the two params are optional and assumed -1 if not present...
+      U32 args = dSscanf(argv[0]->getStringValue(), "%d %d %f %f", // the two params are optional and assumed -1 if not present...
                          &pDst->dir, &pDst->type, &pDst->param[0],&pDst->param[1]);
       if( args < 2 )
          Con::warnf( "Warning, EaseF probably not read properly" );

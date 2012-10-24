@@ -202,8 +202,8 @@ protected:
 
 protected:
 
-   static bool _setFullReflect( void *object, const char *index, const char *data );
-   static bool _checkDensity(void *object, const char *index, const char *data);
+   static bool _setFullReflect( void *object, const char *index, ConsoleValue *data );
+   static bool _checkDensity(void *object, const char *index, ConsoleValue *data);
 
    // WaterObject
    F32 mViscosity;

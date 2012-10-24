@@ -656,6 +656,7 @@ Dictionary::Entry* Dictionary::addVariable(  const char *name,
 
    ent->value.type = type;
    ent->value.dataPtr = dataPtr;
+   ent->value.isAllocated = false;
    ent->mUsage = usage;
    
    // Fetch enum table, if any.

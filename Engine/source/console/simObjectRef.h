@@ -137,21 +137,21 @@ public:
 
 public:
 
-   virtual const char* getData( void *dptr, const EnumTable*, BitSet32 )
+   virtual ConsoleValue *getData( void *dptr, const EnumTable*, BitSet32 )
    {      
       SimObjectRef<T> *objRef = static_cast< SimObjectRef<T>* >( dptr );
       T *obj = *objRef;
-      return T::__getObjectId( obj );
+      return Con::getReturnValue(T::__getObjectId( obj ));
    }
 
-   virtual void setData( void* dptr, S32 argc, const char** argv, const EnumTable*, BitSet32 )
+   virtual void setData( void* dptr, S32 argc, ConsoleValue *argv[], const EnumTable*, BitSet32 )
    {
       SimObjectRef<T> *objRef = static_cast< SimObjectRef<T>* >( dptr );
 
       if ( argc != 1 ) 
          return;
 
-      *objRef = argv[0];
+      *objRef = argv[0]->getStringValue();
    }
 
    virtual const bool isDatablock() 

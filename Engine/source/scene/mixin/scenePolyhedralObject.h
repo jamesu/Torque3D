@@ -108,9 +108,9 @@ class ScenePolyhedralObject : public Base, public IScenePolyhedralObject
 
    private:
 
-      static bool _setPlane( void* object, const char* index, const char* data );
-      static bool _setPoint( void* object, const char* index, const char* data );
-      static bool _setEdge( void* object, const char* index, const char* data );
+      static bool _setPlane( void* object, const char* index, ConsoleValue* data );
+      static bool _setPoint( void* object, const char* index, ConsoleValue* data );
+      static bool _setEdge( void* object, const char* index, ConsoleValue* data );
 };
 
 #endif // !_SCENEPOLYHEDRALOBJECT_H_

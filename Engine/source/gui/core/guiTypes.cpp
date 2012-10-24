@@ -183,11 +183,11 @@ void GuiControlProfile::setBitmapHandle(GFXTexHandle handle)
    mBitmapName = StringTable->insert("texhandle");
 }
 
-bool GuiControlProfile::protectedSetBitmap( void *object, const char *index, const char *data )
+bool GuiControlProfile::protectedSetBitmap( void *object, const char *index, ConsoleValue *data )
 {
    GuiControlProfile *profile = static_cast<GuiControlProfile*>( object );
    
-   profile->mBitmapName = StringTable->insert(data);
+   profile->mBitmapName = StringTable->insert(data->getStringValue());
 
    if ( !profile->isProperlyAdded() )
       return false;
@@ -210,23 +210,24 @@ bool GuiControlProfile::protectedSetBitmap( void *object, const char *index, con
    return false;
 }
 
-const char* GuiControlProfile::protectedGetSoundButtonDown( void* object, const char* data )
+ConsoleValue* GuiControlProfile::protectedGetSoundButtonDown( void *object, ConsoleValue *data )
 {
    GuiControlProfile* profile = reinterpret_cast< GuiControlProfile* >( object );
 
    SFXTrack* track = profile->mSoundButtonDown;
    if( !track )
-      return "";
+      return Con::getReturnValue("");
 
-   return track->getName();
+   return Con::getReturnValue(track->getName());
 }
 
-bool GuiControlProfile::protectedSetSoundButtonDown( void* object, const char* index, const char* data )
+bool GuiControlProfile::protectedSetSoundButtonDown( void *object, const char *index, ConsoleValue *data )
 {
    GuiControlProfile* profile = reinterpret_cast< GuiControlProfile* >( object );
    
    SFXTrack* track = NULL;
-   if( data && data[ 0] && !Sim::findObject( data, track ) )
+   const char *dataValue = data->getStringValue();
+   if( data && dataValue[ 0] && !Sim::findObject( dataValue, track ) )
    {
       Con::errorf( "GuiControlProfile::protectedSetSoundButtonDown - no SFXTrack '%s'", data );
       return false;
@@ -237,23 +238,24 @@ bool GuiControlProfile::protectedSetSoundButtonDown( void* object, const char* i
    return false;
 }
 
-const char* GuiControlProfile::protectedGetSoundButtonOver( void* object, const char* data )
+ConsoleValue *GuiControlProfile::protectedGetSoundButtonOver( void *object, ConsoleValue *data )
 {
    GuiControlProfile* profile = reinterpret_cast< GuiControlProfile* >( object );
 
    SFXTrack* track = profile->mSoundButtonOver;
    if( !track )
-      return "";
+      return Con::getReturnValue("");
 
-   return track->getName();
+   return Con::getReturnValue(track->getName());
 }
 
-bool GuiControlProfile::protectedSetSoundButtonOver( void* object, const char* index, const char* data )
+bool GuiControlProfile::protectedSetSoundButtonOver( void *object, const char *index, ConsoleValue *data )
 {
    GuiControlProfile* profile = reinterpret_cast< GuiControlProfile* >( object );
    
    SFXTrack* track = NULL;
-   if( data && data[ 0] && !Sim::findObject( data, track ) )
+   const char *dataValue = data->getStringValue();
+   if( data && dataValue[ 0] && !Sim::findObject( dataValue, track ) )
    {
       Con::errorf( "GuiControlProfile::protectedSetSoundButtonOver - no SFXTrack '%s'", data );
       return false;
@@ -719,19 +721,19 @@ ImplementConsoleTypeCasters( TypeRectSpacingI, RectSpacingI )
 ConsoleGetType( TypeRectSpacingI )
 {
    RectSpacingI *rect = (RectSpacingI *) dptr;
-   char* returnBuffer = Con::getReturnBuffer(256);
+   char returnBuffer[256];
    dSprintf(returnBuffer, 256, "%d %d %d %d", rect->top, rect->bottom,
       rect->left, rect->right);
-   return returnBuffer;
+   return Con::getReturnValue(returnBuffer);
 }
 
 ConsoleSetType( TypeRectSpacingI )
 {
    if(argc == 1)
-      dSscanf(argv[0], "%d %d %d %d", &((RectSpacingI *) dptr)->top, &((RectSpacingI *) dptr)->bottom,
+      dSscanf(argv[0]->getStringValue(), "%d %d %d %d", &((RectSpacingI *) dptr)->top, &((RectSpacingI *) dptr)->bottom,
       &((RectSpacingI *) dptr)->left, &((RectSpacingI *) dptr)->right);
    else if(argc == 4)
-      *((RectSpacingI *) dptr) = RectSpacingI(dAtoi(argv[0]), dAtoi(argv[1]), dAtoi(argv[2]), dAtoi(argv[3]));
+      *((RectSpacingI *) dptr) = RectSpacingI(argv[0]->getIntValue(), argv[1]->getIntValue(), argv[2]->getIntValue(), argv[3]->getIntValue());
    else
       Con::printf("RectSpacingI must be set as { t, b, l, r } or \"t b l r\"");
 }

@@ -138,8 +138,8 @@ class SceneSimpleZone : public SceneZoneSpace
 
    private:
 
-      static bool _setUseAmbientLightColor( void* object, const char* index, const char* data );
-      static bool _setAmbientLightColor( void* object, const char* index, const char* data );
+      static bool _setUseAmbientLightColor( void *object, const char *index, ConsoleValue *data );
+      static bool _setAmbientLightColor( void *object, const char *index, ConsoleValue *data );
 };
 
 #endif // !_SCENESIMPLEZONE_H_

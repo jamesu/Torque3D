@@ -193,112 +193,124 @@ void GuiShapeEdPreview::initPersistFields()
    Parent::initPersistFields();
 }
 
-bool GuiShapeEdPreview::setFieldCurrentDL( void *object, const char *index, const char *data )
+bool GuiShapeEdPreview::setFieldCurrentDL( void *object, const char *index, ConsoleValue *data )
 {
    GuiShapeEdPreview* gui = static_cast<GuiShapeEdPreview*>( object );
    if ( gui )
-      gui->setCurrentDetail( mFloor( dAtof( data ) + 0.5f ) );
+      gui->setCurrentDetail( mFloor( data->getFloatValue() + 0.5f ) );
    return false;
 }
 
-bool GuiShapeEdPreview::setFieldSunDiffuse( void *object, const char *index, const char *data )
+bool GuiShapeEdPreview::setFieldSunDiffuse( void *object, const char *index, ConsoleValue *data )
 {
    GuiShapeEdPreview* gui = static_cast<GuiShapeEdPreview*>( object );
    if ( gui )
    {
-      Con::setData( TypeColorI, &gui->mSunDiffuseColor, 0, 1, &data );
+      ConsoleValueRef ref;
+      ref.value = data;
+      Con::setDataValue( TypeColorI, &gui->mSunDiffuseColor, 0, 1, &ref );
       gui->updateSun();
    }
    return false;
 }
 
-bool GuiShapeEdPreview::setFieldSunAmbient( void *object, const char *index, const char *data )
+bool GuiShapeEdPreview::setFieldSunAmbient( void *object, const char *index, ConsoleValue *data )
 {
    GuiShapeEdPreview* gui = static_cast<GuiShapeEdPreview*>( object );
    if ( gui )
    {
-      Con::setData( TypeColorI, &gui->mSunAmbientColor, 0, 1, &data );
+      ConsoleValueRef ref;
+      ref.value = data;
+      Con::setDataValue( TypeColorI, &gui->mSunAmbientColor, 0, 1, &ref );
       gui->updateSun();
    }
    return false;
 }
 
-bool GuiShapeEdPreview::setFieldSunAngleX( void *object, const char *index, const char *data )
+bool GuiShapeEdPreview::setFieldSunAngleX( void *object, const char *index, ConsoleValue *data )
 {
    GuiShapeEdPreview* gui = static_cast<GuiShapeEdPreview*>( object );
    if ( gui )
    {
-      Con::setData( TypeF32, &gui->mSunRot.x, 0, 1, &data );
+      ConsoleValueRef ref;
+      ref.value = data;
+      Con::setDataValue( TypeF32, &gui->mSunRot.x, 0, 1, &ref );
       gui->updateSun();
    }
    return false;
 }
 
-bool GuiShapeEdPreview::setFieldSunAngleZ( void *object, const char *index, const char *data )
+bool GuiShapeEdPreview::setFieldSunAngleZ( void *object, const char *index, ConsoleValue *data )
 {
    GuiShapeEdPreview* gui = static_cast<GuiShapeEdPreview*>( object );
    if ( gui )
    {
-      Con::setData( TypeF32, &gui->mSunRot.z, 0, 1, &data );
+      ConsoleValueRef ref;
+      ref.value = data;
+      Con::setDataValue( TypeF32, &gui->mSunRot.z, 0, 1, &ref );
       gui->updateSun();
    }
    return false;
 }
 
-bool GuiShapeEdPreview::setFieldThreadPos( void *object, const char *index, const char *data )
+bool GuiShapeEdPreview::setFieldThreadPos( void *object, const char *index, ConsoleValue *data )
 {
    GuiShapeEdPreview* gui = static_cast<GuiShapeEdPreview*>( object );
    if ( gui && ( gui->mActiveThread >= 0 ) && gui->mThreads[gui->mActiveThread].key )
-      gui->mModel->setPos( gui->mThreads[gui->mActiveThread].key, dAtof( data ) );
+      gui->mModel->setPos( gui->mThreads[gui->mActiveThread].key, data->getFloatValue( ) );
    return false;
 }
 
-const char *GuiShapeEdPreview::getFieldThreadPos( void *object, const char *data )
+ConsoleValue *GuiShapeEdPreview::getFieldThreadPos( void *object, ConsoleValue *data )
 {
    GuiShapeEdPreview* gui = static_cast<GuiShapeEdPreview*>( object );
    if ( gui && ( gui->mActiveThread >= 0 ) && gui->mThreads[gui->mActiveThread].key )
-      return Con::getFloatArg( gui->mModel->getPos( gui->mThreads[gui->mActiveThread].key ) );
+      return Con::getReturnValue( gui->mModel->getPos( gui->mThreads[gui->mActiveThread].key ) );
    else
-      return "0";
+      return Con::getReturnValue(0.0f);
 }
 
-bool GuiShapeEdPreview::setFieldThreadDir( void *object, const char *index, const char *data )
+bool GuiShapeEdPreview::setFieldThreadDir( void *object, const char *index, ConsoleValue *data )
 {
    GuiShapeEdPreview* gui = static_cast<GuiShapeEdPreview*>( object );
    if ( gui && ( gui->mActiveThread >= 0 ) )
    {
       Thread& thread = gui->mThreads[gui->mActiveThread];
-      Con::setData( TypeS32, &(thread.direction), 0, 1, &data );
+      ConsoleValueRef ref;
+      ref.value = data;
+      Con::setDataValue( TypeS32, &(thread.direction), 0, 1, &ref );
       if ( thread.key )
          gui->mModel->setTimeScale( thread.key, gui->mTimeScale * thread.direction );
    }
    return false;
 }
 
-const char *GuiShapeEdPreview::getFieldThreadDir( void *object, const char *data )
+ConsoleValue *GuiShapeEdPreview::getFieldThreadDir( void *object, ConsoleValue *data )
 {
    GuiShapeEdPreview* gui = static_cast<GuiShapeEdPreview*>( object );
    if ( gui && ( gui->mActiveThread >= 0 ) )
-      return Con::getIntArg( gui->mThreads[gui->mActiveThread].direction );
+      return Con::getReturnValue( gui->mThreads[gui->mActiveThread].direction );
    else
-      return "0";
+      return Con::getReturnValue(0.0f);
 }
 
-bool GuiShapeEdPreview::setFieldThreadPingPong( void *object, const char *index, const char *data )
+bool GuiShapeEdPreview::setFieldThreadPingPong( void *object, const char *index, ConsoleValue *data )
 {
    GuiShapeEdPreview* gui = static_cast<GuiShapeEdPreview*>( object );
+   ConsoleValueRef ref;
+   ref.value = data;
    if ( gui && ( gui->mActiveThread >= 0 ) )
-      Con::setData( TypeBool, &(gui->mThreads[gui->mActiveThread].pingpong), 0, 1, &data );
+      Con::setDataValue( TypeBool, &(gui->mThreads[gui->mActiveThread].pingpong), 0, 1, &ref );
    return false;
 }
 
-const char *GuiShapeEdPreview::getFieldThreadPingPong( void *object, const char *data )
+ConsoleValue *GuiShapeEdPreview::getFieldThreadPingPong( void *object, ConsoleValue *data )
 {
    GuiShapeEdPreview* gui = static_cast<GuiShapeEdPreview*>( object );
    if ( gui && ( gui->mActiveThread >= 0 ) )
-      return Con::getIntArg( gui->mThreads[gui->mActiveThread].pingpong );
+      return Con::getReturnValue( gui->mThreads[gui->mActiveThread].pingpong );
    else
-      return "0";
+      return Con::getReturnValue(0.0f);
 }
 
 

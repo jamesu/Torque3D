@@ -43,6 +43,142 @@ struct Token
 };
 #include "console/cmdgram.h"
 
+/*
+class CCodeBuilder : public CodeBuilder
+{
+   CCodeBuilder();
+   ~CCodeBuilder();
+
+   typedef struct VariableInfo
+   {
+      TypeReq type;
+      const char *name;
+      bool isGlobal;
+      VariableInfo *next;
+   } VariableInfo;
+
+   typedef struct StatementList
+   {
+      const char *statement;
+      StatementList *next;
+   } StatementList;
+
+   typedef struct FuncInfo
+   {
+      const char *name;
+      const char *body;
+
+      VariableInfo *parameters;
+      VariableInfo *variables;   // variables used here
+      StatementList *statements;
+
+      FuncInfo *next;
+   } FuncInfo;
+
+   FuncInfo *functionList;
+
+   // Helper info
+
+   // Scratch area for building statements
+   typedef struct StatementBuilder
+   {
+      char buffer[4096];
+      char *ptr;
+   };
+
+   typedef struct ClosureState
+   {
+      bool isSwitch;
+      bool isClosure;
+      bool isIf;
+      bool isElse;
+      bool isLoop;
+      bool isFunction;
+   } ClosureState;
+
+   ClosureState closureStack[16];
+
+   // function foo(params) { body }
+   void beginFunction(const char *name, const char *ns)
+   {
+   }
+
+   void beginFunctionParameters();
+   void nextFunctionParameter();
+   void endFunctionParameters();
+   void beginFunctionBody();
+   void endFunctionBody();
+   void endFunction(); // ends current function
+
+   void addComment(const char *value);
+
+   // new Object(Name)
+   void beginObject(const char *name);
+   void beginObjectConstructorParams();
+   void nextObjectConstructorParam();
+   void endObjectConstructorParams();
+   void beginObjectValueAssignment(const char *name);
+   void endObjectValueAssignment();
+   void endObject();
+
+   // local value, global value
+   void addGlobalVariable(const char *name, bool isArray);
+   void addLocalVariable(const char *name, bool isArray);
+
+   // value = value / return value
+   void beginValueStatement();
+   void beginReturnStatement();
+   void emitValue(const char *value, bool subArray);
+   void emitValue(int value);
+   void emitValue(float value);
+   void emitVariable(const char *name);
+   void pushAssignment(); // ()
+   void popAssignment();
+   void doOp(const char opCode); // value OPCODE value2
+   void endAssignValue();
+
+   void beginArrayIndex();
+   void nextArrayIndex(); // [a,b]
+   void endArrayIndex();
+   void nextStatement(); //;
+
+   void beginClosure(); // {
+   void beginSwitch(const char *value, bool isString);
+   void beginCase(const char *value); // will do an if () if isString
+   void endCase();
+   void endSwitch();
+   void endClosure();
+
+   // if (conditions) { body } else { body }
+   void beginIf(bool hasElse);
+   void beginIfConditions();
+   void endIfConditions();
+   void beginIfBody();
+   void endIfBody();
+   void beginElseBody();
+   void endElseBody();
+   void endIf();
+
+   void beginForLoop();
+   void beginDoLoop();
+   void beginWhileLoop();
+   void endLoop();
+
+   void doContinue();
+   void doBreak();
+
+   // field.field.field... (prefixes value and function)
+   void pushField(const char *name);
+   void emitFields();  // sets current field
+   void clearFields(); // clears all fields
+
+   // function(params)
+   void callFunction(const char *name);
+   void beginFunctionCallParameters();
+   void nextFunctionCallParameter();
+   void endFunctionCallParameters();
+};
+*/
 
 namespace Compiler
 {
@@ -350,13 +486,18 @@ U32 IfStmtNode::compileStmt(U32 *codeStream, U32 ip, U32 continuePoint, U32 brea
    U32 start = ip;
    addBreakLine(ip);
 
+//   codeList << "if (";
+
    ip = testExpr->compile(codeStream, ip, integer ? TypeReqUInt : TypeReqFloat);
    codeStream[ip++] = integer ? OP_JMPIFNOT : OP_JMPIFFNOT;
+
+//   codeList << ") {"
 
    if(elseBlock)
    {
       codeStream[ip++] = start + elseOffset;
       ip = compileBlock(ifBlock, codeStream, ip, continuePoint, breakPoint);
+//      codeList << "} else {";
       codeStream[ip++] = OP_JMP;
       codeStream[ip++] = start + endifOffset;
       ip = compileBlock(elseBlock, codeStream, ip, continuePoint, breakPoint);
@@ -366,6 +507,9 @@ U32 IfStmtNode::compileStmt(U32 *codeStream, U32 ip, U32 continuePoint, U32 brea
       codeStream[ip++] = start + endifOffset;
       ip = compileBlock(ifBlock, codeStream, ip, continuePoint, breakPoint);
    }
+
+//   codeList << "}";
+
    return ip;
 }
 

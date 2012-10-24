@@ -668,7 +668,7 @@ void River::consoleInit()
 	   "@ingroup Editors\n");
 }
 
-bool River::addNodeFromField( void *object, const char *index, const char *data )
+bool River::addNodeFromField( void *object, const char *index, ConsoleValue *data )
 {
    River *pObj = static_cast<River*>(object);
 
@@ -676,7 +676,7 @@ bool River::addNodeFromField( void *object, const char *index, const char *data 
    //{      
    F32 x,y,z,width,depth;      
    VectorF normal;
-   U32 result = dSscanf( data, "%f %f %f %f %f %f %f %f", &x, &y, &z, &width, &depth, &normal.x, &normal.y, &normal.z );      
+   U32 result = dSscanf( data->getStringValue(), "%f %f %f %f %f %f %f %f", &x, &y, &z, &width, &depth, &normal.x, &normal.y, &normal.z );      
    if ( result == 8 )   
       pObj->_addNode( Point3F(x,y,z), width, depth, normal );      
    //}

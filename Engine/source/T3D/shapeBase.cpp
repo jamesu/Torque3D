@@ -437,11 +437,11 @@ bool ShapeBaseData::preload(bool server, String &errorStr)
    return !shapeError;
 }
 
-bool ShapeBaseData::_setMass( void* object, const char* index, const char* data )
+bool ShapeBaseData::_setMass( void* object, const char* index, ConsoleValue* data )
 {
    ShapeBaseData* shape = reinterpret_cast< ShapeBaseData* >( object );
 
-	F32 mass = dAtof(data);
+	F32 mass = data->getFloatValue();
 
 	if (mass <= 0)
 		mass = 0.01f;
@@ -995,18 +995,18 @@ void ShapeBase::initPersistFields()
    Parent::initPersistFields();
 }
 
-bool ShapeBase::_setFieldSkin( void *object, const char *index, const char *data )
+bool ShapeBase::_setFieldSkin( void *object, const char *index, ConsoleValue *data )
 {
    ShapeBase* shape = static_cast<ShapeBase*>( object );
    if ( shape )
-      shape->setSkinName( data );
+      shape->setSkinName( data->getStringValue() );
    return false;
 }
 
-const char *ShapeBase::_getFieldSkin( void *object, const char *data )
+ConsoleValue *ShapeBase::_getFieldSkin( void *object, ConsoleValue *data )
 {
    ShapeBase* shape = static_cast<ShapeBase*>( object );
-   return shape ? shape->getSkinName() : "";
+   return Con::getReturnValue(shape ? shape->getSkinName() : "");
 }
 
 //----------------------------------------------------------------------------

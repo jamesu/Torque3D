@@ -1353,10 +1353,10 @@ void ScatterSky::_getColor( const Point3F &pos, ColorF *outColor )
 
 // Static protected field set methods
 
-bool ScatterSky::ptSetElevation( void *object, const char *index, const char *data )
+bool ScatterSky::ptSetElevation( void *object, const char *index, ConsoleValue *data )
 {
    ScatterSky *sky = static_cast<ScatterSky*>( object );
-   F32 val = dAtof( data );
+   F32 val = data->getFloatValue();
 
    sky->setElevation( val );
 
@@ -1364,10 +1364,10 @@ bool ScatterSky::ptSetElevation( void *object, const char *index, const char *da
    return false;
 }
 
-bool ScatterSky::ptSetAzimuth( void *object, const char *index, const char *data )
+bool ScatterSky::ptSetAzimuth( void *object, const char *index, ConsoleValue *data )
 {
    ScatterSky *sky = static_cast<ScatterSky*>( object );
-   F32 val = dAtof( data );
+   F32 val = data->getFloatValue();
 
    sky->setAzimuth( val );
 

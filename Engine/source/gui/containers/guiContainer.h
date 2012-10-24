@@ -74,7 +74,7 @@ class  GuiContainer : public GuiControl
       virtual void setDocking( S32 docking );
 
       /// Docking Protected Field Setter
-      static bool setDockingField( void *object, const char *index, const char *data )
+      static bool setDockingField( void *object, const char *index, ConsoleValue *data )
       {
          GuiContainer *pContainer = static_cast<GuiContainer*>(object);
          pContainer->setUpdateLayout( updateParent );

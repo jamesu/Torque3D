@@ -1276,15 +1276,15 @@ DefineEngineMethod( Item, getLastStickyNormal, const char *, (),,
 
 //----------------------------------------------------------------------------
 
-bool Item::_setStatic(void *object, const char *index, const char *data)
+bool Item::_setStatic(void *object, const char *index, ConsoleValue *data)
 {
    Item *i = static_cast<Item*>(object);
-   i->mAtRest = dAtob(data);
+   i->mAtRest = dAtob(data->getStringValue());
    i->setMaskBits(InitialUpdateMask | PositionMask);
    return true;
 }
 
-bool Item::_setRotate(void *object, const char *index, const char *data)
+bool Item::_setRotate(void *object, const char *index, ConsoleValue*data)
 {
    Item *i = static_cast<Item*>(object);
    i->setMaskBits(InitialUpdateMask | RotationMask);

@@ -95,26 +95,26 @@ TimeOfDay::~TimeOfDay()
 {
 }
 
-bool TimeOfDay::setTimeOfDay( void *object, const char *index, const char *data )
+bool TimeOfDay::setTimeOfDay( void *object, const char *index, ConsoleValue *data )
 {
    TimeOfDay *tod = static_cast<TimeOfDay*>(object);
-   tod->setTimeOfDay( dAtof( data ) );
+   tod->setTimeOfDay( data->getFloatValue() );
 
    return false;
 }
 
-bool TimeOfDay::setPlay( void *object, const char *index, const char *data )
+bool TimeOfDay::setPlay( void *object, const char *index, ConsoleValue *data )
 {
    TimeOfDay *tod = static_cast<TimeOfDay*>(object);
-   tod->setPlay( dAtob( data ) );
+   tod->setPlay( dAtob( data->getStringValue() ) );
 
    return false;
 }
 
-bool TimeOfDay::setDayLength( void *object, const char *index, const char *data )
+bool TimeOfDay::setDayLength( void *object, const char *index, ConsoleValue *data )
 {
    TimeOfDay *tod = static_cast<TimeOfDay*>(object);
-   F32 length = dAtof( data );
+   F32 length = data->getFloatValue();
    if( length != 0 )
       tod->setDayLength( length );
 

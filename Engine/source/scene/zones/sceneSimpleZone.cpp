@@ -344,18 +344,18 @@ void SceneSimpleZone::traverseZones( SceneTraversalState* state, U32 startZoneId
 
 //-----------------------------------------------------------------------------
 
-bool SceneSimpleZone::_setUseAmbientLightColor( void* object, const char* index, const char* data )
+bool SceneSimpleZone::_setUseAmbientLightColor( void *object, const char *index, ConsoleValue *data )
 {
    SceneSimpleZone* zone = reinterpret_cast< SceneSimpleZone* >( object );
-   zone->setUseAmbientLightColor( EngineUnmarshallData< bool >()( data ) );
+   zone->setUseAmbientLightColor( EngineUnmarshallData< bool >()( data->getStringValue() ) );
    return false;
 }
 
 //-----------------------------------------------------------------------------
 
-bool SceneSimpleZone::_setAmbientLightColor( void* object, const char* index, const char* data )
+bool SceneSimpleZone::_setAmbientLightColor( void *object, const char *index, ConsoleValue *data )
 {
    SceneSimpleZone* zone = reinterpret_cast< SceneSimpleZone* >( object );
-   zone->setAmbientLightColor( EngineUnmarshallData< ColorF >()( data ) );
+   zone->setAmbientLightColor( EngineUnmarshallData< ColorF >()( data->getStringValue() ) );
    return false;
 }

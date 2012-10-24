@@ -73,9 +73,9 @@ void GuiMaterialCtrl::onSleep()
    Parent::onSleep();
 }
 
-bool GuiMaterialCtrl::_setMaterial( void *object, const char *index, const char *data )
+bool GuiMaterialCtrl::_setMaterial( void *object, const char *index, ConsoleValue *data )
 {
-   static_cast<GuiMaterialCtrl *>( object )->setMaterial( data );
+   static_cast<GuiMaterialCtrl *>( object )->setMaterial( data->getStringValue() );
 
    // Return false to keep the caller from setting the field.
    return false;

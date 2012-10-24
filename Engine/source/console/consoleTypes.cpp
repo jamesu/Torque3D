@@ -38,13 +38,13 @@ ImplementConsoleTypeCasters( TypeString, const char* );
 
 ConsoleGetType( TypeString )
 {
-   return *((const char **)(dptr));
+   return Con::getReturnValue(*((const char **)(dptr)));
 }
 
 ConsoleSetType( TypeString )
 {
    if(argc == 1)
-      *((const char **) dptr) = StringTable->insert(argv[0]);
+      *((const char **) dptr) = StringTable->insert(argv[0]->getStringValue());
    else
       Con::printf("(TypeString) Cannot set multiple args to a single string.");
 }
@@ -57,14 +57,14 @@ ConsoleType( caseString, TypeCaseString, const char* )
 ConsoleSetType( TypeCaseString )
 {
    if(argc == 1)
-      *((const char **) dptr) = StringTable->insert(argv[0], true);
+      *((const char **) dptr) = StringTable->insert(argv[0]->getStringValue(), true);
    else
       Con::printf("(TypeCaseString) Cannot set multiple args to a single string.");
 }
 
 ConsoleGetType( TypeCaseString )
 {
-   return *((const char **)(dptr));
+   return Con::getReturnValue(*((const char **)(dptr)));
 }
 
 //-----------------------------------------------------------------------------
@@ -77,7 +77,7 @@ ConsoleGetType( TypeRealString )
 {
    const String *theString = static_cast<const String*>(dptr);
 
-   return theString->c_str();
+   return Con::getReturnValue(theString->c_str());
 }
 
 ConsoleSetType( TypeRealString )
@@ -85,7 +85,7 @@ ConsoleSetType( TypeRealString )
    String *theString = static_cast<String*>(dptr);
 
    if(argc == 1)
-      *theString = argv[0];
+      *theString = (const char*)argv[0]->getStringValue();
    else
       Con::printf("(TypeRealString) Cannot set multiple args to a single string.");
 }
@@ -99,7 +99,7 @@ ConsoleGetType( TypeCommand )
 {
    const String *theString = static_cast<const String*>(dptr);
 
-   return theString->c_str();
+   return Con::getReturnValue(theString->c_str());
 }
 
 ConsoleSetType( TypeCommand )
@@ -107,7 +107,7 @@ ConsoleSetType( TypeCommand )
    String *theString = static_cast<String*>(dptr);
 
    if(argc == 1)
-      *theString = argv[0];
+      *theString = argv[0]->getStringValue();
    else
       Con::printf("(TypeCommand) Cannot set multiple args to a single command.");
 }
@@ -121,13 +121,14 @@ ConsoleSetType( TypeFilename )
 {
    if(argc == 1)
    {
+      const char *fname = argv[0]->getStringValue();
       char buffer[1024];
-      if(argv[0][0] == '$')
+      if(fname[0] == '$')
       {
-         dStrncpy(buffer, argv[0], sizeof(buffer) - 1);
+         dStrncpy(buffer, fname, sizeof(buffer) - 1);
          buffer[sizeof(buffer)-1] = 0;
       }
-      else if (! Con::expandScriptFilename(buffer, 1024, argv[0]))
+      else if (! Con::expandScriptFilename(buffer, 1024, fname))
       {
          Con::warnf("(TypeFilename) illegal filename detected: %s", argv[0]);
          return;
@@ -141,7 +142,7 @@ ConsoleSetType( TypeFilename )
 
 ConsoleGetType( TypeFilename )
 {
-   return *((const char **)(dptr));
+   return Con::getReturnValue(*((const char **)(dptr)));
 }
 
 ConsoleProcessData( TypeFilename )
@@ -164,15 +165,16 @@ ConsoleSetType( TypeStringFilename )
 {
    if(argc == 1)
    {
+      const char *fname = argv[0]->getStringValue();
       char buffer[1024];
-      if(argv[0][0] == '$')
+      if(fname[0] == '$')
       {
-         dStrncpy(buffer, argv[0], sizeof(buffer) - 1);
+         dStrncpy(buffer, fname, sizeof(buffer) - 1);
          buffer[sizeof(buffer)-1] = 0;
       }
-      else if (! Con::expandScriptFilename(buffer, 1024, argv[0]))
+      else if (! Con::expandScriptFilename(buffer, 1024, fname))
       {
-         Con::warnf("(TypeStringFilename) illegal filename detected: %s", argv[0]);
+         Con::warnf("(TypeStringFilename) illegal filename detected: %s", fname);
          return;
       }
 
@@ -184,7 +186,7 @@ ConsoleSetType( TypeStringFilename )
 
 ConsoleGetType( TypeStringFilename )
 {
-   return *((String*)dptr);
+   return Con::getReturnValue(*((String*)dptr));
 }
 
 ConsoleProcessData( TypeStringFilename )
@@ -207,12 +209,14 @@ ConsolePrepType( filename, TypePrefabFilename, String )
 
 ConsoleSetType( TypePrefabFilename )
 {
-   Con::setData(TypeStringFilename, dptr, 0, argc, argv, tbl, flag);
+   ConsoleValueRef ref;
+   ref.value = argv[0];
+   Con::setDataValue(TypeStringFilename, dptr, 0, argc, &ref, tbl, flag);
 }
 
 ConsoleGetType( TypePrefabFilename )
 {
-   return *((String*)dptr);
+   return Con::getReturnValue(*((String*)dptr));
 }
 
 ConsoleProcessData( TypePrefabFilename )
@@ -235,12 +239,14 @@ ConsolePrepType( filename, TypeImageFilename, String )
 
 ConsoleSetType( TypeImageFilename )
 {
-   Con::setData(TypeStringFilename, dptr, 0, argc, argv, tbl, flag);
+   ConsoleValueRef ref;
+   ref.value = argv[0];
+   Con::setDataValue(TypeStringFilename, dptr, 0, argc, &ref, tbl, flag);
 }
 
 ConsoleGetType( TypeImageFilename )
 {
-   return *((String*)dptr);
+   return Con::getReturnValue(*((String*)dptr));
 }
 
 ConsoleProcessData( TypeImageFilename )
@@ -261,12 +267,14 @@ ConsolePrepType( filename, TypeShapeFilename, const char* )
 
 ConsoleSetType( TypeShapeFilename )
 {
-   Con::setData(TypeFilename, dptr, 0, argc, argv, tbl, flag);
+   ConsoleValueRef ref;
+   ref.value = argv[0];
+   Con::setDataValue(TypeFilename, dptr, 0, argc, &ref, tbl, flag);
 }
 
 ConsoleGetType( TypeShapeFilename )
 {
-   return *((const char **)(dptr));
+   return Con::getReturnValue(*((const char **)(dptr)));
 }
 
 ConsoleProcessData( TypeShapeFilename )
@@ -288,15 +296,15 @@ ImplementConsoleTypeCasters( TypeS8, S8 )
 
 ConsoleGetType( TypeS8 )
 {
-   char* returnBuffer = Con::getReturnBuffer(256);
+   char returnBuffer[256];
    dSprintf(returnBuffer, 256, "%d", *((U8 *) dptr) );
-   return returnBuffer;
+   return Con::getReturnValue(returnBuffer);
 }
 
 ConsoleSetType( TypeS8 )
 {
    if(argc == 1)
-      *((U8 *) dptr) = dAtoi(argv[0]);
+      *((U8 *) dptr) = argv[0]->getIntValue();
    else
       Con::printf("(TypeU8) Cannot set multiple args to a single S8.");
 }
@@ -309,15 +317,15 @@ ImplementConsoleTypeCasters(TypeS32, S32)
 
 ConsoleGetType( TypeS32 )
 {
-   char* returnBuffer = Con::getReturnBuffer(256);
+   char returnBuffer[256];
    dSprintf(returnBuffer, 256, "%d", *((S32 *) dptr) );
-   return returnBuffer;
+   return Con::getReturnValue(returnBuffer);
 }
 
 ConsoleSetType( TypeS32 )
 {
    if(argc == 1)
-      *((S32 *) dptr) = dAtoi(argv[0]);
+      *((S32 *) dptr) = argv[0]->getIntValue();
    else
       Con::printf("(TypeS32) Cannot set multiple args to a single S32.");
 }
@@ -333,7 +341,7 @@ ConsoleGetType( TypeS32Vector )
 {
    Vector<S32> *vec = (Vector<S32> *)dptr;
    S32 buffSize = ( vec->size() * 15 ) + 16 ;
-   char* returnBuffer = Con::getReturnBuffer( buffSize );
+   char* returnBuffer = Con::getArgBuffer( buffSize );
    S32 maxReturn = buffSize;
    returnBuffer[0] = '\0';
    S32 returnLeng = 0;
@@ -347,7 +355,7 @@ ConsoleGetType( TypeS32Vector )
    // trim off that last extra space
    if (returnLeng > 0 && returnBuffer[returnLeng - 1] == ' ')
       returnBuffer[returnLeng - 1] = '\0';
-   return returnBuffer;
+   return Con::getReturnValue(returnBuffer);
 }
 
 ConsoleSetType( TypeS32Vector )
@@ -357,7 +365,7 @@ ConsoleSetType( TypeS32Vector )
    vec->clear();
    if(argc == 1)
    {
-      const char *values = argv[0];
+      const char *values = argv[0]->getStringValue();
       const char *endValues = values + dStrlen(values);
       S32 value;
       // advance through the string, pulling off S32's and advancing the pointer
@@ -374,7 +382,7 @@ ConsoleSetType( TypeS32Vector )
    else if (argc > 1)
    {
       for (S32 i = 0; i < argc; i++)
-         vec->push_back(dAtoi(argv[i]));
+         vec->push_back(argv[i]->getIntValue());
    }
    else
       Con::printf("Vector<S32> must be set as { a, b, c, ... } or \"a b c ...\"");
@@ -388,14 +396,14 @@ ImplementConsoleTypeCasters(TypeF32, F32)
 
 ConsoleGetType( TypeF32 )
 {
-   char* returnBuffer = Con::getReturnBuffer(256);
+   char returnBuffer[256];
    dSprintf(returnBuffer, 256, "%g", *((F32 *) dptr) );
-   return returnBuffer;
+   return Con::getReturnValue(returnBuffer);
 }
 ConsoleSetType( TypeF32 )
 {
    if(argc == 1)
-      *((F32 *) dptr) = dAtof(argv[0]);
+      *((F32 *) dptr) = argv[0]->getFloatValue();
    else
       Con::printf("(TypeF32) Cannot set multiple args to a single F32.");
 }
@@ -410,7 +418,7 @@ ConsoleGetType( TypeF32Vector )
 {
    Vector<F32> *vec = (Vector<F32> *)dptr;
    S32 buffSize = ( vec->size() * 15 ) + 16 ;
-   char* returnBuffer = Con::getReturnBuffer( buffSize );
+   char* returnBuffer = Con::getArgBuffer( buffSize );
    S32 maxReturn = buffSize;
    returnBuffer[0] = '\0';
    S32 returnLeng = 0;
@@ -424,7 +432,7 @@ ConsoleGetType( TypeF32Vector )
    // trim off that last extra space
    if (returnLeng > 0 && returnBuffer[returnLeng - 1] == ' ')
       returnBuffer[returnLeng - 1] = '\0';
-   return returnBuffer;
+   return Con::getReturnValue(returnBuffer);
 }
 
 ConsoleSetType( TypeF32Vector )
@@ -434,7 +442,7 @@ ConsoleSetType( TypeF32Vector )
    vec->clear();
    if(argc == 1)
    {
-      const char *values = argv[0];
+      const char *values = argv[0]->getStringValue();
       const char *endValues = values + dStrlen(values);
       F32 value;
       // advance through the string, pulling off F32's and advancing the pointer
@@ -451,7 +459,7 @@ ConsoleSetType( TypeF32Vector )
    else if (argc > 1)
    {
       for (S32 i = 0; i < argc; i++)
-         vec->push_back(dAtof(argv[i]));
+         vec->push_back(argv[i]->getFloatValue());
    }
    else
       Con::printf("Vector<F32> must be set as { a, b, c, ... } or \"a b c ...\"");
@@ -465,13 +473,13 @@ ImplementConsoleTypeCasters( TypeBool, bool )
 
 ConsoleGetType( TypeBool )
 {
-   return *((bool *) dptr) ? "1" : "0";
+   return Con::getReturnValue(*((bool *) dptr) ? "1" : "0");
 }
 
 ConsoleSetType( TypeBool )
 {
    if(argc == 1)
-      *((bool *) dptr) = dAtob(argv[0]);
+      *((bool *) dptr) = dAtob(argv[0]->getStringValue());
    else
       Con::printf("(TypeBool) Cannot set multiple args to a single bool.");
 }
@@ -486,7 +494,7 @@ ImplementConsoleTypeCasters( TypeBoolVector, Vector< bool > )
 ConsoleGetType( TypeBoolVector )
 {
    Vector<bool> *vec = (Vector<bool>*)dptr;
-   char* returnBuffer = Con::getReturnBuffer(1024);
+   char returnBuffer[1024];
    S32 maxReturn = 1024;
    returnBuffer[0] = '\0';
    S32 returnLeng = 0;
@@ -499,7 +507,7 @@ ConsoleGetType( TypeBoolVector )
    // trim off that last extra space
    if (returnLeng > 0 && returnBuffer[returnLeng - 1] == ' ')
       returnBuffer[returnLeng - 1] = '\0';
-   return(returnBuffer);
+   return Con::getReturnValue(returnBuffer);
 }
 
 ConsoleSetType( TypeBoolVector )
@@ -509,7 +517,7 @@ ConsoleSetType( TypeBoolVector )
    vec->clear();
    if (argc == 1)
    {
-      const char *values = argv[0];
+      const char *values = argv[0]->getStringValue();
       const char *endValues = values + dStrlen(values);
       S32 value;
       // advance through the string, pulling off bool's and advancing the pointer
@@ -526,7 +534,7 @@ ConsoleSetType( TypeBoolVector )
    else if (argc > 1)
    {
       for (S32 i = 0; i < argc; i++)
-         vec->push_back(dAtob(argv[i]));
+         vec->push_back(dAtob(argv[i]->getStringValue()));
    }
    else
       Con::printf("Vector<bool> must be set as { a, b, c, ... } or \"a b c ...\"");
@@ -541,8 +549,8 @@ ConsoleType( flag, TypeFlag, S32 )
 ConsoleGetType( TypeFlag )
 {
    BitSet32 tempFlags = *(BitSet32 *)dptr;
-   if (tempFlags.test(flag)) return "true";
-   else return "false";
+   if (tempFlags.test(flag)) return Con::getReturnValue("true");
+   else return Con::getReturnValue("false");
 }
 
 ConsoleSetType( TypeFlag )
@@ -554,7 +562,7 @@ ConsoleSetType( TypeFlag )
    }
    else
    {
-      value = dAtob(argv[0]);
+      value = dAtob(argv[0]->getStringValue());
    }
    ((BitSet32 *)dptr)->set(flag, value);
 }
@@ -568,9 +576,9 @@ ImplementConsoleTypeCasters( TypeColorF, ColorF )
 ConsoleGetType( TypeColorF )
 {
    ColorF * color = (ColorF*)dptr;
-   char* returnBuffer = Con::getReturnBuffer(256);
+   char returnBuffer[256];
    dSprintf(returnBuffer, 256, "%g %g %g %g", color->red, color->green, color->blue, color->alpha);
-   return(returnBuffer);
+   return Con::getReturnValue(returnBuffer);
 }
 
 ConsoleSetType( TypeColorF )
@@ -580,7 +588,7 @@ ConsoleSetType( TypeColorF )
    {
       tmpColor->set(0, 0, 0, 1);
       F32 r,g,b,a;
-      S32 args = dSscanf(argv[0], "%g %g %g %g", &r, &g, &b, &a);
+      S32 args = dSscanf(argv[0]->getStringValue(), "%g %g %g %g", &r, &g, &b, &a);
       tmpColor->red = r;
       tmpColor->green = g;
       tmpColor->blue = b;
@@ -589,17 +597,17 @@ ConsoleSetType( TypeColorF )
    }
    else if(argc == 3)
    {
-      tmpColor->red    = dAtof(argv[0]);
-      tmpColor->green  = dAtof(argv[1]);
-      tmpColor->blue   = dAtof(argv[2]);
+      tmpColor->red    = argv[0]->getFloatValue();
+      tmpColor->green  = argv[1]->getFloatValue();
+      tmpColor->blue   = argv[2]->getFloatValue();
       tmpColor->alpha  = 1.f;
    }
    else if(argc == 4)
    {
-      tmpColor->red    = dAtof(argv[0]);
-      tmpColor->green  = dAtof(argv[1]);
-      tmpColor->blue   = dAtof(argv[2]);
-      tmpColor->alpha  = dAtof(argv[3]);
+      tmpColor->red    = argv[0]->getFloatValue();
+      tmpColor->green  = argv[1]->getFloatValue();
+      tmpColor->blue   = argv[2]->getFloatValue();
+      tmpColor->alpha  = argv[3]->getFloatValue();
    }
    else
       Con::printf("Color must be set as { r, g, b [,a] }");
@@ -614,9 +622,9 @@ ImplementConsoleTypeCasters( TypeColorI, ColorI )
 ConsoleGetType( TypeColorI )
 {
    ColorI *color = (ColorI *) dptr;
-   char* returnBuffer = Con::getReturnBuffer(256);
+   char returnBuffer[256];
    dSprintf(returnBuffer, 256, "%d %d %d %d", color->red, color->green, color->blue, color->alpha);
-   return returnBuffer;
+   return Con::getReturnValue(returnBuffer);
 }
 
 ConsoleSetType( TypeColorI )
@@ -626,7 +634,7 @@ ConsoleSetType( TypeColorI )
    {
       tmpColor->set(0, 0, 0, 255);
       S32 r,g,b,a;
-      S32 args = dSscanf(argv[0], "%d %d %d %d", &r, &g, &b, &a);
+      S32 args = dSscanf(argv[0]->getStringValue(), "%d %d %d %d", &r, &g, &b, &a);
       tmpColor->red = r;
       tmpColor->green = g;
       tmpColor->blue = b;
@@ -635,17 +643,17 @@ ConsoleSetType( TypeColorI )
    }
    else if(argc == 3)
    {
-      tmpColor->red    = dAtoi(argv[0]);
-      tmpColor->green  = dAtoi(argv[1]);
-      tmpColor->blue   = dAtoi(argv[2]);
+      tmpColor->red    = argv[0]->getIntValue();
+      tmpColor->green  = argv[1]->getIntValue();
+      tmpColor->blue   = argv[2]->getIntValue();
       tmpColor->alpha  = 255;
    }
    else if(argc == 4)
    {
-      tmpColor->red    = dAtoi(argv[0]);
-      tmpColor->green  = dAtoi(argv[1]);
-      tmpColor->blue   = dAtoi(argv[2]);
-      tmpColor->alpha  = dAtoi(argv[3]);
+      tmpColor->red    = argv[0]->getIntValue();
+      tmpColor->green  = argv[1]->getIntValue();
+      tmpColor->blue   = argv[2]->getIntValue();
+      tmpColor->alpha  = argv[3]->getIntValue();
    }
    else
       Con::printf("Color must be set as { r, g, b [,a] }");
@@ -661,7 +669,7 @@ ConsoleSetType( TypeSimObjectName )
    if(argc == 1)
    {
       SimObject **obj = (SimObject **)dptr;
-      *obj = Sim::findObject(argv[0]);
+      *obj = Sim::findObject(argv[0]->getStringValue());
    }
    else
       Con::printf("(TypeSimObjectName) Cannot set multiple args to a single S32.");
@@ -670,9 +678,9 @@ ConsoleSetType( TypeSimObjectName )
 ConsoleGetType( TypeSimObjectName )
 {
    SimObject **obj = (SimObject**)dptr;
-   char* returnBuffer = Con::getReturnBuffer(128);
+   char returnBuffer[128];
    dSprintf(returnBuffer, 128, "%s", *obj && (*obj)->getName() ? (*obj)->getName() : "");
-   return returnBuffer;
+   return Con::getReturnValue(returnBuffer);
 }
 
 //-----------------------------------------------------------------------------
@@ -682,7 +690,7 @@ ConsoleType( string, TypeName, const char* )
 
 ConsoleGetType( TypeName )
 {
-   return *((const char **)(dptr));
+   return Con::getReturnValue(*((const char **)(dptr)));
 }
 
 ConsoleSetType( TypeName )
@@ -697,13 +705,13 @@ ConsoleType( string, TypeParticleParameterString, const char* )
 
 ConsoleGetType( TypeParticleParameterString )
 {
-   return *((const char **)(dptr));
+   return Con::getReturnValue(*((const char **)(dptr)));
 }
 
 ConsoleSetType( TypeParticleParameterString )
 {
    if(argc == 1)
-      *((const char **) dptr) = StringTable->insert(argv[0]);
+      *((const char **) dptr) = StringTable->insert(argv[0]->getStringValue());
    else
       Con::printf("(TypeParticleParameterString) Cannot set multiple args to a single string.");
 }
@@ -717,7 +725,7 @@ ConsoleType( string, TypeMaterialName, String )
 ConsoleGetType( TypeMaterialName )
 {
    const String *theString = static_cast<const String*>(dptr);
-   return theString->c_str();
+   return Con::getReturnValue(theString->c_str());
 }
 
 ConsoleSetType( TypeMaterialName )
@@ -725,7 +733,7 @@ ConsoleSetType( TypeMaterialName )
    String *theString = static_cast<String*>(dptr);
 
    if(argc == 1)
-      *theString = argv[0];
+      *theString = argv[0]->getStringValue();
    else
       Con::printf("(TypeMaterialName) Cannot set multiple args to a single string.");
 }
@@ -738,15 +746,15 @@ ConsoleType( int, TypeTerrainMaterialIndex, S32 )
 
 ConsoleGetType( TypeTerrainMaterialIndex )
 {
-   char* returnBuffer = Con::getReturnBuffer(256);
+   char returnBuffer[256];
    dSprintf(returnBuffer, 256, "%d", *((S32 *) dptr) );
-   return returnBuffer;
+   return Con::getReturnValue(returnBuffer);
 }
 
 ConsoleSetType( TypeTerrainMaterialIndex )
 {
    if(argc == 1)
-      *((S32 *) dptr) = dAtoi(argv[0]);
+      *((S32 *) dptr) = argv[0]->getIntValue();
    else
       Con::printf("(TypeTerrainMaterialIndex) Cannot set multiple args to a single S32.");
 }
@@ -759,13 +767,13 @@ ConsoleType( string, TypeTerrainMaterialName, const char* )
 
 ConsoleGetType( TypeTerrainMaterialName )
 {
-   return *((const char **)(dptr));
+   return Con::getReturnValue(*((const char **)(dptr)));
 }
 
 ConsoleSetType( TypeTerrainMaterialName )
 {
    if(argc == 1)
-      *((const char **) dptr) = StringTable->insert(argv[0]);
+      *((const char **) dptr) = StringTable->insert(argv[0]->getStringValue());
    else
       Con::printf("(TypeTerrainMaterialName) Cannot set multiple args to a single string.");
 }
@@ -779,7 +787,7 @@ ConsoleType( string, TypeCubemapName, String )
 ConsoleGetType( TypeCubemapName )
 {
    const String *theString = static_cast<const String*>(dptr);
-   return theString->c_str();
+   return Con::getReturnValue(theString->c_str());
 }
 
 ConsoleSetType( TypeCubemapName )
@@ -787,7 +795,7 @@ ConsoleSetType( TypeCubemapName )
    String *theString = static_cast<String*>(dptr);
 
    if(argc == 1)
-      *theString = argv[0];
+      *theString = (const char*)argv[0];
    else
       Con::printf("(TypeCubemapName) Cannot set multiple args to a single string.");
 }
@@ -800,19 +808,19 @@ ConsoleType( RectF, TypeRectUV, RectF )
 ConsoleGetType( TypeRectUV )
 {
    RectF *rect = (RectF *) dptr;
-   char* returnBuffer = Con::getReturnBuffer(256);
+   char returnBuffer[256];
    dSprintf(returnBuffer, 256, "%g %g %g %g", rect->point.x, rect->point.y,
             rect->extent.x, rect->extent.y);
-   return returnBuffer;
+   return Con::getReturnValue(returnBuffer);
 }
 
 ConsoleSetType( TypeRectUV )
 {
    if(argc == 1)
-      dSscanf(argv[0], "%g %g %g %g", &((RectF *) dptr)->point.x, &((RectF *) dptr)->point.y,
+      dSscanf(argv[0]->getStringValue(), "%g %g %g %g", &((RectF *) dptr)->point.x, &((RectF *) dptr)->point.y,
               &((RectF *) dptr)->extent.x, &((RectF *) dptr)->extent.y);
    else if(argc == 4)
-      *((RectF *) dptr) = RectF(dAtof(argv[0]), dAtof(argv[1]), dAtof(argv[2]), dAtof(argv[3]));
+      *((RectF *) dptr) = RectF(argv[0]->getFloatValue(), argv[1]->getFloatValue(), argv[2]->getFloatValue(), argv[3]->getFloatValue());
    else
       Con::printf("RectUV must be set as { x, y, w, h } or \"x y w h\"");
 }
@@ -826,7 +834,7 @@ ImplementConsoleTypeCasters( TypeUUID, Torque::UUID )
 ConsoleGetType( TypeUUID )
 {
    Torque::UUID* uuid = ( Torque::UUID* ) dptr;
-   return Con::getReturnBuffer( uuid->toString() );
+   return Con::getReturnValue( uuid->toString() );
 }
 
 ConsoleSetType( TypeUUID )
@@ -834,8 +842,9 @@ ConsoleSetType( TypeUUID )
    if( argc == 1 )
    {
       Torque::UUID* uuid = ( Torque::UUID* ) dptr;
-      if( !uuid->fromString( argv[ 0 ] ) )
-         Con::errorf( "Error parsing UUID: '%s'", argv[ 0 ] );
+      const char *value = argv[0]->getStringValue();
+      if( !uuid->fromString( value ) )
+         Con::errorf( "Error parsing UUID: '%s'", value );
    }
    else
       Con::printf( "(TypeUUID) Cannot set multiple args to a single uuid." );
@@ -851,9 +860,9 @@ ConsoleGetType( TypePID )
 {
    SimPersistID* pid = *( ( SimPersistID** ) dptr );
    if( !pid )
-      return "";
+      return Con::getReturnValue("");
       
-   return Con::getReturnBuffer( pid->getUUID().toString() );
+   return Con::getReturnValue( pid->getUUID().toString() );
 }
 
 ConsoleSetType( TypePID )
@@ -861,15 +870,16 @@ ConsoleSetType( TypePID )
    if( argc == 1 )
    {
       SimPersistID** pid = ( SimPersistID** ) dptr;
+      const char *value = argv[0]->getStringValue();
       
-      if( !argv[ 0 ][ 0 ] )
+      if( !value[0] )
          *pid = NULL;
       else
       {
          Torque::UUID uuid;
-         if( !uuid.fromString( argv[ 0 ] ) )
+         if( !uuid.fromString( value ) )
          {
-            Con::errorf( "Error parsing UUID in PID: '%s'", argv[ 0 ] );
+            Con::errorf( "Error parsing UUID in PID: '%s'", value );
             *pid = NULL;
          }
          else
@@ -889,9 +899,9 @@ ConsoleGetType( TypeSimPersistId )
 {
    SimPersistID* pid = *( ( SimPersistID** ) dptr );
    if( !pid )
-      return "";
+      return Con::getReturnValue("");
       
-   return Con::getReturnBuffer( pid->getUUID().toString() );
+   return Con::getReturnValue( pid->getUUID().toString() );
 }
 
 ConsoleSetType( TypeSimPersistId )
@@ -899,15 +909,16 @@ ConsoleSetType( TypeSimPersistId )
    if( argc == 1 )
    {
       SimPersistID** pid = ( SimPersistID** ) dptr;
+      const char *value = argv[ 0 ]->getStringValue();
       
-      if( !argv[ 0 ][ 0 ] )
+      if( !value[0] )
          *pid = NULL;
       else
       {
          Torque::UUID uuid;
-         if( !uuid.fromString( argv[ 0 ] ) )
+         if( !uuid.fromString( value ) )
          {
-            Con::errorf( "Error parsing UUID in PID: '%s'", argv[ 0 ] );
+            Con::errorf( "Error parsing UUID in PID: '%s'", value );
             *pid = NULL;
          }
          else

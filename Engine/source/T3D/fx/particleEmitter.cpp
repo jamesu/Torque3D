@@ -284,11 +284,13 @@ void ParticleEmitterData::initPersistFields()
    Parent::initPersistFields();
 }
 
-bool ParticleEmitterData::_setAlignDirection( void *object, const char *index, const char *data )
+bool ParticleEmitterData::_setAlignDirection( void *object, const char *index, ConsoleValue *data )
 {
    ParticleEmitterData *p = static_cast<ParticleEmitterData*>( object );
 
-   Con::setData( TypePoint3F, &p->alignDirection, 0, 1, &data );
+   ConsoleValueRef value;
+   value.value = data;
+   Con::setDataValue( TypePoint3F, &p->alignDirection, 0, 1, &value );
    p->alignDirection.normalizeSafe();
 
    // we already set the field

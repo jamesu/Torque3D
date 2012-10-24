@@ -354,9 +354,9 @@ void SceneZoneSpace::dumpZoneState( bool update )
 
 //-----------------------------------------------------------------------------
 
-bool SceneZoneSpace::_setZoneGroup( void* object, const char* index, const char* data )
+bool SceneZoneSpace::_setZoneGroup( void *object, const char *index, ConsoleValue *data )
 {
    SceneZoneSpace* zone = reinterpret_cast< SceneZoneSpace* >( object );
-   zone->setZoneGroup( EngineUnmarshallData< S32 >()( data ) );
+   zone->setZoneGroup( data->getIntValue() );
    return false;
 }

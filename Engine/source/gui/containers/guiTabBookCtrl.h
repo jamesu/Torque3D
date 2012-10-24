@@ -79,7 +79,7 @@ class GuiTabBookCtrl : public GuiContainer
 
    private:
 
-      static bool _setSelectedPage( void *object, const char *index, const char *data );
+      static bool _setSelectedPage( void *object, const char *index, ConsoleValue *data );
 
    protected:
 

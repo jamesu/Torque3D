@@ -187,42 +187,46 @@ void AdvancedLightManager::_addLightInfoEx( LightInfo *lightInfo )
 void AdvancedLightManager::_initLightFields()
 {
    #define DEFINE_LIGHT_FIELD( var, type, enum_ )                             \
-   static inline const char* _get##var##Field( void *obj, const char *data )  \
+   static inline ConsoleValue* _get##var##Field( void *obj, ConsoleValue *data )\
    {                                                                          \
       ShadowMapParams *p = _getShadowMapParams( obj );                        \
       if ( p )                                                                \
-         return Con::getData( type, &p->var, 0, enum_ );                      \
+         return Con::getDataValue( type, &p->var, 0, enum_ ).value;           \
       else                                                                    \
-         return "";                                                           \
+         return Con::getReturnValue("");                                      \
    }                                                                          \
                                                                               \
-   static inline bool _set##var##Field( void *object, const char *index, const char *data )  \
+   static inline bool _set##var##Field( void *object, const char *index, ConsoleValue *data )  \
    {                                                                                         \
       ShadowMapParams *p = _getShadowMapParams( object );                     \
       if ( p )                                                                \
       {                                                                       \
-         Con::setData( type, &p->var, 0, 1, &data, enum_ );                   \
+         ConsoleValueRef ref;                                                 \
+         ref.value = data;                                                    \
+         Con::setDataValue( type, &p->var, 0, 1, &ref, enum_ );               \
          p->_validate();                                                      \
       }                                                                       \
       return false;                                                           \
    }
 
    #define DEFINE_LIGHTMAP_FIELD( var, type, enum_ )                          \
-   static inline const char* _get##var##Field( void *obj, const char *data )  \
+   static inline ConsoleValue* _get##var##Field( void *obj, ConsoleValue *data )  \
    {                                                                          \
       LightMapParams *p = _getLightMapParams( obj );                          \
       if ( p )                                                                \
-         return Con::getData( type, &p->var, 0, enum_ );                      \
+         return Con::getDataValue( type, &p->var, 0, enum_ ).value;           \
       else                                                                    \
-         return "";                                                           \
+        return Con::getReturnValue("");                                       \
    }                                                                          \
    \
-   static inline bool _set##var##Field( void *object, const char *index, const char *data )  \
+   static inline bool _set##var##Field( void *object, const char *index, ConsoleValue *data )  \
    {                                                                                         \
       LightMapParams *p = _getLightMapParams( object );                       \
       if ( p )                                                                \
       {                                                                       \
-         Con::setData( type, &p->var, 0, 1, &data, enum_ );                   \
+         ConsoleValueRef ref;                                                 \
+         ref.value = data;                                                    \
+         Con::setDataValue( type, &p->var, 0, 1, &ref, enum_ );               \
       }                                                                       \
       return false;                                                           \
    }

@@ -1124,7 +1124,7 @@ S32 InteriorInstance::getSurfaceZone(U32 surfaceindex, Interior *detail)
 
 //-----------------------------------------------------------------------------
 
-bool InteriorInstance::_setInteriorFile( void *object, const char *, const char *data )
+bool InteriorInstance::_setInteriorFile( void *object, const char *, ConsoleValue *data )
 {
    if(data == NULL)
       return true;
@@ -1134,7 +1134,7 @@ bool InteriorInstance::_setInteriorFile( void *object, const char *, const char 
    if(inst->isProperlyAdded())
       inst->_unloadInterior();
 
-   inst->mInteriorFileName = StringTable->insert(data);
+   inst->mInteriorFileName = StringTable->insert(data->getStringValue());
 
    if(inst->isProperlyAdded())
    {

@@ -193,19 +193,19 @@ void GuiBitmapButtonCtrl::onSleep()
 
 //-----------------------------------------------------------------------------
 
-bool GuiBitmapButtonCtrl::_setAutoFitExtents( void *object, const char *index, const char *data )
+bool GuiBitmapButtonCtrl::_setAutoFitExtents( void *object, const char *index, ConsoleValue *data )
 {
    GuiBitmapButtonCtrl* ctrl = reinterpret_cast< GuiBitmapButtonCtrl* >( object );
-   ctrl->setAutoFitExtents( dAtob( data ) );
+   ctrl->setAutoFitExtents( dAtob( data->getStringValue() ) );
    return false;
 }
 
 //-----------------------------------------------------------------------------
 
-bool GuiBitmapButtonCtrl::_setBitmap( void *object, const char *index, const char *data )
+bool GuiBitmapButtonCtrl::_setBitmap( void *object, const char *index, ConsoleValue *data )
 {
    GuiBitmapButtonCtrl* ctrl = reinterpret_cast< GuiBitmapButtonCtrl* >( object );
-   ctrl->setBitmap( data );
+   ctrl->setBitmap( data->getStringValue() );
    return false;
 }
 

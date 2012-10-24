@@ -304,15 +304,15 @@ ConsoleType( WayPointTeam, TypeWayPointTeam, WayPointTeam )
 
 ConsoleGetType( TypeWayPointTeam )
 {
-   char * buf = Con::getReturnBuffer(32);
+   char buf[32];
    dSprintf(buf, 32, "%d", ((WayPointTeam*)dptr)->mTeamId);
-   return(buf);
+   return Con::getReturnValue(buf);
 }
 
 ConsoleSetType( TypeWayPointTeam )
 {
    WayPointTeam * pTeam = (WayPointTeam*)dptr;
-   pTeam->mTeamId = dAtoi(argv[0]);
+   pTeam->mTeamId = argv[0]->getIntValue();
 
    if(pTeam->mWayPoint && pTeam->mWayPoint->isServerObject())
       pTeam->mWayPoint->setMaskBits(WayPoint::UpdateTeamMask);

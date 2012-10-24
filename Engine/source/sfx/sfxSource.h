@@ -385,8 +385,8 @@ class SFXSource : public SimGroup
       virtual bool processArguments( S32 argc, ConsoleValueRef *argv );
       
       // Console getters/setters.
-      static bool _setDescription( void *obj, const char *index, const char *data );
-      static const char* _getDescription( void* obj, const char* data );
+      static bool _setDescription( void *object, const char *index, ConsoleValue *data );
+      static ConsoleValue* _getDescription( void* obj, ConsoleValue* data );
 
    public:
       

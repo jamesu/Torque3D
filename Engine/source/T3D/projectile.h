@@ -132,10 +132,10 @@ public:
    void unpackData(BitStream*);
    bool preload(bool server, String &errorStr);
 
-   static bool setLifetime( void *object, const char *index, const char *data );
-   static bool setArmingDelay( void *object, const char *index, const char *data );
-   static bool setFadeDelay( void *object, const char *index, const char *data );
-   static const char *getScaledValue( void *obj, const char *data);
+   static bool setLifetime( void *object, const char *index, ConsoleValue *data );
+   static bool setArmingDelay( void *object, const char *index, ConsoleValue *data );
+   static bool setFadeDelay( void *object, const char *index, ConsoleValue *data );
+   static ConsoleValue *getScaledValue( void *obj, ConsoleValue *data);
    static S32 scaleValue( S32 value, bool down = true );
 
    static void initPersistFields();
@@ -153,8 +153,8 @@ class Projectile : public GameBase, public ISceneLight
 {
    typedef GameBase Parent;
 
-   static bool _setInitialPosition( void* object, const char* index, const char* data );
-   static bool _setInitialVelocity( void* object, const char* index, const char* data );
+   static bool _setInitialPosition( void *object, const char *index, ConsoleValue *data );
+   static bool _setInitialVelocity( void *object, const char *index, ConsoleValue *data );
 
 public:
 

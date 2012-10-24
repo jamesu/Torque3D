@@ -944,23 +944,23 @@ void WaterPlane::setGridElementSize( F32 inSize )
    setMaskBits( UpdateMask );
 }
 
-bool WaterPlane::protectedSetGridSize( void *obj, const char *index, const char *data )
+bool WaterPlane::protectedSetGridSize( void *object, const char *index, ConsoleValue *data )
 {
-   WaterPlane *object = static_cast<WaterPlane*>(obj);
-   S32 size = dAtoi( data );
+   WaterPlane *plane = static_cast<WaterPlane*>(object);
+   S32 size = data->getIntValue();
 
-   object->setGridSize( size );
+   plane->setGridSize( size );
 
    // We already set the field.
    return false;
 }
 
-bool WaterPlane::protectedSetGridElementSize( void *obj, const char *index, const char *data )
+bool WaterPlane::protectedSetGridElementSize( void *object, const char *index, ConsoleValue *data )
 {
-   WaterPlane *object = static_cast<WaterPlane*>(obj);
-   F32 size = dAtof( data );
+   WaterPlane *plane = static_cast<WaterPlane*>(object);
+   F32 size = data->getFloatValue();
 
-   object->setGridElementSize( size );
+   plane->setGridElementSize( size );
 
    // We already set the field.
    return false;

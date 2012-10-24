@@ -677,7 +677,7 @@ void MeshRoad::consoleInit()
 	   "@ingroup Editors\n");
 }
 
-bool MeshRoad::addNodeFromField( void *object, const char *index, const char *data )
+bool MeshRoad::addNodeFromField( void *object, const char *index, ConsoleValue *data )
 {
    MeshRoad *pObj = static_cast<MeshRoad*>(object);
 
@@ -685,7 +685,7 @@ bool MeshRoad::addNodeFromField( void *object, const char *index, const char *da
    //{      
    F32 width, depth;
    Point3F pos, normal;      
-   U32 result = dSscanf( data, "%g %g %g %g %g %g %g %g", &pos.x, &pos.y, &pos.z, &width, &depth, &normal.x, &normal.y, &normal.z );      
+   U32 result = dSscanf( data->getStringValue(), "%g %g %g %g %g %g %g %g", &pos.x, &pos.y, &pos.z, &width, &depth, &normal.x, &normal.y, &normal.z );      
    if ( result == 8 )
       pObj->_addNode( pos, width, depth, normal );      
    //}

@@ -107,9 +107,9 @@ class Trigger : public GameBase
 
    void buildConvex(const Box3F& box, Convex* convex);
 
-   static bool setEnterCmd(void *object, const char *index, const char *data);
-   static bool setLeaveCmd(void *object, const char *index, const char *data);
-   static bool setTickCmd(void *object, const char *index, const char *data);
+   static bool setEnterCmd(void *object, const char *index, ConsoleValue *data);
+   static bool setLeaveCmd(void *object, const char *index, ConsoleValue *data);
+   static bool setTickCmd(void *object, const char *index, ConsoleValue *data);
 
   public:
    Trigger();

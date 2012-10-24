@@ -259,14 +259,14 @@ ConsoleGetType( TypeTriggerPolyhedron )
    AssertFatal(currVec == 3, "Internal error: Bad trigger polyhedron");
 
    // Build output string.
-   char* retBuf = Con::getReturnBuffer(1024);
+   char retBuf[1024];
    dSprintf(retBuf, 1023, "%7.7f %7.7f %7.7f %7.7f %7.7f %7.7f %7.7f %7.7f %7.7f %7.7f %7.7f %7.7f",
             origin.x, origin.y, origin.z,
             vecs[0].x, vecs[0].y, vecs[0].z,
             vecs[2].x, vecs[2].y, vecs[2].z,
             vecs[1].x, vecs[1].y, vecs[1].z);
 
-   return retBuf;
+   return Con::getReturnValue(retBuf);
 }
 
 /* Console polyhedron data type loader
@@ -284,7 +284,7 @@ ConsoleSetType( TypeTriggerPolyhedron )
    Point3F origin;
    Point3F vecs[3];
 
-   U32 numArgs = dSscanf(argv[0], "%g %g %g %g %g %g %g %g %g %g %g %g",
+   U32 numArgs = dSscanf(argv[0]->getStringValue(), "%g %g %g %g %g %g %g %g %g %g %g %g",
                          &origin.x, &origin.y, &origin.z,
                          &vecs[0].x, &vecs[0].y, &vecs[0].z,
                          &vecs[1].x, &vecs[1].y, &vecs[1].z,
@@ -369,19 +369,19 @@ void Trigger::initPersistFields()
    Parent::initPersistFields();
 }
 
-bool Trigger::setEnterCmd( void *object, const char *index, const char *data )
+bool Trigger::setEnterCmd( void *object, const char *index, ConsoleValue *data )
 {
    static_cast<Trigger*>(object)->setMaskBits(EnterCmdMask);
    return true; // to update the actual field
 }
 
-bool Trigger::setLeaveCmd(void *object, const char *index, const char *data)
+bool Trigger::setLeaveCmd(void *object, const char *index, ConsoleValue *data)
 {
    static_cast<Trigger*>(object)->setMaskBits(LeaveCmdMask);
    return true; // to update the actual field
 }
 
-bool Trigger::setTickCmd(void *object, const char *index, const char *data)
+bool Trigger::setTickCmd(void *object, const char *index, ConsoleValue *data)
 {
    static_cast<Trigger*>(object)->setMaskBits(TickCmdMask);
    return true; // to update the actual field

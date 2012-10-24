@@ -837,7 +837,7 @@ void GameConnection::writeDemoStartBlock(ResizeBitStream *stream)
       {
          stream->writeFlag(true);
          stream->writeString(entry->slotName + 4);
-         stream->writeString(entry->value);
+         stream->writeString(entry->value.getStringValue());
          stream->validate();
       }
       ++itr;

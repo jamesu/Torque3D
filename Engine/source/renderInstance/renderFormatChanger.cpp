@@ -251,7 +251,7 @@ void RenderFormatToken::_teardownTargets()
    }
 }
 
-bool RenderFormatToken::_setFmt( void *object, const char *index, const char *data )
+bool RenderFormatToken::_setFmt( void *object, const char *index, ConsoleValue *data )
 {
    // Flag update pending
    reinterpret_cast<RenderFormatToken *>( object )->mTargetUpdatePending = true;
@@ -260,36 +260,36 @@ bool RenderFormatToken::_setFmt( void *object, const char *index, const char *da
    return true;
 }
 
-const char* RenderFormatToken::_getCopyPostEffect( void* object, const char* data )
+ConsoleValue* RenderFormatToken::_getCopyPostEffect( void *object, ConsoleValue *data )
 {
    RenderFormatToken* token = reinterpret_cast< RenderFormatToken* >( object );
    if( token->mCopyPostEffect.isValid() )
-      return token->mCopyPostEffect->getIdString();
-   return "0";
+      return Con::getReturnValue(token->mCopyPostEffect->getIdString());
+   return Con::getReturnValue("0");
 }
 
-const char* RenderFormatToken::_getResolvePostEffect( void* object, const char* data )
+ConsoleValue* RenderFormatToken::_getResolvePostEffect( void *object, ConsoleValue *data )
 {
    RenderFormatToken* token = reinterpret_cast< RenderFormatToken* >( object );
    if( token->mResolvePostEffect.isValid() )
-      return token->mResolvePostEffect->getIdString();
-   return "0";
+      return Con::getReturnValue(token->mResolvePostEffect->getIdString());
+   return Con::getReturnValue("0");
 }
 
-bool RenderFormatToken::_setCopyPostEffect( void* object, const char* index, const char* data )
+bool RenderFormatToken::_setCopyPostEffect( void *object, const char *index, ConsoleValue *data )
 {
    RenderFormatToken* token = reinterpret_cast< RenderFormatToken* >( object );
    PostEffect* effect;
-   Sim::findObject( data, effect );
+   Sim::findObject( data->getStringValue(), effect );
    token->mCopyPostEffect = effect;
    return false;
 }
 
-bool RenderFormatToken::_setResolvePostEffect( void* object, const char* index, const char* data )
+bool RenderFormatToken::_setResolvePostEffect( void *object, const char *index, ConsoleValue *data )
 {
    RenderFormatToken* token = reinterpret_cast< RenderFormatToken* >( object );
    PostEffect* effect;
-   Sim::findObject( data, effect );
+   Sim::findObject( data->getStringValue(), effect );
    token->mResolvePostEffect = effect;
    return false;
 }

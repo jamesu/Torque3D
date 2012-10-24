@@ -229,11 +229,11 @@ void Prefab::unpackUpdate(NetConnection *conn, BitStream *stream)
    }
 }
 
-bool Prefab::protectedSetFile( void *object, const char *index, const char *data )
+bool Prefab::protectedSetFile( void *object, const char *index, ConsoleValue *data )
 {
    Prefab *prefab = static_cast<Prefab*>(object);
    
-   String file = String( Platform::makeRelativePathName(data, Platform::getMainDotCsDir()) );
+   String file = String( Platform::makeRelativePathName(data->getStringValue(), Platform::getMainDotCsDir()) );
 
    prefab->setFile( file );
 

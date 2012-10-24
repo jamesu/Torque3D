@@ -1523,7 +1523,7 @@ void PersistenceManager::updateObject(SimObject* object, ParsedObject* parentObj
    for(SimFieldDictionaryIterator itr(fieldDict); *itr; ++itr)
    {
       SimFieldDictionary::Entry * entry = (*itr);
-      if( !entry->value )
+      if( entry->value.isNull() )
          continue;
 
       // Let's see if this field is already in the file
@@ -1534,7 +1534,7 @@ void PersistenceManager::updateObject(SimObject* object, ParsedObject* parentObj
          ParsedProperty& prop = parsedObject->properties[propertyIndex];
 
          // If this field is on the remove list then remove it and continue
-         if (findRemoveField(object, entry->slotName) || !object->writeField(entry->slotName, entry->value))
+         if (findRemoveField(object, entry->slotName) || !object->writeField(entry->slotName, entry->value.getStringValue()))
          {
             removeField( parsedObject->properties[ propertyIndex ] );
             continue;
@@ -1543,7 +1543,7 @@ void PersistenceManager::updateObject(SimObject* object, ParsedObject* parentObj
          if( object->getCopySource() )
          {
             const char* copySourceFieldValue = object->getCopySource()->getDataField( entry->slotName, NULL );
-            if( dStrcmp( copySourceFieldValue, entry->value ) == 0 )
+            if( dStrcmp( copySourceFieldValue, entry->value.getStringValue() ) == 0 )
             {
                removeField( prop );
                continue;
@@ -1552,7 +1552,7 @@ void PersistenceManager::updateObject(SimObject* object, ParsedObject* parentObj
 
          const char* evalue = prop.value;
 
-         const char *entryVal = entry->value;
+         const char *entryVal = entry->value.getStringValue();
          if ( entryVal[0] == StringTagPrefixByte )           
             entryVal = gNetStringTable->lookupString( dAtoi( entryVal+1 ) );
          else
@@ -1569,17 +1569,17 @@ void PersistenceManager::updateObject(SimObject* object, ParsedObject* parentObj
       else
       {
          // No need to process a removed field that doesn't exist in the file
-         if (findRemoveField(object, entry->slotName) || !object->writeField(entry->slotName, entry->value))
+         if (findRemoveField(object, entry->slotName) || !object->writeField(entry->slotName, entry->value.getStringValue()))
             continue;
 
          if( object->getCopySource() )
          {
             const char* copySourceFieldValue = object->getCopySource()->getDataField( entry->slotName, NULL );
-            if( dStrcmp( copySourceFieldValue, entry->value ) == 0 )
+            if( dStrcmp( copySourceFieldValue, entry->value.getStringValue() ) == 0 )
                continue;
          }
 
-         newLines.push_back(createNewProperty(entry->slotName, entry->value));
+         newLines.push_back(createNewProperty(entry->slotName, entry->value.getStringValue()));
       }
    }
    

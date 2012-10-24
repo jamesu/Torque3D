@@ -206,8 +206,8 @@ class Portal : public Zone
 
    private:
 
-      static bool _setFrontSidePassable( void* object, const char* index, const char* data );
-      static bool _setBackSidePassable( void* object, const char* index, const char* data );
+      static bool _setFrontSidePassable( void* object, const char* index, ConsoleValue* data );
+      static bool _setBackSidePassable( void* object, const char* index, ConsoleValue* data );
 };
 
 #endif // _PORTAL_H_

@@ -734,14 +734,14 @@ void SFXSource::_update()
 
 //-----------------------------------------------------------------------------
 
-bool SFXSource::_setDescription( void* obj, const char* index, const char* data )
+bool SFXSource::_setDescription( void* obj, const char* index, ConsoleValue* data )
 {
    SFXSource* source = reinterpret_cast< SFXSource* >( obj );
 
-   source->mDescription = EngineUnmarshallData< SFXDescription* >()( data );
+   source->mDescription = EngineUnmarshallData< SFXDescription* >()( data->getStringValue() );
    if( !source->mDescription )
    {
-      Con::errorf( "SFXSource::_setDescription - No SFXDescription '%s'", data );
+      Con::errorf( "SFXSource::_setDescription - No SFXDescription '%s'", data->getStringValue() );
       return false;
    }
 
@@ -752,15 +752,15 @@ bool SFXSource::_setDescription( void* obj, const char* index, const char* data 
 
 //-----------------------------------------------------------------------------
 
-const char* SFXSource::_getDescription( void* obj, const char* data )
+ConsoleValue* SFXSource::_getDescription( void* obj, ConsoleValue* data )
 {
    SFXSource* source = reinterpret_cast< SFXSource* >( obj );
    SFXDescription* description = source->mDescription;
    
    if( !description )
-      return "";
+      return Con::getReturnValue("");
 
-   return description->getName();
+   return Con::getReturnValue(description->getName());
 }
 
 //-----------------------------------------------------------------------------

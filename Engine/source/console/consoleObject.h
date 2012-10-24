@@ -418,8 +418,8 @@ public:
 public:
 
    /// This is a function pointer typedef to support get/set callbacks for fields
-   typedef bool (*SetDataNotify)( void *obj, const char *array, const char *data );
-   typedef const char *(*GetDataNotify)( void *obj, const char *data );
+   typedef bool (*SetDataNotify)( void *obj, const char *array, ConsoleValue *data );
+   typedef ConsoleValue *(*GetDataNotify)( void *obj, ConsoleValue *data );
 
    /// These are special field type values used to mark
    /// groups and arrays in the field list.
@@ -622,21 +622,21 @@ class ConcreteClassRep : public AbstractClassRep
       /// @name Console Type Interface
       /// @{
 
-      virtual void setData( void* dptr, S32 argc, const char** argv, const EnumTable* tbl, BitSet32 flag )
+      virtual void setData( void* dptr, S32 argc, ConsoleValue* argv[], const EnumTable* tbl, BitSet32 flag )
       {
          if( argc == 1 )
          {
             T** obj = ( T** ) dptr;
-            *obj = dynamic_cast< T* >( T::__findObject( argv[ 0 ] ) );
+            *obj = dynamic_cast< T* >( T::__findObject( argv[ 0 ]->getStringValue() ) );
          }
          else
             Con::errorf( "Cannot set multiple args to a single ConsoleObject*.");
       }
       
-      virtual const char* getData( void* dptr, const EnumTable* tbl, BitSet32 flag )
+      virtual ConsoleValue* getData( void* dptr, const EnumTable* tbl, BitSet32 flag )
       {
          T** obj = ( T** ) dptr;
-         return Con::getReturnBuffer( T::__getObjectId( *obj ) );
+         return Con::getReturnValue( T::__getObjectId( *obj ) );
       }
       
       virtual const char* getTypeClassName() { return mClassName; }
@@ -651,7 +651,7 @@ template< typename T > EnginePropertyTable& ConcreteClassRep< T >::smPropertyTab
 
 //------------------------------------------------------------------------------
 // Forward declaration of this function so  it can be used in the class
-const char *defaultProtectedGetFn( void *obj, const char *data );
+ConsoleValue *defaultProtectedGetFn( void *obj, ConsoleValue *data );
 
 
 //=============================================================================
@@ -730,6 +730,7 @@ public:
 
    /// Set the value of a field.
    bool setField(const char *fieldName, const char *value);
+   bool setField(const char *fieldName, ConsoleValueRef &value);
    
 public:
 
@@ -998,7 +999,40 @@ inline bool ConsoleObject::setField(const char *fieldName, const char *value)
    if (! myField)
       return false;
 
-   Con::setData(
+   // Make a temporary reference
+   ConsoleValue stringValue;
+   stringValue.setStackStringValue(value);
+   ConsoleValueRef valueRef;
+   valueRef.value = &stringValue;
+
+   Con::setDataValue(
+      myField->type,
+      (void *) (((const char *)(this)) + myField->offset),
+      0,
+      1,
+      &valueRef,
+      myField->table,
+      myField->flag);
+
+   return true;
+}
+
+
+inline bool ConsoleObject::setField(const char *fieldName, ConsoleValueRef &value)
+{
+   //sanity check
+   if ((! fieldName) || (! fieldName[0]))
+      return false;
+
+   if (! getClassRep())
+      return false;
+
+   const AbstractClassRep::Field *myField = getClassRep()->findField(StringTable->insert(fieldName));
+
+   if (! myField)
+      return false;
+
+   Con::setDataValue(
       myField->type,
       (void *) (((const char *)(this)) + myField->offset),
       0,
@@ -1113,24 +1147,24 @@ inline bool& ConsoleObject::getDynamicGroupExpand()
 // before the modifications to allow protected static fields. These will just
 // inline and the code should be roughly the same size, and just as fast as
 // before the modifications. -pw
-inline bool defaultProtectedSetFn( void *object, const char *index, const char *data )
+inline bool defaultProtectedSetFn( void *object, const char *index, ConsoleValue *data )
 {
    return true;
 }
 
-inline bool defaultProtectedSetNotEmptyFn( void *object, const char *index, const char *data )
+inline bool defaultProtectedSetNotEmptyFn( void *object, const char *index, ConsoleValue *data )
 {
-   return data && data[0];
+   return data && data->getStringValue()[0];
 }
 
-inline const char *defaultProtectedGetFn( void *obj, const char *data )
+inline ConsoleValue *defaultProtectedGetFn( void *obj, ConsoleValue *data )
 {
    return data;
 }
 
-inline const char *emptyStringProtectedGetFn( void *obj, const char *data )
+inline ConsoleValue *emptyStringProtectedGetFn( void *obj, ConsoleValue *data )
 {
-   return "";
+   return Con::getReturnValue("");
 }
 
 /// @}

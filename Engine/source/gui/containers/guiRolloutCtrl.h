@@ -98,9 +98,9 @@ class GuiRolloutCtrl : public GuiTickCtrl
       RectI *mBitmapBounds;
 
       // Property - "Expanded"
-      static bool setExpanded( void *object, const char *index, const char *data )  
+      static bool setExpanded( void *object, const char *index, ConsoleValue *data )  
       { 
-         bool expand = dAtob( data );
+         bool expand = dAtob( data->getStringValue() );
          if( expand )
             static_cast<GuiRolloutCtrl*>(object)->instantExpand();         
          else

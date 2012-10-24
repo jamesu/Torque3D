@@ -118,9 +118,9 @@ ConsoleGetType( TypeSFXSourceName )
 {
    SFXSource** obj = ( SFXSource** ) dptr;
    if( !*obj )
-      return "";
+      return Con::getReturnValue("");
    else
-      return Con::getReturnBuffer( ( *obj )->getName() );
+      return Con::getReturnValue( ( *obj )->getName() );
 }
 
 ConsoleSetType( TypeSFXSourceName )
@@ -128,7 +128,7 @@ ConsoleSetType( TypeSFXSourceName )
    if( argc == 1 )
    {
       SFXSource** obj = ( SFXSource**) dptr;
-      Sim::findObject( argv[ 0 ], *obj );
+      Sim::findObject( argv[ 0 ]->getStringValue(), *obj );
    }
    else
       Con::printf("(TypeSFXSourceName) Cannot set multiple args to a single SFXSource.");
@@ -142,13 +142,13 @@ ConsoleType( string, TypeSFXParameterName, StringTableEntry )
 
 ConsoleGetType( TypeSFXParameterName )
 {
-   return *( ( const char** ) dptr );
+   return Con::getReturnValue(*( ( const char** ) dptr ));
 }
 
 ConsoleSetType( TypeSFXParameterName )
 {
    if( argc == 1 )
-      *( ( const char** ) dptr ) = StringTable->insert( argv[ 0 ] );
+      *( ( const char** ) dptr ) = StringTable->insert( argv[ 0 ]->getStringValue() );
    else
       Con::errorf( "(TypeSFXParameterName) Cannot set multiple args to a single SFXParameter." );
 }
@@ -164,7 +164,7 @@ ConsoleSetType( TypeSFXDescriptionName )
    if( argc == 1 )
    {
       SFXDescription* description;
-      Sim::findObject( argv[ 0 ], description );
+      Sim::findObject( argv[ 0 ]->getStringValue(), description );
       *( ( SFXDescription** ) dptr ) = description;
    }
    else
@@ -175,9 +175,9 @@ ConsoleGetType( TypeSFXDescriptionName )
 {
    SFXDescription* description = *( ( SFXDescription** ) dptr );
    if( !description || !description->getName() )
-      return "";
+      return Con::getReturnValue("");
    else
-      return description->getName();
+      return Con::getReturnValue(description->getName());
 }
 
 //=============================================================================
@@ -191,7 +191,7 @@ ConsoleSetType( TypeSFXTrackName )
    if( argc == 1 )
    {
       SFXTrack* track;
-      Sim::findObject( argv[ 0 ], track );
+      Sim::findObject( argv[ 0 ]->getStringValue(), track );
       *( ( SFXTrack** ) dptr ) = track;
    }
    else
@@ -202,9 +202,9 @@ ConsoleGetType( TypeSFXTrackName )
 {
    SFXTrack* track = *( ( SFXTrack** ) dptr );
    if( !track || !track->getName() )
-      return "";
+      return Con::getReturnValue("");
    else
-      return track->getName();
+      return Con::getReturnValue(track->getName());
 }
 
 //=============================================================================
@@ -218,7 +218,7 @@ ConsoleSetType( TypeSFXEnvironmentName )
    if( argc == 1 )
    {
       SFXEnvironment* environment;
-      Sim::findObject( argv[ 0 ], environment );
+      Sim::findObject( argv[ 0 ]->getStringValue(), environment );
       *( ( SFXEnvironment** ) dptr ) = environment;
    }
    else
@@ -229,9 +229,9 @@ ConsoleGetType( TypeSFXEnvironmentName )
 {
    SFXEnvironment* environment = *( ( SFXEnvironment** ) dptr );
    if( !environment || !environment->getName() )
-      return "";
+      return Con::getReturnValue("");
    else
-      return environment->getName();
+      return Con::getReturnValue(environment->getName());
 }
 
 //=============================================================================
@@ -245,7 +245,7 @@ ConsoleSetType( TypeSFXStateName )
    if( argc == 1 )
    {
       SFXState* state;
-      Sim::findObject( argv[ 0 ], state );
+      Sim::findObject( argv[ 0 ]->getStringValue(), state );
       *( ( SFXState** ) dptr ) = state;
    }
    else
@@ -256,9 +256,9 @@ ConsoleGetType( TypeSFXStateName )
 {
    SFXState* state = *( ( SFXState** ) dptr );
    if( !state || !state->getName() )
-      return "";
+      return Con::getReturnValue("");
    else
-      return state->getName();
+      return Con::getReturnValue(state->getName());
 }
 
 //=============================================================================
@@ -272,7 +272,7 @@ ConsoleSetType( TypeSFXAmbienceName )
    if( argc == 1 )
    {
       SFXAmbience* ambience;
-      Sim::findObject( argv[ 0 ], ambience );
+      Sim::findObject( argv[ 0 ]->getStringValue(), ambience );
       *( ( SFXAmbience** ) dptr ) = ambience;
    }
    else
@@ -283,9 +283,9 @@ ConsoleGetType( TypeSFXAmbienceName )
 {
    SFXAmbience* ambience = *( ( SFXAmbience** ) dptr );
    if( !ambience || !ambience->getName() )
-      return "";
+      return Con::getReturnValue("");
    else
-      return ambience->getName();
+      return Con::getReturnValue(ambience->getName());
 }
 
 //=============================================================================

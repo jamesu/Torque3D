@@ -330,29 +330,29 @@ class SimObject: public ConsoleObject
 
       /// @}
 
-      static bool _setCanSave( void* object, const char* index, const char* data );
-      static const char* _getCanSave( void* object, const char* data );
+      static bool _setCanSave( void *object, const char *index, ConsoleValue *data );
+      static ConsoleValue* _getCanSave( void *object, ConsoleValue *data );
       
-      static const char* _getHidden( void* object, const char* data )
-         { if( static_cast< SimObject* >( object )->isHidden() ) return "1"; return "0"; }
-      static const char* _getLocked( void* object, const char* data )
-         { if( static_cast< SimObject* >( object )->isLocked() ) return "1"; return "0"; }
-      static bool _setHidden( void* object, const char* index, const char* data )
-         { static_cast< SimObject* >( object )->setHidden( dAtob( data ) ); return false; }
-      static bool _setLocked( void* object, const char* index, const char* data )
-         { static_cast< SimObject* >( object )->setLocked( dAtob( data ) ); return false; }
+      static ConsoleValue* _getHidden( void *object, ConsoleValue *data )
+         { if( static_cast< SimObject* >( object )->isHidden() ) return Con::getReturnValue("1"); return Con::getReturnValue("0"); }
+      static ConsoleValue* _getLocked( void *object, ConsoleValue *data )
+         { if( static_cast< SimObject* >( object )->isLocked() ) return Con::getReturnValue("1"); return Con::getReturnValue("0"); }
+      static bool _setHidden( void *object, const char *index, ConsoleValue *data )
+         { static_cast< SimObject* >( object )->setHidden( dAtob( data->getStringValue() ) ); return false; }
+      static bool _setLocked( void *object, const char *index, ConsoleValue *data )
+         { static_cast< SimObject* >( object )->setLocked( dAtob( data->getStringValue() ) ); return false; }
 
       // Namespace protected set methods
-      static bool setClass( void *object, const char *index, const char *data )
-         { static_cast<SimObject*>(object)->setClassNamespace(data); return false; };
-      static bool setSuperClass(void *object, const char *index, const char *data)     
-         { static_cast<SimObject*>(object)->setSuperClassNamespace(data); return false; };
+      static bool setClass( void *object, const char *index, ConsoleValue *data )
+         { static_cast<SimObject*>(object)->setClassNamespace(data->getStringValue()); return false; };
+      static bool setSuperClass(void *object, const char *index, ConsoleValue *data)     
+         { static_cast<SimObject*>(object)->setSuperClassNamespace(data->getStringValue()); return false; };
 
       // Group hierarchy protected set method 
-      static bool setProtectedParent(void *object, const char *index, const char *data);
+      static bool setProtectedParent(void *object, const char *index, ConsoleValue *data);
 
       // Object name protected set method
-      static bool setProtectedName(void *object, const char *index, const char *data);
+      static bool setProtectedName(void *object, const char *index, ConsoleValue *data);
 
    protected:
    
@@ -380,7 +380,7 @@ class SimObject: public ConsoleObject
       /// object in serializations regardless of stream object ordering.
       SimPersistID* mPersistentId;
       
-      static bool _setPersistentID( void* object, const char* index, const char* data );
+      static bool _setPersistentID( void *object, const char *index, ConsoleValue *data );
          
       /// @}
       
@@ -449,6 +449,7 @@ class SimObject: public ConsoleObject
       /// @param   slotName    Field to access.
       /// @param   array       String containing index into array
       ///                      (if field is an array); if NULL, it is ignored.
+      ConsoleValueRef getDataFieldValue(StringTableEntry slotName, const char *array);
       const char *getDataField(StringTableEntry slotName, const char *array);
 
       /// Set the value of a field on the object.
@@ -459,6 +460,7 @@ class SimObject: public ConsoleObject
       /// @param   slotName    Field to access.
       /// @param   array       String containing index into array; if NULL, it is ignored.
       /// @param   value       Value to store.
+      void setDataFieldValue(StringTableEntry slotName, const char *array, ConsoleValue &value);
       void setDataField(StringTableEntry slotName, const char *array, const char *value);
 
       /// Get the type of a field on the object.

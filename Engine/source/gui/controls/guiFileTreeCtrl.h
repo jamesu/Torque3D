@@ -42,7 +42,7 @@ protected:
 
    void _initFilters();
    
-   static bool _setFileFilterValue( void *object, const char *index, const char *data );
+   static bool _setFileFilterValue( void *object, const char *index, ConsoleValue *data );
 
 public:
 

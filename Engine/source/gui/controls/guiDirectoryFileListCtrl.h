@@ -41,16 +41,16 @@ protected:
 
    void openDirectory();
    
-   static bool _setFilePath( void *object, const char *index, const char *data )
+   static bool _setFilePath( void *object, const char *index, ConsoleValue *data )
    {
       GuiDirectoryFileListCtrl* ctrl = ( GuiDirectoryFileListCtrl* ) object;
-      ctrl->setCurrentPath( data, ctrl->mFilter );
+      ctrl->setCurrentPath( data->getStringValue(), ctrl->mFilter );
       return false;
    }
-   static bool _setFilter( void *object, const char *index, const char *data )
+   static bool _setFilter( void *object, const char *index, ConsoleValue *data )
    {
       GuiDirectoryFileListCtrl* ctrl = ( GuiDirectoryFileListCtrl* ) object;
-      ctrl->setCurrentFilter( data );
+      ctrl->setCurrentFilter( data->getStringValue() );
       return false;
    }
    

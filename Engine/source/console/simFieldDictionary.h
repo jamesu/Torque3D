@@ -45,7 +45,7 @@ public:
       Entry() : type( NULL ) {};
 
       StringTableEntry slotName;
-      char *value;
+      ConsoleValue value;
       Entry *next;
       ConsoleBaseType *type;
    };

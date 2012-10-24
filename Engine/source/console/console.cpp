@@ -1389,18 +1389,46 @@ bool classLinkNamespaces(Namespace *parent, Namespace *child)
    return false;
 }
 
-void setData(S32 type, void *dptr, S32 index, S32 argc, const char **argv, const EnumTable *tbl, BitSet32 flag)
+void setData(S32 type, void *dptr, S32 index, S32 argc, const char *argv[], const EnumTable *tbl, BitSet32 flag)
 {
    ConsoleBaseType *cbt = ConsoleBaseType::getType(type);
    AssertFatal(cbt, "Con::setData - could not resolve type ID!");
-   cbt->setData((void *) (((const char *)dptr) + index * cbt->getTypeSize()),argc, argv, tbl, flag);
+
+   ConsoleValue tempArgs[StringStack::MaxArgs];
+   ConsoleValue *args[StringStack::MaxArgs];
+   for (int i=0; i<argc; i++) {
+      tempArgs[i].setStackStringValue(argv[i]);
+      args[i] = &tempArgs[i];
+   }
+   cbt->setData((void *) (((const char *)dptr) + index * cbt->getTypeSize()),argc, args, tbl, flag);
 }
 
-const char *getData(S32 type, void *dptr, S32 index, const EnumTable *tbl, BitSet32 flag)
+const char* getData(S32 type, void *dptr, S32 index, const EnumTable *tbl, BitSet32 flag)
 {
    ConsoleBaseType *cbt = ConsoleBaseType::getType(type);
    AssertFatal(cbt, "Con::getData - could not resolve type ID!");
-   return cbt->getData((void *) (((const char *)dptr) + index * cbt->getTypeSize()), tbl, flag);
+   return cbt->getData((void *) (((const char *)dptr) + index * cbt->getTypeSize()), tbl, flag)->getStringValue();
+}
+
+void setDataValue(S32 type, void *dptr, S32 index, S32 argc, ConsoleValueRef argv[], const EnumTable *tbl, BitSet32 flag)
+{
+   ConsoleBaseType *cbt = ConsoleBaseType::getType(type);
+   AssertFatal(cbt, "Con::setData - could not resolve type ID!");
+
+   ConsoleValue *args[StringStack::MaxArgs];
+   for (int i=0; i<argc; i++) {
+      args[i] = argv[i].value;
+   }
+   cbt->setData((void *) (((const char *)dptr) + index * cbt->getTypeSize()),argc, args, tbl, flag);
+}
+
+ConsoleValueRef getDataValue(S32 type, void *dptr, S32 index, const EnumTable *tbl, BitSet32 flag)
+{
+   ConsoleBaseType *cbt = ConsoleBaseType::getType(type);
+   AssertFatal(cbt, "Con::getData - could not resolve type ID!");
+   ConsoleValueRef ret;
+   ret.value = cbt->getData((void *) (((const char *)dptr) + index * cbt->getTypeSize()), tbl, flag);
+   return ret;
 }
 
 const char *getFormattedData(S32 type, const char *data, const EnumTable *tbl, BitSet32 flag)
@@ -1672,7 +1700,7 @@ const char *ConsoleValue::getStringValue()
    else if(type == TypeInternalInt)
       return Con::getData(TypeS32, &ival, 0);
    else
-      return Con::getData(type, dataPtr, 0, enumTable);
+      return Con::getDataValue(type, dataPtr, 0, enumTable).getStringValue();
 }
 
 void ConsoleValue::setIntValue(U32 val)
@@ -1690,8 +1718,8 @@ void ConsoleValue::setIntValue(U32 val)
    }
    else
    {
-      const char *dptr = Con::getData(TypeS32, &val, 0);
-      Con::setData(type, dataPtr, 0, 1, &dptr, enumTable);
+      ConsoleValueRef data = Con::getData(TypeF32, &val, 0);
+      Con::setDataValue(type, dataPtr, 0, 1, &data, enumTable);
    }
 }
 
@@ -1710,9 +1738,37 @@ void ConsoleValue::setFloatValue(F32 val)
    }
    else
    {
-      const char *dptr = Con::getData(TypeF32, &val, 0);
-      Con::setData(type, dataPtr, 0, 1, &dptr, enumTable);
+      ConsoleValueRef data = Con::getData(TypeF32, &val, 0);
+      Con::setDataValue(type, dataPtr, 0, 1, &data, enumTable);
    }
+}
+
+void ConsoleValue::copyInto(ConsoleValue &other)
+{
+   if (type < 0) {
+      other.cleanup();
+      if (type == TypeInternalString) {
+         other.sval = dStrdup(sval);
+      } else {
+         other.sval = sval;
+      }
+      other.ival = ival;
+      other.fval = fval;
+   } else if (other.type >= 0 && !other.isAllocated) {
+      // Copy by setting variable (since this is a field or static variable)
+
+   } else {
+      // Cleanup dataPtr
+      if (other.type >= 0 && other.isAllocated) {
+      }
+
+      // Copy by making an allocated clone
+      other.dataPtr = dataPtr;
+      other.enumTable = enumTable;
+      other.isAllocated = true;
+   }
+
+   other.type = type;
 }
 
 

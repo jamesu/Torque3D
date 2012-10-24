@@ -140,7 +140,7 @@ bool CustomMaterial::onAdd()
          
       	mSamplerNames[i] = entry->slotName + dStrlen(samplerDecl);
          mSamplerNames[i].insert(0, '$');
-         mTexFilename[i] = entry->value;
+         mTexFilename[i] = entry->value.getStringValue();
          ++i;
       }
    }

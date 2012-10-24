@@ -91,10 +91,10 @@ class SFXParameter : public SimObject
       
       /// @}
       
-      static bool _setValue( void *object, const char *index, const char *data );
-      static bool _setRange( void *object, const char *index, const char *data );
-      static bool _setChannel( void *object, const char *index, const char *data );
-      static bool _setDefaultValue( void *object, const char *index, const char *data );
+      static bool _setValue( void *object, const char *index, ConsoleValue *data );
+      static bool _setRange( void *object, const char *index, ConsoleValue *data );
+      static bool _setChannel( void *object, const char *index, ConsoleValue *data );
+      static bool _setDefaultValue( void *object, const char *index, ConsoleValue *data );
    
    public:
    

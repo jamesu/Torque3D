@@ -211,10 +211,10 @@ protected:
    void _updateZoning();
 
    // Protected fields
-   static bool _setTerrainFile( void *obj, const char *index, const char *data );
-   static bool _setSquareSize( void *obj, const char *index, const char *data );
-   static bool _setBaseTexSize( void *obj, const char *index, const char *data );
-   static bool _setLightMapSize( void *obj, const char *index, const char *data );
+   static bool _setTerrainFile( void *object, const char *index, ConsoleValue *data );
+   static bool _setSquareSize( void *object, const char *index, ConsoleValue *data );
+   static bool _setBaseTexSize( void *object, const char *index, ConsoleValue *data );
+   static bool _setLightMapSize( void *object, const char *index, ConsoleValue *data );
 
 public:
 

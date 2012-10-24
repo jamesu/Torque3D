@@ -48,7 +48,7 @@ class GuiBitmapCtrl : public GuiControl
       /// If true, bitmap tiles inside control.  Otherwise stretches.
       bool mWrap;
 
-      static bool setBitmapName( void *object, const char *index, const char *data );
+      static bool setBitmapName( void *object, const char *index, ConsoleValue *data );
       static const char *getBitmapName( void *obj, const char *data );
 
    public:

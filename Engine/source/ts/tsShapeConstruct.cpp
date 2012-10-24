@@ -133,12 +133,12 @@ TSShapeConstructor::~TSShapeConstructor()
 {
 }
 
-bool TSShapeConstructor::addSequenceFromField( void *obj, const char *index, const char *data )
+bool TSShapeConstructor::addSequenceFromField( void *obj, const char *index, ConsoleValue *data )
 {
    TSShapeConstructor *pObj = static_cast<TSShapeConstructor*>( obj );
 
-   if ( data && data[0] )
-      pObj->mSequences.push_back( FileName(data) );
+   if ( data && data->getStringValue()[0] )
+      pObj->mSequences.push_back( FileName(data->getStringValue()) );
 
    return false;
 }
@@ -333,6 +333,8 @@ bool TSShapeConstructor::onAdd()
    // Check for dynamic fields of that pattern and add them into the sequence vector.
    if ( mSequences.empty() )
    {
+      ConsoleValue value;
+      
       for ( U32 idx = 0; idx < MaxLegacySequences; idx++ )
       {
          String field = String::ToString( "sequence%d", idx );
@@ -346,8 +348,12 @@ bool TSShapeConstructor::onAdd()
          // we get the default filename expansion.  If we didn't do this
          // then we would have unexpanded ~/ in the file paths.
          String expanded;
-         Con::setData( TypeStringFilename, &expanded, 0, 1, &data );
-         addSequenceFromField( this, NULL, expanded.c_str() );
+         value.setStackStringValue(expanded.c_str());
+         ConsoleValueRef ref;
+         ref.value = &value;
+         Con::setDataValue( TypeStringFilename, &expanded, 0, 1, &ref );
+         value.setStackStringValue(expanded.c_str());
+         addSequenceFromField( this, NULL, &value );
       }
    }
 

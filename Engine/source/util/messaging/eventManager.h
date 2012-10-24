@@ -113,9 +113,9 @@ private:
    static Vector<EventManager*> smEventManagers;
 
    /// Sets the message queue.
-   static bool _setMessageQueue( void *obj, const char *index, const char *data )
+   static bool _setMessageQueue( void *obj, const char *index, ConsoleValue *data )
    {
-      static_cast<EventManager*>( obj )->setMessageQueue( data );
+      static_cast<EventManager*>( obj )->setMessageQueue( data->getStringValue() );
       return false;
    };
 

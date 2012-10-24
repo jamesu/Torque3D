@@ -228,11 +228,11 @@ void TerrainBlock::_onTextureEvent( GFXTexCallbackCode code )
    }
 }
 
-bool TerrainBlock::_setSquareSize( void *obj, const char *index, const char *data )
+bool TerrainBlock::_setSquareSize( void *object, const char *index, ConsoleValue *data )
 {
-   TerrainBlock *terrain = static_cast<TerrainBlock*>( obj );
+   TerrainBlock *terrain = static_cast<TerrainBlock*>( object );
 
-   F32 newSqaureSize = dAtof( data );
+   F32 newSqaureSize = data->getFloatValue();
    if ( !mIsEqual( terrain->mSquareSize, newSqaureSize ) )
    {
       terrain->mSquareSize = newSqaureSize;
@@ -246,9 +246,9 @@ bool TerrainBlock::_setSquareSize( void *obj, const char *index, const char *dat
    return false;
 }
 
-bool TerrainBlock::_setBaseTexSize( void *obj, const char *index, const char *data )
+bool TerrainBlock::_setBaseTexSize( void *object, const char *index, ConsoleValue *data )
 {
-   TerrainBlock *terrain = static_cast<TerrainBlock*>( obj );
+   TerrainBlock *terrain = static_cast<TerrainBlock*>( object );
 
    // NOTE: We're limiting the base texture size to 
    // 2048 as anything greater in size becomes too
@@ -259,7 +259,7 @@ bool TerrainBlock::_setBaseTexSize( void *obj, const char *index, const char *da
    // base texture with your installer.
    //
 
-   S32 texSize = mClamp( dAtoi( data ), 0, 2048 );
+   S32 texSize = mClamp( data->getIntValue(), 0, 2048 );
    if ( terrain->mBaseTexSize != texSize )
    {
       terrain->mBaseTexSize = texSize;
@@ -269,12 +269,12 @@ bool TerrainBlock::_setBaseTexSize( void *obj, const char *index, const char *da
    return false;
 }
 
-bool TerrainBlock::_setLightMapSize( void *obj, const char *index, const char *data )
+bool TerrainBlock::_setLightMapSize( void *object, const char *index, ConsoleValue *data )
 {
-   TerrainBlock *terrain = static_cast<TerrainBlock*>(obj);
+   TerrainBlock *terrain = static_cast<TerrainBlock*>(object);
 
    // Handle inspector value decrements correctly
-   U32 mapSize = dAtoi( data );
+   U32 mapSize = data->getIntValue();
    if ( mapSize == terrain->mLightMapSize-1 )
       mapSize = terrain->mLightMapSize/2;
 
@@ -317,9 +317,9 @@ bool TerrainBlock::save(const char *filename)
    return mFile->save(filename);
 }
 
-bool TerrainBlock::_setTerrainFile( void *obj, const char *index, const char *data )
+bool TerrainBlock::_setTerrainFile( void *object, const char *index, ConsoleValue *data )
 {
-   static_cast<TerrainBlock*>( obj )->setFile( FileName( data ) );
+   static_cast<TerrainBlock*>( object )->setFile( FileName( data->getStringValue() ) );
    return false;
 }
 

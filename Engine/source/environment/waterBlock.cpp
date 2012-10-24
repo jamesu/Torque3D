@@ -498,27 +498,27 @@ void WaterBlock::innerRender( SceneRenderState *state )
    }   
 }
 
-bool WaterBlock::setGridSizeProperty( void *obj, const char *index, const char *data )
+bool WaterBlock::setGridSizeProperty( void *object, const char *index, ConsoleValue *data )
 {
-   WaterBlock* object = static_cast<WaterBlock*>(obj);
-   F32 gridSize = dAtof(data);
+   WaterBlock* waterblock = static_cast<WaterBlock*>(object);
+   F32 gridSize = data->getFloatValue();
    
-   Point3F scale = object->getScale();
+   Point3F scale = waterblock->getScale();
    
    if(gridSize < 0.001f)
    {
-      object->logWarning("gridSize cannot be <= 0, clamping to scale");
+      waterblock->logWarning("gridSize cannot be <= 0, clamping to scale");
       gridSize = getMin(scale.x, scale.y);
    }
    
    if(gridSize > scale.x || gridSize > scale.y)
    {
-      object->logWarning("gridSize cannot be > scale.  Your scale is (%g, %g) and your gridsize is %g", 
+      waterblock->logWarning("gridSize cannot be > scale.  Your scale is (%g, %g) and your gridsize is %g", 
                  scale.x, scale.y, gridSize);
       gridSize = getMin(scale.x, scale.y);
    }
    
-   object->mGridElementSize = gridSize;
+   waterblock->mGridElementSize = gridSize;
                
    // This is a hack so the console system doesn't go in and set our variable
    // again, after we've already set it (possibly with a different value...)

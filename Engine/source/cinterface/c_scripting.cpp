@@ -124,7 +124,7 @@ extern "C" {
       SimObject *object = Sim::findObject( objectId );
       if( object )
       {
-         object->setDataField(fieldName, "", v);
+         //object->setDataField(fieldName, "", v);
       }
    }
 
@@ -147,7 +147,7 @@ extern "C" {
       SimObject *object = Sim::findObject( objectId );
       if( object )
       {
-         object->setDataField(fieldName, "", v ? "1" : "0");
+         //object->setDataField(fieldName, "", v ? "1" : "0");
       }
    }
 
@@ -172,7 +172,7 @@ extern "C" {
          // this seems pretty lame, though it is how it is handled in consoleType.cpp
          char buf[256];
          dSprintf(buf, 256, "%d", v );
-         object->setDataField(fieldName, "", buf);
+         //object->setDataField(fieldName, "", buf);
       }
    }
 
@@ -196,7 +196,7 @@ extern "C" {
       {
          char buf[256];
          dSprintf(buf, 256, "%g", v );
-         object->setDataField(fieldName, "", buf);
+         //object->setDataField(fieldName, "", buf);
       }
    }
 

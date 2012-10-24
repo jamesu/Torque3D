@@ -57,7 +57,7 @@ extern "C" {
 
    void SimObject_SetDataField(SimObject *so, const char *fieldName, const char *arr, const char *val)
    {
-      so->setDataField(StringTable->insert(fieldName), arr, val);
+      //so->setDataField(StringTable->insert(fieldName), arr, val);
    }
 
    const char *SimObject_GetDataField(SimObject *so, const char *fieldName, const char *arr)
@@ -122,12 +122,12 @@ extern "C" {
 
    void ConsoleBaseType_SetData(ConsoleBaseType *cbt, void *dptr, S32 argc, const char **argv, const EnumTable *tbl, BitSet32 flag)
    {
-      return cbt->setData(dptr, argc, argv, tbl, flag);
+      //return cbt->setData(dptr, argc, argv, tbl, flag);
    }
 
    const char *ConsoleBaseType_GetData(ConsoleBaseType *cbt, void *dptr, const EnumTable *tbl, BitSet32 flag)
    {
-      return cbt->getData(dptr, tbl, flag);
+      return "";//cbt->getData(dptr, tbl, flag);
    }
 
    // Abstract Class Rep

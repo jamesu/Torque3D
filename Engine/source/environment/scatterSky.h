@@ -139,8 +139,8 @@ protected:
    void _updateTimeOfDay( TimeOfDay *timeofDay, F32 time );
 
    // static protected field set methods
-   static bool ptSetElevation( void *object, const char *index, const char *data );
-   static bool ptSetAzimuth( void *object, const char *index, const char *data );
+   static bool ptSetElevation( void *object, const char *index, ConsoleValue *data );
+   static bool ptSetAzimuth( void *object, const char *index, ConsoleValue *data );
 
    // SimObject.
    virtual void _onSelected();

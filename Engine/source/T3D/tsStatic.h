@@ -181,8 +181,8 @@ public:
 
    DECLARE_CONOBJECT(TSStatic);
    static void initPersistFields();
-   static bool _setFieldSkin( void *object, const char* index, const char* data );
-   static const char *_getFieldSkin( void *object, const char *data );
+   static bool _setFieldSkin( void *object, const char* index, ConsoleValue* data );
+   static ConsoleValue *_getFieldSkin( void *object, ConsoleValue *data );
 
    // Skinning
    void setSkinName( const char *name );

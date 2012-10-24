@@ -56,20 +56,20 @@ class RenderPassStateBin : public RenderBinManager
 protected:
    SimObjectPtr< RenderPassStateToken > mStateToken;
    
-   static bool _setStateToken( void* object, const char* index, const char* data )
+   static bool _setStateToken( void *object, const char *index, ConsoleValue *data )
    {
       RenderPassStateToken* stateToken;
-      Sim::findObject( data, stateToken );
+      Sim::findObject( data->getStringValue(), stateToken );
       reinterpret_cast< RenderPassStateBin* >( object )->mStateToken = stateToken;
       return false;
    }
-   static const char* _getStateToken( void* object, const char* data )
+   static ConsoleValue* _getStateToken( void *object, ConsoleValue *data )
    {
       RenderPassStateBin* bin = reinterpret_cast< RenderPassStateBin* >( object );
       if( bin->mStateToken.isValid() )
-         return bin->mStateToken->getIdString();
+         return Con::getReturnValue(bin->mStateToken->getIdString());
       else
-         return "0";
+         return Con::getReturnValue("0");
    }
    
 public:

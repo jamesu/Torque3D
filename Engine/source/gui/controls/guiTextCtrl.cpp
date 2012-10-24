@@ -89,7 +89,7 @@ DefineEngineMethod( GuiTextCtrl, setTextID, void, (const char* textID),,
 
 void GuiTextCtrl::initPersistFields()
 {
-   addProtectedField("text", TypeCaseString, Offset(mInitialText, GuiTextCtrl), setText, getTextProperty,
+   addProtectedField("text", TypeCaseString, Offset(mInitialText, GuiTextCtrl), setTextProperty, getTextProperty,
       "The text to show on the control.");
 
    addField( "textID",     TypeString,      Offset( mInitialTextID, GuiTextCtrl ),

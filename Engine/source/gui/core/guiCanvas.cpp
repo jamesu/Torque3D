@@ -159,10 +159,10 @@ GuiCanvas::~GuiCanvas()
 
 //------------------------------------------------------------------------------
 
-bool GuiCanvas::setProtectedNumFences( void *object, const char *index, const char *data)
+bool GuiCanvas::setProtectedNumFences( void *object, const char *index, ConsoleValue *data)
 {
    GuiCanvas *canvas = reinterpret_cast<GuiCanvas *>( object );
-   canvas->mNumFences = dAtoi( data );
+   canvas->mNumFences = data->getIntValue();
    canvas->setupFences();
    
    return false;

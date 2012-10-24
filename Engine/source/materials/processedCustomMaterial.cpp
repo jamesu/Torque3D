@@ -456,35 +456,35 @@ MaterialParameters* ProcessedCustomMaterial::allocMaterialParameters()
          switch (consts[i].constType)
          {
          case GFXSCT_Float :
-            setMaterialParameter<F32>(ret, handle, field->value);
+            setMaterialParameter<F32>(ret, handle, field->value.getStringValue());
             break;
          case GFXSCT_Float2: 
-            setMaterialParameter<Point2F>(ret, handle, field->value);
+            setMaterialParameter<Point2F>(ret, handle, field->value.getStringValue());
             break;            
          case GFXSCT_Float3: 
-            setMaterialParameter<Point3F>(ret, handle, field->value);
+            setMaterialParameter<Point3F>(ret, handle, field->value.getStringValue());
             break;            
          case GFXSCT_Float4: 
-            setMaterialParameter<Point4F>(ret, handle, field->value);
+            setMaterialParameter<Point4F>(ret, handle, field->value.getStringValue());
             break;            
          case GFXSCT_Float2x2:                         
          case GFXSCT_Float3x3: 
-            setMatrixParameter(ret, handle, field->value, consts[i].constType);
+            setMatrixParameter(ret, handle, field->value.getStringValue(), consts[i].constType);
             break;
          case GFXSCT_Float4x4: 
-            setMaterialParameter<MatrixF>(ret, handle, field->value);
+            setMaterialParameter<MatrixF>(ret, handle, field->value.getStringValue());
             break;            
          case GFXSCT_Int: 
-            setMaterialParameter<S32>(ret, handle, field->value);
+            setMaterialParameter<S32>(ret, handle, field->value.getStringValue());
             break;
          case GFXSCT_Int2: 
-            setMaterialParameter<Point2I>(ret, handle, field->value);
+            setMaterialParameter<Point2I>(ret, handle, field->value.getStringValue());
             break;
          case GFXSCT_Int3: 
-            setMaterialParameter<Point3I>(ret, handle, field->value);
+            setMaterialParameter<Point3I>(ret, handle, field->value.getStringValue());
             break;
          case GFXSCT_Int4: 
-            setMaterialParameter<Point4I>(ret, handle, field->value);
+            setMaterialParameter<Point4I>(ret, handle, field->value.getStringValue());
             break;
          // Do we want to ignore these?
          case GFXSCT_Sampler:

@@ -470,7 +470,7 @@ void FieldBrushObject::copyFields( SimObject* pSimObject, const char* fieldList 
                     for( U32 fieldElement = 0; S32(fieldElement) < staticField.elementCount; ++fieldElement )
                     {
                         // Fetch Field Value.
-                        const char* fieldValue = (staticField.getDataFn)( pSimObject, Con::getData(staticField.type, (void *) (((const char *)pSimObject) + staticField.offset), fieldElement, staticField.table, staticField.flag) );
+                        ConsoleValue* fieldValue = (staticField.getDataFn)( pSimObject, Con::getDataValue(staticField.type, (void *) (((const char *)pSimObject) + staticField.offset), fieldElement, staticField.table, staticField.flag).value );
 
                         // Field Value?
                         if ( fieldValue )
@@ -484,11 +484,11 @@ void FieldBrushObject::copyFields( SimObject* pSimObject, const char* fieldList 
                             // Set field value.
                             if ( !pFieldDictionary )
                             {
-                                setDataField( StringTable->insert( tempBuf ), NULL, fieldValue );
+                                setDataFieldValue( StringTable->insert( tempBuf ), NULL, *fieldValue );
                             }
                             else
-                            {
-                                pFieldDictionary->setFieldValue( StringTable->insert( tempBuf ), fieldValue );
+                            { // todo
+                                pFieldDictionary->setFieldValue( StringTable->insert( tempBuf ), fieldValue->getStringValue() );
                             }
                         }
                     }
@@ -577,7 +577,7 @@ void FieldBrushObject::pasteFields( SimObject* pSimObject )
                     if ( dStrcmp(staticField.pFieldname, pInternalField) == 0 )
                     {
                         // Yes, so set data.
-                        pSimObject->setDataField( staticField.pFieldname, NULL, fieldEntry->value );
+                        pSimObject->setDataFieldValue( staticField.pFieldname, NULL, fieldEntry->value );
                     }
                 }
             }

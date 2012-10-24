@@ -417,10 +417,10 @@ bool WaterObject::processArguments( S32 argc, ConsoleValueRef *argv )
       return Parent::processArguments( argc, argv );
 }
 
-bool WaterObject::_setFullReflect( void *object, const char *index, const char *data )
+bool WaterObject::_setFullReflect( void *object, const char *index, ConsoleValue *data )
 {
    WaterObject *water = static_cast<WaterObject*>( object );
-   water->mFullReflect = dAtob( data );
+   water->mFullReflect = dAtob( data->getStringValue() );
    
    if ( water->isProperlyAdded() && water->isClientObject() )
    {
@@ -437,12 +437,12 @@ bool WaterObject::_setFullReflect( void *object, const char *index, const char *
    return false;
 }
 
-bool WaterObject::_checkDensity( void *object, const char *index, const char *data )
+bool WaterObject::_checkDensity( void *object, const char *index, ConsoleValue *data )
 {
    //Water densities above 1000 shoot the player high and fast into the air.
    //value clamped to prevent errors.
    WaterObject *water = static_cast<WaterObject*>( object );
-   water->mDensity = mClampF(dAtof( data ), 0.0f, 1000.0f);
+   water->mDensity = mClampF(data->getFloatValue(), 0.0f, 1000.0f);
 
    return false;
 }

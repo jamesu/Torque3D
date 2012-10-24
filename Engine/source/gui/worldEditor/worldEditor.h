@@ -79,7 +79,7 @@ class WorldEditor : public EditTSCtrl
       void ignoreObjClass(U32 argc, ConsoleValueRef* argv);
       void clearIgnoreList();
 
-      static bool setObjectsUseBoxCenter( void *object, const char *index, const char *data ) { static_cast<WorldEditor*>(object)->setObjectsUseBoxCenter( dAtob( data ) ); return false; };
+      static bool setObjectsUseBoxCenter( void *object, const char *index, ConsoleValue *data ) { static_cast<WorldEditor*>(object)->setObjectsUseBoxCenter( dAtob( data->getStringValue() ) ); return false; };
       void setObjectsUseBoxCenter(bool state);
       bool getObjectsUseBoxCenter() { return mObjectsUseBoxCenter; }
 

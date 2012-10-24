@@ -70,7 +70,7 @@ protected:
    
    /// @}
 
-   static bool _addKeyFromField( void *object, const char *index, const char *data );
+   static bool _addKeyFromField( void *object, const char *index, ConsoleValue *data );
 
 public:
   

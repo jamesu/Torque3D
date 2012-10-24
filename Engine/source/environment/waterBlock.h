@@ -103,7 +103,7 @@ private:
    void setMultiPassProjection();
    void clearVertBuffers();
 
-   static bool setGridSizeProperty( void *object, const char *index, const char *data );
+   static bool setGridSizeProperty( void *object, const char *index, ConsoleValue *data );
 protected:
 
    //-------------------------------------------------------

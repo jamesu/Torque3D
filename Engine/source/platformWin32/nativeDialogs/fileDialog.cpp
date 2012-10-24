@@ -592,7 +592,7 @@ DefineEngineMethod( FileDialog, Execute, bool, (),,
 //-----------------------------------------------------------------------------
 // Dialog Filters
 //-----------------------------------------------------------------------------
-bool FileDialog::setFilters( void *object, const char *index, const char *data )
+bool FileDialog::setFilters( void *object, const char *index, ConsoleValue *data )
 {
    // Will do validate on write at some point.
    if( !data )
@@ -606,17 +606,17 @@ bool FileDialog::setFilters( void *object, const char *index, const char *data )
 //-----------------------------------------------------------------------------
 // Default Path Property - String Validated on Write
 //-----------------------------------------------------------------------------
-bool FileDialog::setDefaultPath( void *object, const char *index, const char *data )
+bool FileDialog::setDefaultPath( void *object, const char *index, ConsoleValue *data )
 {
-
-   if( !data || !dStrncmp( data, "", 1 ) )
+   const char *dataValue = data->getStringValue();
+   if( !data || !dStrncmp( dataValue, "", 1 ) )
       return true;
 
    // Copy and Backslash the path (Windows dialogs are VERY picky about this format)
    static char szPathValidate[512];
-   dStrcpy( szPathValidate, data );
+   dStrcpy( szPathValidate, dataValue );
 
-   Platform::makeFullPathName( data,szPathValidate, sizeof(szPathValidate));
+   Platform::makeFullPathName( dataValue,szPathValidate, sizeof(szPathValidate));
    backslash( szPathValidate );
 
    // Remove any trailing \'s
@@ -643,14 +643,15 @@ bool FileDialog::setDefaultPath( void *object, const char *index, const char *da
 //-----------------------------------------------------------------------------
 // Default File Property - String Validated on Write
 //-----------------------------------------------------------------------------
-bool FileDialog::setDefaultFile( void *object, const char *index, const char *data )
+bool FileDialog::setDefaultFile( void *object, const char *index, ConsoleValue *data )
 {
-   if( !data || !dStrncmp( data, "", 1 ) )
+   const char *dataValue = data->getStringValue();
+   if( !data || !dStrncmp( dataValue, "", 1 ) )
       return true;
 
    // Copy and Backslash the path (Windows dialogs are VERY picky about this format)
    static char szPathValidate[512];
-   Platform::makeFullPathName( data,szPathValidate, sizeof(szPathValidate) );
+   Platform::makeFullPathName( dataValue,szPathValidate, sizeof(szPathValidate) );
    backslash( szPathValidate );
 
    // Remove any trailing \'s
@@ -668,9 +669,9 @@ bool FileDialog::setDefaultFile( void *object, const char *index, const char *da
 //-----------------------------------------------------------------------------
 // ChangePath Property - Change working path on successful file selection
 //-----------------------------------------------------------------------------
-bool FileDialog::setChangePath( void *object, const char *index, const char *data )
+bool FileDialog::setChangePath( void *object, const char *index, ConsoleValue *data )
 {
-   bool bMustExist = dAtob( data );
+   bool bMustExist = dAtob( data->getStringValue() );
 
    FileDialog *pDlg = static_cast<FileDialog*>( object );
 
@@ -682,16 +683,16 @@ bool FileDialog::setChangePath( void *object, const char *index, const char *dat
    return true;
 };
 
-const char* FileDialog::getChangePath(void* obj, const char* data)
+ConsoleValue* FileDialog::getChangePath(void* obj, ConsoleValue* data)
 {
    FileDialog *pDlg = static_cast<FileDialog*>( obj );
    if( pDlg->mData.mStyle & FileDialogData::FDS_CHANGEPATH )
-      return StringTable->insert("true");
+      return Con::getReturnValue(StringTable->insert("true"));
    else
-      return StringTable->insert("false");
+      return Con::getReturnValue(StringTable->insert("false"));
 }
 
-bool FileDialog::setFile( void *object, const char *index, const char *data )
+bool FileDialog::setFile( void *object, const char *index, ConsoleValue *data )
 {
    return false;
 };
@@ -769,9 +770,9 @@ void OpenFileDialog::initPersistFields()
 //-----------------------------------------------------------------------------
 // File Must Exist - Boolean
 //-----------------------------------------------------------------------------
-bool OpenFileDialog::setMustExist( void *object, const char *index, const char *data )
+bool OpenFileDialog::setMustExist( void *object, const char *index, ConsoleValue *data )
 {
-   bool bMustExist = dAtob( data );
+   bool bMustExist = dAtob( data->getStringValue() );
 
    OpenFileDialog *pDlg = static_cast<OpenFileDialog*>( object );
    
@@ -783,21 +784,21 @@ bool OpenFileDialog::setMustExist( void *object, const char *index, const char *
    return true;
 };
 
-const char* OpenFileDialog::getMustExist(void* obj, const char* data)
+ConsoleValue* OpenFileDialog::getMustExist(void* obj, ConsoleValue* data)
 {
    OpenFileDialog *pDlg = static_cast<OpenFileDialog*>( obj );
    if( pDlg->mData.mStyle & FileDialogData::FDS_MUSTEXIST )
-      return StringTable->insert("true");
+      return Con::getReturnValue(StringTable->insert("true"));
    else
-      return StringTable->insert("false");
+      return Con::getReturnValue(StringTable->insert("false"));
 }
 
 //-----------------------------------------------------------------------------
 // Can Select Multiple Files - Boolean
 //-----------------------------------------------------------------------------
-bool OpenFileDialog::setMultipleFiles( void *object, const char *index, const char *data )
+bool OpenFileDialog::setMultipleFiles( void *object, const char *index, ConsoleValue *data )
 {
-   bool bMustExist = dAtob( data );
+   bool bMustExist = dAtob( data->getStringValue() );
 
    OpenFileDialog *pDlg = static_cast<OpenFileDialog*>( object );
 
@@ -809,13 +810,13 @@ bool OpenFileDialog::setMultipleFiles( void *object, const char *index, const ch
    return true;
 };
 
-const char* OpenFileDialog::getMultipleFiles(void* obj, const char* data)
+ConsoleValue* OpenFileDialog::getMultipleFiles(void* obj, ConsoleValue* data)
 {
    OpenFileDialog *pDlg = static_cast<OpenFileDialog*>( obj );
    if( pDlg->mData.mStyle & FileDialogData::FDS_MULTIPLEFILES )
-      return StringTable->insert("true");
+      return Con::getReturnValue(StringTable->insert("true"));
    else
-      return StringTable->insert("false");
+      return Con::getReturnValue(StringTable->insert("false"));
 }
 
 //-----------------------------------------------------------------------------
@@ -890,9 +891,9 @@ void SaveFileDialog::initPersistFields()
 //-----------------------------------------------------------------------------
 // Prompt on Overwrite - Boolean
 //-----------------------------------------------------------------------------
-bool SaveFileDialog::setOverwritePrompt( void *object, const char *index, const char *data )
+bool SaveFileDialog::setOverwritePrompt( void *object, const char *index, ConsoleValue *data )
 {
-   bool bMustExist = dAtob( data );
+   bool bMustExist = dAtob( data->getStringValue() );
 
    SaveFileDialog *pDlg = static_cast<SaveFileDialog*>( object );
 
@@ -904,13 +905,13 @@ bool SaveFileDialog::setOverwritePrompt( void *object, const char *index, const 
    return true;
 };
 
-const char* SaveFileDialog::getOverwritePrompt(void* obj, const char* data)
+ConsoleValue* SaveFileDialog::getOverwritePrompt(void* obj, ConsoleValue* data)
 {
    SaveFileDialog *pDlg = static_cast<SaveFileDialog*>( obj );
    if( pDlg->mData.mStyle & FileDialogData::FDS_OVERWRITEPROMPT )
-      return StringTable->insert("true");
+      return Con::getReturnValue(StringTable->insert("true"));
    else
-      return StringTable->insert("false");
+      return Con::getReturnValue(StringTable->insert("false"));
 }
 
 //-----------------------------------------------------------------------------

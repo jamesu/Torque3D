@@ -583,13 +583,15 @@ void SceneObject::initPersistFields()
 
 //-----------------------------------------------------------------------------
 
-bool SceneObject::_setFieldPosition( void *object, const char *index, const char *data )
+bool SceneObject::_setFieldPosition( void *object, const char *index, ConsoleValue *data )
 {
    SceneObject* so = static_cast<SceneObject*>( object );
    if ( so )
    {
       MatrixF txfm( so->getTransform() );
-      Con::setData( TypeMatrixPosition, &txfm, 0, 1, &data );
+      ConsoleValueRef ref;
+      ref.value = data;
+      Con::setDataValue( TypeMatrixPosition, &txfm, 0, 1, &ref );
       so->setTransform( txfm );
    }
    return false;
@@ -597,13 +599,15 @@ bool SceneObject::_setFieldPosition( void *object, const char *index, const char
 
 //-----------------------------------------------------------------------------
 
-bool SceneObject::_setFieldRotation( void *object, const char *index, const char *data )
+bool SceneObject::_setFieldRotation( void *object, const char *index, ConsoleValue *data )
 {
    SceneObject* so = static_cast<SceneObject*>( object );
    if ( so )
    {
       MatrixF txfm( so->getTransform() );
-      Con::setData( TypeMatrixRotation, &txfm, 0, 1, &data );
+      ConsoleValueRef ref;
+      ref.value = data;
+      Con::setDataValue( TypeMatrixRotation, &txfm, 0, 1, &ref );
       so->setTransform( txfm );
    }
    return false;
@@ -611,13 +615,15 @@ bool SceneObject::_setFieldRotation( void *object, const char *index, const char
 
 //-----------------------------------------------------------------------------
 
-bool SceneObject::_setFieldScale( void *object, const char *index, const char *data )
+bool SceneObject::_setFieldScale( void *object, const char *index, ConsoleValue *data )
 {
    SceneObject* so = static_cast<SceneObject*>( object );
    if ( so )
    {
       Point3F scale;
-      Con::setData( TypePoint3F, &scale, 0, 1, &data );
+      ConsoleValueRef ref;
+      ref.value = data;
+      Con::setDataValue( TypePoint3F, &scale, 0, 1, &ref );
       so->setScale( scale );
    }
    return false;
@@ -705,21 +711,21 @@ void SceneObject::setRenderEnabled( bool value )
 
 //-----------------------------------------------------------------------------
 
-const char* SceneObject::_getRenderEnabled( void* object, const char* data )
+ConsoleValue* SceneObject::_getRenderEnabled( void *object, ConsoleValue *data )
 {
    SceneObject* obj = reinterpret_cast< SceneObject* >( object );
    if( obj->mObjectFlags.test( RenderEnabledFlag ) )
-      return "true";
+      return Con::getReturnValue("true");
    else
-      return "false";
+      return Con::getReturnValue("false");
 }
 
 //-----------------------------------------------------------------------------
 
-bool SceneObject::_setRenderEnabled( void *object, const char *index, const char *data )
+bool SceneObject::_setRenderEnabled( void *object, const char *index, ConsoleValue *data )
 {
    SceneObject* obj = reinterpret_cast< SceneObject* >( object );
-   obj->setRenderEnabled( dAtob( data ) );
+   obj->setRenderEnabled( dAtob( data->getStringValue() ) );
    return false;
 }
 
@@ -745,21 +751,21 @@ void SceneObject::setSelectionEnabled( bool value )
 
 //-----------------------------------------------------------------------------
 
-const char* SceneObject::_getSelectionEnabled( void* object, const char* data )
+ConsoleValue* SceneObject::_getSelectionEnabled( void *object, ConsoleValue *data )
 {
    SceneObject* obj = reinterpret_cast< SceneObject* >( object );
    if( obj->mObjectFlags.test( SelectionEnabledFlag ) )
-      return "true";
+      return Con::getReturnValue("true");
    else
-      return "false";
+      return Con::getReturnValue("false");
 }
 
 //-----------------------------------------------------------------------------
 
-bool SceneObject::_setSelectionEnabled( void *object, const char *index, const char *data )
+bool SceneObject::_setSelectionEnabled( void *object, const char *index, ConsoleValue *data )
 {
    SceneObject* obj = reinterpret_cast< SceneObject* >( object );
-   obj->setSelectionEnabled( dAtob( data ) );
+   obj->setSelectionEnabled( dAtob( data->getStringValue() ) );
    return false;
 }
 
@@ -1014,7 +1020,7 @@ SceneObject* SceneObject::getMountNodeObject(S32 node)
 
 //-----------------------------------------------------------------------------
 
-bool SceneObject::_setMountPID( void* object, const char* index, const char* data )
+bool SceneObject::_setMountPID( void *object, const char *index, ConsoleValue *data )
 {
    SceneObject* so = static_cast<SceneObject*>( object );
    if ( so )
@@ -1028,7 +1034,9 @@ bool SceneObject::_setMountPID( void* object, const char* index, const char* dat
       so->unmount();
 
       // Get the new PID (new object will be mounted on demand)
-      Con::setData( TypePID, &so->mMountPID, 0, 1, &data );
+      ConsoleValueRef ref;
+      ref.value = data;
+      Con::setDataValue( TypePID, &so->mMountPID, 0, 1, &ref );
       if ( so->mMountPID )
          so->mMountPID->incRefCount();    // Prevent PID from being deleted out from under us!
    }

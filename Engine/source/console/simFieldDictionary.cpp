@@ -22,11 +22,11 @@
 
 
 #include "platform/platform.h"
-#include "console/simFieldDictionary.h"
 
 #include "console/console.h"
 #include "console/consoleInternal.h"
 #include "core/frameAllocator.h"
+#include "console/simFieldDictionary.h"
 
 SimFieldDictionary::Entry *SimFieldDictionary::smFreeList = NULL;
 
@@ -56,7 +56,8 @@ SimFieldDictionary::Entry *SimFieldDictionary::addEntry( U32 bucket, StringTable
    ret->next      = mHashTable[ bucket ];
    ret->slotName  = slotName;
    ret->type      = type;
-   ret->value     = value;
+   ret->value.init();
+   ret->value.setStringValue(value);
 
    mHashTable[ bucket ] = ret;
    mNumFields ++;
@@ -67,6 +68,7 @@ SimFieldDictionary::Entry *SimFieldDictionary::addEntry( U32 bucket, StringTable
 
 void SimFieldDictionary::freeEntry(SimFieldDictionary::Entry *ent)
 {
+   ent->value.cleanup();
    ent->next = smFreeList;
    smFreeList = ent;
 
@@ -89,8 +91,7 @@ SimFieldDictionary::~SimFieldDictionary()
          Entry *temp = walk;
          walk = temp->next;
 
-         if( temp->value )
-            dFree(temp->value);
+         temp->value.cleanup();
          freeEntry(temp);
       }
    }
@@ -182,9 +183,8 @@ void SimFieldDictionary::setFieldValue(StringTableEntry slotName, const char *va
       if(field)
       {
          mVersion++;
-
-         if( field->value )
-            dFree(field->value);
+         
+         field->value.cleanup();
 
          *walk = field->next;
          freeEntry(field);
@@ -194,10 +194,9 @@ void SimFieldDictionary::setFieldValue(StringTableEntry slotName, const char *va
    {
       if(field)
       {
-         if( field->value )
-            dFree(field->value);
+         field->value.cleanup();
 
-         field->value = dStrdup(value);
+         field->value.setStringValue(value);
       }
       else
          addEntry( bucket, slotName, 0, dStrdup( value ) );
@@ -210,7 +209,7 @@ const char *SimFieldDictionary::getFieldValue(StringTableEntry slotName)
 
    for(Entry *walk = mHashTable[bucket];walk;walk = walk->next)
       if(walk->slotName == slotName)
-         return walk->value;
+         return walk->value.getStringValue();
 
    return NULL;
 }
@@ -223,7 +222,7 @@ void SimFieldDictionary::assignFrom(SimFieldDictionary *dict)
    {
       for(Entry *walk = dict->mHashTable[i];walk; walk = walk->next)
       {
-         setFieldValue(walk->slotName, walk->value);
+         setFieldValue(walk->slotName, walk->value.getStringValue());
          setFieldType(walk->slotName, walk->type);
       }
    }
@@ -255,7 +254,7 @@ void SimFieldDictionary::writeFields(SimObject *obj, Stream &stream, U32 tabStop
             continue;
 
 
-         if (!obj->writeField(walk->slotName, walk->value))
+         if (!obj->writeField(walk->slotName, walk->value.getStringValue()))
             continue;
 
          flist.push_back(walk);
@@ -268,15 +267,15 @@ void SimFieldDictionary::writeFields(SimObject *obj, Stream &stream, U32 tabStop
    // Save them out
    for(Vector<Entry *>::iterator itr = flist.begin(); itr != flist.end(); itr++)
    {
-      U32 nBufferSize = (dStrlen( (*itr)->value ) * 2) + dStrlen( (*itr)->slotName ) + 16;
+      U32 nBufferSize = (dStrlen( (*itr)->value.getStringValue() ) * 2) + dStrlen( (*itr)->slotName ) + 16;
       FrameTemp<char> expandedBuffer( nBufferSize );
 
       stream.writeTabs(tabStop+1);
 
       const char *typeName = (*itr)->type && (*itr)->type->getTypeID() != TypeString ? (*itr)->type->getTypeName() : "";
       dSprintf(expandedBuffer, nBufferSize, "%s%s%s = \"", typeName, *typeName ? " " : "", (*itr)->slotName);
-      if ( (*itr)->value )
-         expandEscape((char*)expandedBuffer + dStrlen(expandedBuffer), (*itr)->value);
+      //if ( (*itr)->value )
+         expandEscape((char*)expandedBuffer + dStrlen(expandedBuffer), (*itr)->value.getStringValue());
       dStrcat(expandedBuffer, "\";\r\n");
 
       stream.write(dStrlen(expandedBuffer),expandedBuffer);
@@ -314,8 +313,8 @@ void SimFieldDictionary::printFields(SimObject *obj)
          type = ( *itr )->type->getTypeClassName();
          
       dSprintf( expandedBuffer, sizeof( expandedBuffer ), "  %s %s = \"", type, ( *itr )->slotName );
-      if ( (*itr)->value )
-         expandEscape(expandedBuffer + dStrlen(expandedBuffer), (*itr)->value);
+      //if ( (*itr)->value )
+         expandEscape(expandedBuffer + dStrlen(expandedBuffer), (*itr)->value.getStringValue());
       Con::printf("%s\"", expandedBuffer);
    }
 }

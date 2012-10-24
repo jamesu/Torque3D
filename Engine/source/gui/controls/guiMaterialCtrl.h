@@ -42,7 +42,7 @@ protected:
 
    BaseMatInstance *mMaterialInst;
 
-   static bool _setMaterial( void *object, const char *index, const char *data );
+   static bool _setMaterial( void *object, const char *index, ConsoleValue *data );
 
 public:
 

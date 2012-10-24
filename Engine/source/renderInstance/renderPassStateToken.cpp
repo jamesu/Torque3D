@@ -72,16 +72,16 @@ bool RenderPassStateToken::isEnabled() const
    return false;
 }
 
-static bool _set_enable( void *object, const char *index, const char *data )
+static bool _set_enable( void *object, const char *index, ConsoleValue *data )
 {
-   reinterpret_cast<RenderPassStateToken *>(object)->enable(dAtob(data));
+   reinterpret_cast<RenderPassStateToken *>(object)->enable(dAtob(data->getStringValue()));
    return false;
 }
 
-static const char *_get_enable(void* obj, const char* data)
+static ConsoleValue *_get_enable(void* obj, ConsoleValue* data)
 {
    TORQUE_UNUSED(data);
-   return reinterpret_cast<RenderPassStateToken *>(obj)->isEnabled() ? "true" : "false";
+   return reinterpret_cast<RenderPassStateToken *>(obj)->isEnabled() ? Con::getReturnValue("true") : Con::getReturnValue("false");
 }
 
 void RenderPassStateToken::initPersistFields()

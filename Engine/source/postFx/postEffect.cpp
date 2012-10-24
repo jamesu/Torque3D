@@ -1117,9 +1117,9 @@ void PostEffect::process(  const SceneRenderState *state,
       mOnThisFrame = false;
 }
 
-bool PostEffect::_setIsEnabled( void *object, const char *index, const char *data )
+bool PostEffect::_setIsEnabled( void *object, const char *index, ConsoleValue *data )
 {
-   bool enabled = dAtob( data );
+   bool enabled = dAtob( data->getStringValue() );
    if ( enabled )
       static_cast<PostEffect*>( object )->enable();
    else

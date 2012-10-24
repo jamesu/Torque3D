@@ -207,7 +207,7 @@ protected:
 
    static S32 QSORT_CALLBACK _comparePlaneDist( const void *a, const void *b );
 
-   static bool protectedSetSurface( void *object, const char *index, const char *data );
+   static bool protectedSetSurface( void *object, const char *index, ConsoleValue *data );
   
 protected:
    

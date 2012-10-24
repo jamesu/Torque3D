@@ -46,7 +46,6 @@ typedef EngineEnumTable EnumTable;
 
 template< typename T > S32 TYPEID();
 
-
 /// @defgroup console_system Console System
 /// The Console system is the basis for logging, SimObject, and TorqueScript itself.
 ///
@@ -159,6 +158,9 @@ public:
          
          /// The enum lookup table for enumerated types.
          const EnumTable *enumTable;
+
+         /// Was the dataPtr allocated (i.e. not part of an object)?
+         bool isAllocated;
       };
    };
    
@@ -174,9 +176,23 @@ public:
    
    void setStringValue(const char *value);
    void setStackStringValue(const char *value);
+
+   // Changes the variable to a custom type. Allocated data will be 
+   void setCustomType(StringTableEntry type);
+
+   // Turns other into an independent copy of this variable
+   void copyInto(ConsoleValue &other);
+
+   bool isNull() {
+      return type == TypeInternalString && sval == typeValueEmpty;
+   }
+
+   ConsoleValue() : type(TypeInternalString), sval(0) {;}
+   ~ConsoleValue() { cleanup(); }
    
    void init()
    {
+      type = TypeInternalString;
       ival = 0;
       fval = 0;
       sval = typeValueEmpty;
@@ -186,8 +202,14 @@ public:
    void cleanup()
    {
       if (type <= TypeInternalString &&
-          sval != typeValueEmpty && type != TypeInternalStackString )
+          sval != typeValueEmpty && sval != NULL && type != TypeInternalStackString )
          dFree(sval);
+
+      if (type >= 0 && isAllocated && dataPtr) {
+         dFree(dataPtr);
+         dataPtr = NULL;
+      }
+
       sval = typeValueEmpty;
       type = ConsoleValue::TypeInternalString;
       ival = 0;
@@ -229,6 +251,7 @@ public:
    inline bool isString() { return value ? value->type >= ConsoleValue::TypeInternalStackString : true; }
    inline bool isInt() { return value ? value->type == ConsoleValue::TypeInternalInt : false; }
    inline bool isFloat() { return value ? value->type == ConsoleValue::TypeInternalFloat : false; }
+   inline bool isNull() { return value; }
 
    // Note: operators replace value
    ConsoleValueRef& operator=(const ConsoleValueRef &other);
@@ -819,6 +842,11 @@ namespace Con
    char* getReturnBuffer( const String& str );
    char* getReturnBuffer( const StringBuilder& str );
 
+   ConsoleValue *getReturnValue( const char *value );
+   ConsoleValue *getReturnValue( ConsoleValue &value );
+   ConsoleValue *getReturnValue( F32 value );
+   ConsoleValue *getReturnValue( S32 value );
+
    char* getArgBuffer(U32 bufferSize);
    ConsoleValueRef getFloatArg(F64 arg);
    ConsoleValueRef getIntArg  (S32 arg);
@@ -870,8 +898,13 @@ namespace Con
    const char *getTypeName(S32 type);
    bool isDatablockType( S32 type ); */
 
-   void setData(S32 type, void *dptr, S32 index, S32 argc, const char **argv, const EnumTable *tbl = NULL, BitSet32 flag = 0);
+   void setData(S32 type, void *dptr, S32 index, S32 argc, const char *argv[], const EnumTable *tbl = NULL, BitSet32 flag = 0);
    const char *getData(S32 type, void *dptr, S32 index, const EnumTable *tbl = NULL, BitSet32 flag = 0);
+
+   // ConsoleValueRef versions of the above
+   void setDataValue(S32 type, void *dptr, S32 index, S32 argc, ConsoleValueRef argv[], const EnumTable *tbl = NULL, BitSet32 flag = 0);
+   ConsoleValueRef getDataValue(S32 type, void *dptr, S32 index, const EnumTable *tbl = NULL, BitSet32 flag = 0);
+   
    const char *getFormattedData(S32 type, const char *data, const EnumTable *tbl = NULL, BitSet32 flag = 0);
    /// @}
 };

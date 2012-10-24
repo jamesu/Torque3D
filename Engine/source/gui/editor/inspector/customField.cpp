@@ -20,6 +20,7 @@
 // IN THE SOFTWARE.
 //-----------------------------------------------------------------------------
 
+#include "console/console.h"
 #include "gui/editor/inspector/customField.h"
 #include "gui/editor/guiInspector.h"
 

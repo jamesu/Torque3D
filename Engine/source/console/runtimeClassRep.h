@@ -127,21 +127,21 @@ public:
    /// @name Console Type Interface
    /// @{
 
-   virtual void setData( void* dptr, S32 argc, const char** argv, const EnumTable* tbl, BitSet32 flag )
+   virtual void setData( void* dptr, S32 argc, ConsoleValue *argv[], const EnumTable* tbl, BitSet32 flag )
    {
       if( argc == 1 )
       {
          T** obj = ( T** ) dptr;
-         *obj = dynamic_cast< T* >( T::__findObject( argv[ 0 ] ) );
+         *obj = dynamic_cast< T* >( T::__findObject( argv[ 0 ]->getStringValue() ) );
       }
       else
          Con::errorf( "Cannot set multiple args to a single ConsoleObject*.");
    }
    
-   virtual const char* getData( void* dptr, const EnumTable* tbl, BitSet32 flag )
+   virtual ConsoleValue *getData( void* dptr, const EnumTable* tbl, BitSet32 flag )
    {
       T** obj = ( T** ) dptr;
-      return Con::getReturnBuffer( T::__getObjectId( *obj ) );
+      return Con::getReturnValue( T::__getObjectId( *obj ) );
    }
    
    virtual const char* getTypeClassName() { return mClassName; }

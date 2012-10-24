@@ -240,7 +240,7 @@ bool Settings::write()
 	  if(check.find("_default") != String::NPos || check.find("_type") != String::NPos)
 		 continue;
 
-	  node->addValue(fieldEntry->slotName, fieldEntry->value);
+	  node->addValue(fieldEntry->slotName, fieldEntry->value.getStringValue());
    }
 
    node->buildDocument(document, true);

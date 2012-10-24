@@ -188,8 +188,8 @@ public:
       return ::find(first, last, value);
    }
 
-   static bool setIsTemplate( void *object, const char *index, const char *data ) 
-      { static_cast<SimComponent*>(object)->setIsTemplate( dAtob( data ) ); return false; };
+   static bool setIsTemplate( void *object, const char *index, ConsoleValue *data ) 
+      { static_cast<SimComponent*>(object)->setIsTemplate( dAtob( data->getStringValue() ) ); return false; };
    virtual void setIsTemplate( const bool pTemplate ) { mTemplate = pTemplate; }
    bool getIsTemplate() const { return mTemplate; }
 

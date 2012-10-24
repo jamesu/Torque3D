@@ -77,6 +77,7 @@ DefineConsoleType( TypeRealString, String )
 DefineConsoleType( TypeCommand, String )
 DefineConsoleType( TypeFilename, const char * )
 DefineConsoleType( TypeStringFilename, String )
+DefineConsoleType( TypeValueVector, Vector<ConsoleValue> ) // array of values
 
 /// A universally unique identifier.
 DefineConsoleType( TypeUUID, Torque::UUID )

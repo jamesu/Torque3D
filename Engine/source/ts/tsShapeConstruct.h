@@ -220,7 +220,7 @@ protected:
    Vector<FileName>  mSequences;
    ChangeSet         mChangeSet;
 
-   static bool addSequenceFromField( void *obj, const char *index, const char *data );
+   static bool addSequenceFromField( void *obj, const char *index, ConsoleValue *data );
    
    static void       _onTSShapeLoaded( Resource< TSShape >& shape );
    static void       _onTSShapeUnloaded( const Torque::Path& path, TSShape* shape );

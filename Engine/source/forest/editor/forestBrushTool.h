@@ -94,9 +94,9 @@ protected:
    bool _updateBrushPoint( const Gui3DMouseEvent &event_ );   
    virtual void _collectElements();
 
-   static bool protectedSetSize( void *object, const char *index, const char *data );
-   static bool protectedSetPressure( void *object, const char *index, const char *data );
-   static bool protectedSetHardness( void *object, const char *index, const char *data );
+   static bool protectedSetSize( void *object, const char *index, ConsoleValue *data );
+   static bool protectedSetPressure( void *object, const char *index, ConsoleValue *data );
+   static bool protectedSetHardness( void *object, const char *index, ConsoleValue *data );
 
 protected:
 

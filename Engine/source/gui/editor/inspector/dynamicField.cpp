@@ -20,6 +20,7 @@
 // IN THE SOFTWARE.
 //-----------------------------------------------------------------------------
 
+#include "console/console.h"
 #include "gui/editor/inspector/dynamicField.h"
 #include "gui/editor/inspector/dynamicGroup.h"
 #include "gui/editor/guiInspector.h"

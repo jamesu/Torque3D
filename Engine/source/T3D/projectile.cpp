@@ -477,9 +477,9 @@ void ProjectileData::unpackData(BitStream* stream)
    }
 }
 
-bool ProjectileData::setLifetime( void *obj, const char *index, const char *data )
+bool ProjectileData::setLifetime( void *obj, const char *index, ConsoleValue *data )
 {
-	S32 value = dAtoi(data);
+	S32 value = data->getIntValue();
    value = scaleValue(value);
    
    ProjectileData *object = static_cast<ProjectileData*>(obj);
@@ -488,9 +488,9 @@ bool ProjectileData::setLifetime( void *obj, const char *index, const char *data
    return false;
 }
 
-bool ProjectileData::setArmingDelay( void *obj, const char *index, const char *data )
+bool ProjectileData::setArmingDelay( void *obj, const char *index, ConsoleValue *data )
 {
-	S32 value = dAtoi(data);
+	S32 value = data->getIntValue();
    value = scaleValue(value);
 
    ProjectileData *object = static_cast<ProjectileData*>(obj);
@@ -499,9 +499,9 @@ bool ProjectileData::setArmingDelay( void *obj, const char *index, const char *d
    return false;
 }
 
-bool ProjectileData::setFadeDelay( void *obj, const char *index, const char *data )
+bool ProjectileData::setFadeDelay( void *obj, const char *index, ConsoleValue *data )
 {
-	S32 value = dAtoi(data);
+	S32 value = data->getIntValue();
    value = scaleValue(value);
 
    ProjectileData *object = static_cast<ProjectileData*>(obj);
@@ -510,17 +510,17 @@ bool ProjectileData::setFadeDelay( void *obj, const char *index, const char *dat
    return false;
 }
 
-const char *ProjectileData::getScaledValue( void *obj, const char *data)
+ConsoleValue *ProjectileData::getScaledValue( void *obj, ConsoleValue *data)
 {
 
-	S32 value = dAtoi(data);
+	S32 value = data->getIntValue();
    value = scaleValue(value, false);
 
    String stringData = String::ToString(value);
-   char *strBuffer = Con::getReturnBuffer(stringData.size());
-   dMemcpy( strBuffer, stringData, stringData.size() );
+   //char *strBuffer = Con::getReturnBuffer(stringData.size());
+   //dMemcpy( strBuffer, stringData, stringData.size() );
 
-   return strBuffer;
+   return Con::getReturnValue(stringData.utf8());
 }
 
 S32 ProjectileData::scaleValue( S32 value, bool down )
@@ -617,14 +617,14 @@ void Projectile::initPersistFields()
    Parent::initPersistFields();
 }
 
-bool Projectile::_setInitialPosition( void *object, const char *index, const char *data )
+bool Projectile::_setInitialPosition( void *object, const char *index, ConsoleValue *data )
 {
    Projectile* p = static_cast<Projectile*>( object );
    if ( p )
    {
 	   Point3F pos;
 
-	   S32 count = dSscanf( data, "%f %f %f", 
+	   S32 count = dSscanf( data->getStringValue(), "%f %f %f", 
 		   &pos.x, &pos.y, &pos.z);
    	
 	   if ( (count != 3) )
@@ -644,14 +644,14 @@ void Projectile::setInitialPosition( const Point3F& pos )
    mCurrPosition = pos;
 }
 
-bool Projectile::_setInitialVelocity( void *object, const char *index, const char *data )
+bool Projectile::_setInitialVelocity( void *object, const char *index, ConsoleValue *data )
 {
    Projectile* p = static_cast<Projectile*>( object );
    if ( p )
    {
 	   Point3F vel;
 
-	   S32 count = dSscanf( data, "%f %f %f", 
+	   S32 count = dSscanf( data->getStringValue(), "%f %f %f", 
 		   &vel.x, &vel.y, &vel.z);
    	
 	   if ( (count != 3) )

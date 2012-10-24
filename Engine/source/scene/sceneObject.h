@@ -757,14 +757,14 @@ class SceneObject : public NetObject, private SceneContainer::Link, public Proce
       /// @name Protected field getters/setters
       /// @{
 
-      static const char* _getRenderEnabled( void *object, const char *data );
-      static bool _setRenderEnabled( void *object, const char *index, const char *data );
-      static const char* _getSelectionEnabled( void *object, const char *data );
-      static bool _setSelectionEnabled( void *object, const char *index, const char *data );
-      static bool _setFieldPosition( void *object, const char *index, const char *data );
-      static bool _setFieldRotation( void *object, const char *index, const char *data );
-      static bool _setFieldScale( void *object, const char *index, const char *data );
-      static bool _setMountPID( void* object, const char* index, const char* data );
+      static ConsoleValue* _getRenderEnabled( void *object, ConsoleValue *data );
+      static bool _setRenderEnabled( void *object, const char *index, ConsoleValue *data );
+      static ConsoleValue* _getSelectionEnabled( void *object, ConsoleValue *data );
+      static bool _setSelectionEnabled( void *object, const char *index, ConsoleValue *data );
+      static bool _setFieldPosition( void *object, const char *index, ConsoleValue *data );
+      static bool _setFieldRotation( void *object, const char *index, ConsoleValue *data );
+      static bool _setFieldScale( void *object, const char *index, ConsoleValue *data );
+      static bool _setMountPID( void *object, const char *index, ConsoleValue *data );
 
       /// @}
 };

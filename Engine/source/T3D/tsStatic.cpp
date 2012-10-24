@@ -202,18 +202,18 @@ void TSStatic::initPersistFields()
    Parent::initPersistFields();
 }
 
-bool TSStatic::_setFieldSkin( void *object, const char *index, const char *data )
+bool TSStatic::_setFieldSkin( void *object, const char *index, ConsoleValue *data )
 {
    TSStatic *ts = static_cast<TSStatic*>( object );
    if ( ts )
-      ts->setSkinName( data );
+      ts->setSkinName( data->getStringValue() );
    return false;
 }
 
-const char *TSStatic::_getFieldSkin( void *object, const char *data )
+ConsoleValue *TSStatic::_getFieldSkin( void *object, ConsoleValue *data )
 {
    TSStatic *ts = static_cast<TSStatic*>( object );
-   return ts ? ts->mSkinNameHandle.getString() : "";
+   return Con::getReturnValue(ts ? ts->mSkinNameHandle.getString() : "");
 }
 
 void TSStatic::inspectPostApply()
@@ -248,7 +248,7 @@ bool TSStatic::onAdd()
          if ( entry )
          {
             // Was "usePolysoup" set?
-            bool usePolysoup = dAtob( entry->value );
+            bool usePolysoup = dAtob( entry->value.getStringValue() );
 
             // "usePolysoup" maps to the new VisibleMesh type
             if ( usePolysoup )

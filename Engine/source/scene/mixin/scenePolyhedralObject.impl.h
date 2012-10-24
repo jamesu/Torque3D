@@ -329,13 +329,13 @@ void ScenePolyhedralObject< Base, P >::writeFields( Stream& stream, U32 tabStop 
 //-----------------------------------------------------------------------------
 
 template< typename Base, typename P >
-bool ScenePolyhedralObject< Base, P >::_setPlane( void* object, const char* index, const char* data )
+bool ScenePolyhedralObject< Base, P >::_setPlane( void* object, const char* index, ConsoleValue* data )
 {
    ScenePolyhedralObject* obj = reinterpret_cast< ScenePolyhedralObject* >( object );
 
    PlaneF plane;
 
-   dSscanf( data, "%g %g %g %g",
+   dSscanf( data->getStringValue(), "%g %g %g %g",
       &plane.x,
       &plane.y,
       &plane.z,
@@ -352,13 +352,13 @@ bool ScenePolyhedralObject< Base, P >::_setPlane( void* object, const char* inde
 //-----------------------------------------------------------------------------
 
 template< typename Base, typename P >
-bool ScenePolyhedralObject< Base, P >::_setPoint( void* object, const char* index, const char* data )
+bool ScenePolyhedralObject< Base, P >::_setPoint( void* object, const char* index, ConsoleValue* data )
 {
    ScenePolyhedralObject* obj = reinterpret_cast< ScenePolyhedralObject* >( object );
 
    Point3F point;
 
-   dSscanf( data, "%g %g %g %g",
+   dSscanf( data->getStringValue(), "%g %g %g %g",
       &point[ 0 ],
       &point[ 1 ],
       &point[ 2 ]
@@ -374,13 +374,13 @@ bool ScenePolyhedralObject< Base, P >::_setPoint( void* object, const char* inde
 //-----------------------------------------------------------------------------
 
 template< typename Base, typename P >
-bool ScenePolyhedralObject< Base, P >::_setEdge( void* object, const char* index, const char* data )
+bool ScenePolyhedralObject< Base, P >::_setEdge( void* object, const char* index, ConsoleValue* data )
 {
    ScenePolyhedralObject* obj = reinterpret_cast< ScenePolyhedralObject* >( object );
 
    PolyhedronData::Edge edge;
 
-   dSscanf( data, "%i %i %i %i",
+   dSscanf( data->getStringValue(), "%i %i %i %i",
       &edge.face[ 0 ],
       &edge.face[ 1 ],
       &edge.vertex[ 0 ],

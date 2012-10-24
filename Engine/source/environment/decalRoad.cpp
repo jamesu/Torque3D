@@ -1036,12 +1036,12 @@ void DecalRoad::regenerate()
    setMaskBits( NodeMask | GenEdgesMask | ReClipMask );
 }
 
-bool DecalRoad::addNodeFromField( void *object, const char *index, const char *data )
+bool DecalRoad::addNodeFromField( void *object, const char *index, ConsoleValue *data )
 {
    DecalRoad *pObj = static_cast<DecalRoad*>(object);
     
    F32 x,y,z,width;      
-   U32 result = dSscanf( data, "%f %f %f %f", &x, &y, &z, &width );      
+   U32 result = dSscanf( data->getStringValue(), "%f %f %f %f", &x, &y, &z, &width );      
    if ( result == 4 )
       pObj->_addNode( Point3F(x,y,z), width );
 
@@ -1684,10 +1684,10 @@ void DecalRoad::_onTerrainChanged( U32 type, TerrainBlock* tblock, const Point2I
 
 // Static protected field set methods
 
-bool DecalRoad::ptSetBreakAngle( void *object, const char *index, const char *data )
+bool DecalRoad::ptSetBreakAngle( void *object, const char *index, ConsoleValue *data )
 {
    DecalRoad *road = static_cast<DecalRoad*>( object );
-   F32 val = dAtof( data );
+   F32 val = data->getFloatValue();
 
    road->setBreakAngle( val );
 
@@ -1695,10 +1695,10 @@ bool DecalRoad::ptSetBreakAngle( void *object, const char *index, const char *da
    return false;
 }
 
-bool DecalRoad::ptSetTextureLength( void *object, const char *index, const char *data )
+bool DecalRoad::ptSetTextureLength( void *object, const char *index, ConsoleValue *data )
 {
    DecalRoad *road = static_cast<DecalRoad*>( object );
-   F32 val = dAtof( data );
+   F32 val = data->getFloatValue();
 
    road->setTextureLength( val );
 

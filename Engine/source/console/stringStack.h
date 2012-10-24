@@ -317,6 +317,7 @@ public:
 
    U32 mFrame;
    U32 mStackPos;
+   ConsoleValue returnValue;
 
    ConsoleValueRef mArgv[MaxArgs];
 };
