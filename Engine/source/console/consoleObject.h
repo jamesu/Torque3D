@@ -418,8 +418,8 @@ public:
 public:
 
    /// This is a function pointer typedef to support get/set callbacks for fields
-   typedef bool (*SetDataNotify)( void *obj, const char *array, ConsoleValue *data );
-   typedef ConsoleValue *(*GetDataNotify)( void *obj, ConsoleValue *data );
+   typedef bool (*SetDataNotify)( void *obj, const char *array, ConsoleValueRef data );
+   typedef ConsoleValue *(*GetDataNotify)( void *obj, ConsoleValueRef data );
 
    /// These are special field type values used to mark
    /// groups and arrays in the field list.
@@ -622,7 +622,7 @@ class ConcreteClassRep : public AbstractClassRep
       /// @name Console Type Interface
       /// @{
 
-      virtual void setData( void* dptr, S32 argc, ConsoleValue* argv[], const EnumTable* tbl, BitSet32 flag )
+      virtual void setData( void* dptr, S32 argc, ConsoleValueRef argv[], const EnumTable* tbl, BitSet32 flag )
       {
          if( argc == 1 )
          {
@@ -651,7 +651,7 @@ template< typename T > EnginePropertyTable& ConcreteClassRep< T >::smPropertyTab
 
 //------------------------------------------------------------------------------
 // Forward declaration of this function so  it can be used in the class
-ConsoleValue *defaultProtectedGetFn( void *obj, ConsoleValue *data );
+ConsoleValue *defaultProtectedGetFn( void *obj, ConsoleValueRef data );
 
 
 //=============================================================================
@@ -1147,22 +1147,22 @@ inline bool& ConsoleObject::getDynamicGroupExpand()
 // before the modifications to allow protected static fields. These will just
 // inline and the code should be roughly the same size, and just as fast as
 // before the modifications. -pw
-inline bool defaultProtectedSetFn( void *object, const char *index, ConsoleValue *data )
+inline bool defaultProtectedSetFn( void *object, const char *index, ConsoleValueRef data )
 {
    return true;
 }
 
-inline bool defaultProtectedSetNotEmptyFn( void *object, const char *index, ConsoleValue *data )
+inline bool defaultProtectedSetNotEmptyFn( void *object, const char *index, ConsoleValueRef data )
 {
-   return data && data->getStringValue()[0];
+   return !data.isNull() && data->getStringValue()[0];
 }
 
-inline ConsoleValue *defaultProtectedGetFn( void *obj, ConsoleValue *data )
+inline ConsoleValue *defaultProtectedGetFn( void *obj, ConsoleValueRef data )
 {
    return data;
 }
 
-inline ConsoleValue *emptyStringProtectedGetFn( void *obj, ConsoleValue *data )
+inline ConsoleValue *emptyStringProtectedGetFn( void *obj, ConsoleValueRef data )
 {
    return Con::getReturnValue("");
 }

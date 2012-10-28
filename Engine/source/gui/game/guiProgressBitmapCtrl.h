@@ -51,7 +51,7 @@ class GuiProgressBitmapCtrl : public GuiTextCtrl
       S32 mNumberOfBitmaps;
       S32 mDim;
       
-      static bool _setBitmap( void *object, const char *index, ConsoleValue *data )
+      static bool _setBitmap( void *object, const char *index, ConsoleValueRef data )
       {
          static_cast< GuiProgressBitmapCtrl* >( object )->setBitmap( data->getStringValue() );
          return false;

@@ -135,8 +135,8 @@ public:
    void setGridElementSize( F32 inSize );
    
    // Protected Set'ers
-   static bool protectedSetGridSize( void *object, const char *index, ConsoleValue *data );
-   static bool protectedSetGridElementSize( void *object, const char *index, ConsoleValue *data );
+   static bool protectedSetGridSize( void *object, const char *index, ConsoleValueRef data );
+   static bool protectedSetGridElementSize( void *object, const char *index, ConsoleValueRef data );
 
 protected:
 

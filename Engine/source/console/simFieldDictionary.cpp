@@ -66,6 +66,31 @@ SimFieldDictionary::Entry *SimFieldDictionary::addEntry( U32 bucket, StringTable
    return ret;
 }
 
+
+SimFieldDictionary::Entry *SimFieldDictionary::addEntryValue( U32 bucket, StringTableEntry slotName, ConsoleBaseType* type, ConsoleValue* value )
+{
+   Entry* ret;
+   if(smFreeList)
+   {
+      ret = smFreeList;
+      smFreeList = ret->next;
+   }
+   else
+      ret = fieldChunker.alloc();
+
+   ret->next      = mHashTable[ bucket ];
+   ret->slotName  = slotName;
+   ret->type      = type;
+   ret->value.init();
+   value->copyInto(ret->value);
+
+   mHashTable[ bucket ] = ret;
+   mNumFields ++;
+   mVersion ++;
+
+   return ret;
+}
+
 void SimFieldDictionary::freeEntry(SimFieldDictionary::Entry *ent)
 {
    ent->value.cleanup();
@@ -203,13 +228,60 @@ void SimFieldDictionary::setFieldValue(StringTableEntry slotName, const char *va
    }
 }
 
+
+void SimFieldDictionary::setFieldConsoleValue(StringTableEntry slotName, ConsoleValue *value)
+{
+   U32 bucket = getHashValue(slotName);
+   Entry **walk = &mHashTable[bucket];
+   while(*walk && (*walk)->slotName != slotName)
+      walk = &((*walk)->next);
+
+   Entry *field = *walk;
+   if( value == NULL || value->isNull() )
+   {
+      if(field)
+      {
+         mVersion++;
+         
+         field->value.cleanup();
+
+         *walk = field->next;
+         freeEntry(field);
+      }
+   }
+   else
+   {
+      if(field)
+      {
+         field->value.cleanup();
+         value->copyInto(field->value);
+      }
+      else
+         addEntryValue( bucket, slotName, 0, value );
+   }
+}
+
 const char *SimFieldDictionary::getFieldValue(StringTableEntry slotName)
+{
+   U32 bucket = getHashValue(slotName);
+
+   if (!mHashTable)
+      return "";
+
+   for(Entry *walk = mHashTable[bucket];walk;walk = walk->next)
+      if(walk->slotName == slotName)
+         return walk->value.getStringValue();
+
+   return NULL;
+}
+
+ConsoleValue *SimFieldDictionary::getFieldConsoleValue(StringTableEntry slotName)
 {
    U32 bucket = getHashValue(slotName);
 
    for(Entry *walk = mHashTable[bucket];walk;walk = walk->next)
       if(walk->slotName == slotName)
-         return walk->value.getStringValue();
+         return &walk->value;
 
    return NULL;
 }
@@ -222,7 +294,7 @@ void SimFieldDictionary::assignFrom(SimFieldDictionary *dict)
    {
       for(Entry *walk = dict->mHashTable[i];walk; walk = walk->next)
       {
-         setFieldValue(walk->slotName, walk->value.getStringValue());
+         setFieldConsoleValue(walk->slotName, &walk->value);
          setFieldType(walk->slotName, walk->type);
       }
    }
@@ -267,18 +339,44 @@ void SimFieldDictionary::writeFields(SimObject *obj, Stream &stream, U32 tabStop
    // Save them out
    for(Vector<Entry *>::iterator itr = flist.begin(); itr != flist.end(); itr++)
    {
-      U32 nBufferSize = (dStrlen( (*itr)->value.getStringValue() ) * 2) + dStrlen( (*itr)->slotName ) + 16;
-      FrameTemp<char> expandedBuffer( nBufferSize );
+      ConsoleValueRef val = &(*itr)->value;
 
       stream.writeTabs(tabStop+1);
 
-      const char *typeName = (*itr)->type && (*itr)->type->getTypeID() != TypeString ? (*itr)->type->getTypeName() : "";
-      dSprintf(expandedBuffer, nBufferSize, "%s%s%s = \"", typeName, *typeName ? " " : "", (*itr)->slotName);
-      //if ( (*itr)->value )
-         expandEscape((char*)expandedBuffer + dStrlen(expandedBuffer), (*itr)->value.getStringValue());
-      dStrcat(expandedBuffer, "\";\r\n");
+      // Print correct version
+      if (((val.isAdvanced() || val.isString()) && !(val->type == TypeF32 || val->type == TypeS32 || val->type == TypeBool || val->type == TypeS8))) {
+         U32 nBufferSize = (dStrlen( (*itr)->value.getStringValue() ) * 2) + dStrlen( (*itr)->slotName ) + 16;
+         FrameTemp<char> expandedBuffer( nBufferSize );
+         const char *typeName = (*itr)->type && (*itr)->type->getTypeID() != TypeString ? (*itr)->type->getTypeName() : "";
 
-      stream.write(dStrlen(expandedBuffer),expandedBuffer);
+         dSprintf(expandedBuffer, nBufferSize, "%s%s%s = \"", typeName, *typeName ? " " : "", (*itr)->slotName);
+         //if ( (*itr)->value )
+         expandEscape((char*)expandedBuffer + dStrlen(expandedBuffer), (*itr)->value.getStringValue());
+         dStrcat(expandedBuffer, "\";\r\n");
+
+         stream.write(dStrlen(expandedBuffer),expandedBuffer);
+      } else {
+         // No quotes are needed for ints and floats
+         U32 expandedBufferSize = 64 + dStrlen((*itr)->slotName) + 32;
+         FrameTemp<char> expandedBuffer( expandedBufferSize );
+         const char *typeName = (*itr)->type && (*itr)->type->getTypeID() != TypeString ? (*itr)->type->getTypeName() : "";
+
+         dSprintf(expandedBuffer, expandedBufferSize, "%s%s%s = ", typeName, *typeName ? " " : "", (*itr)->slotName);
+
+         char numBuffer[64];
+         if (val.isInt()) {
+            dSprintf(numBuffer, 64, "%u", val.getIntValue());
+         } else if (val.isFloat()) {
+            dSprintf(numBuffer, 64, "%g", val.getFloatValue());
+         } else {
+            dStrcpy(numBuffer, "0");
+         }
+
+         dStrcat(expandedBuffer, numBuffer);
+         dStrcat(expandedBuffer, ";\r\n");
+
+         stream.write(dStrlen(expandedBuffer),expandedBuffer);
+      }
    }
 
 }

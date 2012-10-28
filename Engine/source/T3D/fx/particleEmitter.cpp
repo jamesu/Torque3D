@@ -284,7 +284,7 @@ void ParticleEmitterData::initPersistFields()
    Parent::initPersistFields();
 }
 
-bool ParticleEmitterData::_setAlignDirection( void *object, const char *index, ConsoleValue *data )
+bool ParticleEmitterData::_setAlignDirection( void *object, const char *index, ConsoleValueRef data )
 {
    ParticleEmitterData *p = static_cast<ParticleEmitterData*>( object );
 

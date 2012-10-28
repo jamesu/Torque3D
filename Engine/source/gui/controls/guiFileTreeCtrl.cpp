@@ -229,7 +229,7 @@ void GuiFileTreeCtrl::onItemSelected( Item *item )
       item->setVirtualParent( true );
 }
 
-bool GuiFileTreeCtrl::_setFileFilterValue( void *object, const char *index, ConsoleValue *data )
+bool GuiFileTreeCtrl::_setFileFilterValue( void *object, const char *index, ConsoleValueRef data )
 {
    GuiFileTreeCtrl* ctrl = ( GuiFileTreeCtrl* ) object;
    

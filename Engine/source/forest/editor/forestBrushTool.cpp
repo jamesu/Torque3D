@@ -40,7 +40,7 @@
 #include "math/mRandomSet.h"
 
 
-bool ForestBrushTool::protectedSetSize( void *object, const char *index, ConsoleValue *data )
+bool ForestBrushTool::protectedSetSize( void *object, const char *index, ConsoleValueRef data )
 {
    ForestBrushTool *tool = static_cast<ForestBrushTool*>( object );
    F32 val = data->getFloatValue();
@@ -49,7 +49,7 @@ bool ForestBrushTool::protectedSetSize( void *object, const char *index, Console
    return false;
 }
 
-bool ForestBrushTool::protectedSetPressure( void *object, const char *index, ConsoleValue *data )
+bool ForestBrushTool::protectedSetPressure( void *object, const char *index, ConsoleValueRef data )
 {
    ForestBrushTool *tool = static_cast<ForestBrushTool*>( object );
    F32 val = data->getFloatValue();
@@ -58,7 +58,7 @@ bool ForestBrushTool::protectedSetPressure( void *object, const char *index, Con
    return false;
 }
 
-bool ForestBrushTool::protectedSetHardness( void *object, const char *index, ConsoleValue *data )
+bool ForestBrushTool::protectedSetHardness( void *object, const char *index, ConsoleValueRef data )
 {
    ForestBrushTool *tool = static_cast<ForestBrushTool*>( object );
    F32 val = data->getFloatValue();

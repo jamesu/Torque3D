@@ -137,7 +137,7 @@ class ConsoleBaseType
       /// @name Value Handling Interface
       /// @{
 
-      virtual void setData( void* dptr, S32 argc, ConsoleValue* argv[], const EnumTable* tbl, BitSet32 flag ) = 0;
+      virtual void setData( void* dptr, S32 argc, ConsoleValueRef argv[], const EnumTable* tbl, BitSet32 flag ) = 0;
       virtual ConsoleValue* getData( void* dptr, const EnumTable* tbl, BitSet32 flag ) = 0;
       virtual const char* getTypeClassName() = 0;
       
@@ -179,7 +179,7 @@ class EnumConsoleBaseType : public ConsoleBaseType
                return Con::getReturnValue(( *tbl )[ i ].mName);
          return Con::getReturnValue("");
       }
-      virtual void setData(void *dptr, S32 argc, ConsoleValue* argv[], const EnumTable *tbl, BitSet32 flag)
+      virtual void setData(void *dptr, S32 argc, ConsoleValueRef argv[], const EnumTable *tbl, BitSet32 flag)
       {
          if( argc != 1 ) return;
          if( !tbl ) tbl = getEnumTable();
@@ -216,7 +216,7 @@ class BitfieldConsoleBaseType : public ConsoleBaseType
          dSprintf(returnBuffer, 256, "0x%08x", *((S32 *) dptr) );
          return Con::getReturnValue(returnBuffer);
       }
-      virtual void setData( void* dptr, S32 argc, ConsoleValue *argv[], const EnumTable*, BitSet32 )
+      virtual void setData( void* dptr, S32 argc, ConsoleValueRef argv[], const EnumTable*, BitSet32 )
       {
          if( argc != 1 ) return; \
          *((S32 *) dptr) = dAtoui(argv[0]->getStringValue(),0); \
@@ -270,7 +270,7 @@ const EngineTypeInfo* _MAPTYPE() { return TYPE< T >(); }
       { \
          mTypeInfo = _MAPTYPE< nativeType >(); \
       } \
-      virtual void setData(void *dptr, S32 argc, ConsoleValue *argv[], const EnumTable *tbl, BitSet32 flag); \
+      virtual void setData(void *dptr, S32 argc, ConsoleValueRef argv[], const EnumTable *tbl, BitSet32 flag); \
       virtual ConsoleValue *getData(void *dptr, const EnumTable *tbl, BitSet32 flag ); \
       virtual const char *getTypeClassName() { return #typeName ; } \
       virtual void       *getNativeVariable() { T* var = new T; return (void*)var; } \
@@ -295,7 +295,7 @@ const EngineTypeInfo* _MAPTYPE() { return TYPE< T >(); }
       { \
          mTypeInfo = _MAPTYPE< nativeType >(); \
       } \
-      virtual void setData(void *dptr, S32 argc, ConsoleValue* argv[], const EnumTable *tbl, BitSet32 flag); \
+      virtual void setData(void *dptr, S32 argc, ConsoleValueRef argv[], const EnumTable *tbl, BitSet32 flag); \
       virtual ConsoleValue* getData(void *dptr, const EnumTable *tbl, BitSet32 flag ); \
       virtual const char *getTypeClassName() { return #typeName ; } \
       virtual void       *getNativeVariable() { T* var = new T; return (void*)var; } \
@@ -305,7 +305,7 @@ const EngineTypeInfo* _MAPTYPE() { return TYPE< T >(); }
    ConsoleType ## type gConsoleType ## type ## Instance;
 
 #define ConsoleSetType( type ) \
-   void ConsoleType##type::setData(void *dptr, S32 argc, ConsoleValue* argv[], const EnumTable *tbl, BitSet32 flag)
+   void ConsoleType##type::setData(void *dptr, S32 argc, ConsoleValueRef argv[], const EnumTable *tbl, BitSet32 flag)
 
 #define ConsoleGetType( type ) \
    ConsoleValue *ConsoleType##type::getData(void *dptr, const EnumTable *tbl, BitSet32 flag)

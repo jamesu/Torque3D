@@ -60,12 +60,12 @@ public:
     void copyFields( SimObject* pSimObject, const char* fieldList );
     void pasteFields( SimObject* pSimObject );
     
-    static bool setDescription( void *object, const char *index, ConsoleValue *data ) 
+    static bool setDescription( void *object, const char *index, ConsoleValueRef data ) 
       { static_cast<FieldBrushObject*>(object)->setDescription(data->getStringValue()); return false; };
     void setDescription( const char* description )  { mDescription = StringTable->insert(description); }
     StringTableEntry getDescription(void) const     { return mDescription; }
 
-    static bool setSortName( void *object, const char *index, ConsoleValue *data ) 
+    static bool setSortName( void *object, const char *index, ConsoleValueRef data ) 
       { static_cast<FieldBrushObject*>(object)->setSortName(data->getStringValue()); return false; };
     void setSortName( const char* sortName )  { mSortName = StringTable->insert(sortName); }
     StringTableEntry getSortName(void) const     { return mSortName; }

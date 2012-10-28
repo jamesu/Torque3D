@@ -612,9 +612,9 @@ void GameBase::onUnmount( SceneObject *obj, S32 node )
    }
 }
 
-bool GameBase::setDataBlockProperty( void *obj, const char *index, ConsoleValue *db)
+bool GameBase::setDataBlockProperty( void *obj, const char *index, ConsoleValueRef db)
 {
-   if( db == NULL || !db )
+   if( db.isNull() )
    {
       Con::errorf( "GameBase::setDataBlockProperty - Can't unset datablock on GameBase objects" );
       return false;
@@ -622,7 +622,7 @@ bool GameBase::setDataBlockProperty( void *obj, const char *index, ConsoleValue 
    
    GameBase* object = static_cast< GameBase* >( obj );
    GameBaseData* data;
-   if( Sim::findObject( db->getStringValue(), data ) )
+   if( Sim::findObject( db, data ) )
       return object->setDataBlock( data );
    
    Con::errorf( "GameBase::setDatablockProperty - Could not find data block \"%s\"", db );

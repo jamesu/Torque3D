@@ -187,22 +187,51 @@ namespace Con
       return buffer;
    }
 
+   ConsoleValue *getReturnValue( U32 value )
+   {
+      CSTK.returnValue.cleanup();
+      CSTK.returnValue.type = ConsoleValue::TypeInternalInt;
+      CSTK.returnValue.setIntValue(value);
+      return &CSTK.returnValue;
+   }
+
    ConsoleValue *getReturnValue( S32 value )
    {
-      CSTK.returnValue.setIntValue(value);
+      CSTK.returnValue.cleanup();
+      CSTK.returnValue.type = ConsoleValue::TypeInternalInt;
+      CSTK.returnValue.setFloatValue(value);
       return &CSTK.returnValue;
    }
 
    ConsoleValue *getReturnValue( F32 value )
    {
+      CSTK.returnValue.cleanup();
+      CSTK.returnValue.type = ConsoleValue::TypeInternalFloat;
       CSTK.returnValue.setFloatValue(value);
+      return &CSTK.returnValue;
+   }
+
+   ConsoleValue *getReturnBoolValue( bool value )
+   {
+      CSTK.returnValue.cleanup();
+      CSTK.returnValue.type = ConsoleValue::TypeInternalInt;
+      CSTK.returnValue.setIntValue(value ? 1 : 0);
       return &CSTK.returnValue;
    }
 
    ConsoleValue *getReturnValue( const char *value )
    {
       CSTK.returnValue.cleanup();
+      CSTK.returnValue.type = ConsoleValue::TypeInternalString;
       CSTK.returnValue.setStringValue(value);
+      return &CSTK.returnValue;
+   }
+
+   ConsoleValue *getStackReturnValue( const char *value )
+   {
+      CSTK.returnValue.cleanup();
+      CSTK.returnValue.type = ConsoleValue::TypeInternalStackString;
+      CSTK.returnValue.setStackStringValue(value);
       return &CSTK.returnValue;
    }
 
@@ -332,22 +361,24 @@ inline void ExprEvalState::setCopyVariable()
 
 // Gets a component of an object's field value or a variable and returns it
 // in val.
-static void getFieldComponent( SimObject* object, StringTableEntry field, const char* array, StringTableEntry subField, char val[] )
+static void getFieldComponent( SimObject* object, StringTableEntry field, const char* array, StringTableEntry subField, char val[], ConsoleValue **outValue )
 {
-   const char* prevVal = NULL;
+   ConsoleValue *prevVal;
    
    // Grab value from object.
    if( object && field )
-      prevVal = object->getDataField( field, array );
+      prevVal = object->getDataFieldValue( field, array );
    
    // Otherwise, grab from the string stack. The value coming in will always
    // be a string because that is how multicomponent variables are handled.
    else
-      prevVal = STR.getStringValue();
+      prevVal = Con::getStackReturnValue(STR.getStringValue());
 
    // Make sure we got a value.
-   if ( prevVal && *prevVal )
+   if ( prevVal && !prevVal->isNull() )
    {
+      const char *prevValStr = prevVal->getStringValue();
+
       static const StringTableEntry xyzw[] = 
       {
          StringTable->insert( "x" ),
@@ -367,16 +398,16 @@ static void getFieldComponent( SimObject* object, StringTableEntry field, const 
       // Translate xyzw and rgba into the indexed component 
       // of the variable or field.
       if ( subField == xyzw[0] || subField == rgba[0] )
-         dStrcpy( val, StringUnit::getUnit( prevVal, 0, " \t\n") );
+         dStrcpy( val, StringUnit::getUnit( prevValStr, 0, " \t\n") );
 
       else if ( subField == xyzw[1] || subField == rgba[1] )
-         dStrcpy( val, StringUnit::getUnit( prevVal, 1, " \t\n") );
+         dStrcpy( val, StringUnit::getUnit( prevValStr, 1, " \t\n") );
 
       else if ( subField == xyzw[2] || subField == rgba[2] )
-         dStrcpy( val, StringUnit::getUnit( prevVal, 2, " \t\n") );
+         dStrcpy( val, StringUnit::getUnit( prevValStr, 2, " \t\n") );
 
       else if ( subField == xyzw[3] || subField == rgba[3] )
-         dStrcpy( val, StringUnit::getUnit( prevVal, 3, " \t\n") );
+         dStrcpy( val, StringUnit::getUnit( prevValStr, 3, " \t\n") );
 
       else
          val[0] = 0;
@@ -387,11 +418,11 @@ static void getFieldComponent( SimObject* object, StringTableEntry field, const 
 
 // Sets a component of an object's field value based on the sub field. 'x' will
 // set the first field, 'y' the second, and 'z' the third.
-static void setFieldComponent( SimObject* object, StringTableEntry field, const char* array, StringTableEntry subField )
+static void setFieldComponent( SimObject* object, StringTableEntry field, const char* array, StringTableEntry subField, ConsoleValueRef value )
 {
    // Copy the current string value
    char strValue[1024];
-   dStrncpy( strValue, STR.getStringValue(), 1024 );
+   dStrncpy( strValue, value.getStringValue(), 1024 );
 
    char val[1024] = "";
    const char* prevVal = NULL;
@@ -607,6 +638,9 @@ ConsoleValueRef CodeBlock::exec(U32 ip, const char *functionName, Namespace *thi
    }
    const char * val;
    const char *retValue;
+   ConsoleValue tempValue;
+   ConsoleValue *tempFieldValue;
+   ConsoleValueRef tempReturnValue;
 
    // note: anything returned is pushed to CSTK and will be invalidated on the next exec()
    ConsoleValueRef returnValue;
@@ -1491,12 +1525,12 @@ breakContinue:
 
          case OP_LOADFIELD_UINT:
             if(curObject)
-               intStack[_UINT+1] = U32(dAtoi(curObject->getDataField(curField, curFieldArray)));
+               intStack[_UINT+1] = (U32)curObject->getDataFieldValue(curField, curFieldArray).getIntValue();
             else
             {
                // The field is not being retrieved from an object. Maybe it's
                // a special accessor?
-               getFieldComponent( prevObject, prevField, prevFieldArray, curField, valBuffer );
+               getFieldComponent( prevObject, prevField, prevFieldArray, curField, valBuffer, &tempFieldValue );
                intStack[_UINT+1] = dAtoi( valBuffer );
             }
             _UINT++;
@@ -1504,12 +1538,12 @@ breakContinue:
 
          case OP_LOADFIELD_FLT:
             if(curObject)
-               floatStack[_FLT+1] = dAtof(curObject->getDataField(curField, curFieldArray));
+               floatStack[_FLT+1] = (F32)curObject->getDataFieldValue(curField, curFieldArray);
             else
             {
                // The field is not being retrieved from an object. Maybe it's
                // a special accessor?
-               getFieldComponent( prevObject, prevField, prevFieldArray, curField, valBuffer );
+               getFieldComponent( prevObject, prevField, prevFieldArray, curField, valBuffer, &tempFieldValue );
                floatStack[_FLT+1] = dAtof( valBuffer );
             }
             _FLT++;
@@ -1518,52 +1552,60 @@ breakContinue:
          case OP_LOADFIELD_STR:
             if(curObject)
             {
-               val = curObject->getDataField(curField, curFieldArray);
-               STR.setStringValue( val );
+               tempReturnValue = curObject->getDataFieldValue(curField, curFieldArray).value;
+               STR.setStringValue( tempReturnValue.getStringValue() );
             }
             else
             {
                // The field is not being retrieved from an object. Maybe it's
                // a special accessor?
-               getFieldComponent( prevObject, prevField, prevFieldArray, curField, valBuffer );
+               getFieldComponent( prevObject, prevField, prevFieldArray, curField, valBuffer, &tempFieldValue );
                STR.setStringValue( valBuffer );
             }
             break;
 
          case OP_SAVEFIELD_UINT:
-            STR.setIntValue(intStack[_UINT]);
+            tempValue.cleanup();
+            tempValue.type = ConsoleValue::TypeInternalInt;
+            tempValue.setIntValue((U32)intStack[_UINT]);
             if(curObject)
-               curObject->setDataField(curField, curFieldArray, STR.getStringValue());
+               curObject->setDataFieldValue(curField, curFieldArray, tempValue);
             else
             {
                // The field is not being set on an object. Maybe it's
                // a special accessor?
-               setFieldComponent( prevObject, prevField, prevFieldArray, curField );
+               setFieldComponent( prevObject, prevField, prevFieldArray, curField, &tempValue );
                prevObject = NULL;
             }
             break;
 
          case OP_SAVEFIELD_FLT:
-            STR.setFloatValue(floatStack[_FLT]);
+            tempValue.cleanup();
+            tempValue.type = ConsoleValue::TypeInternalFloat;
+            tempValue.setFloatValue(floatStack[_FLT]);
             if(curObject)
-               curObject->setDataField(curField, curFieldArray, STR.getStringValue());
+               curObject->setDataFieldValue(curField, curFieldArray, tempValue);
             else
             {
                // The field is not being set on an object. Maybe it's
                // a special accessor?
-               setFieldComponent( prevObject, prevField, prevFieldArray, curField );
+               setFieldComponent( prevObject, prevField, prevFieldArray, curField, &tempValue );
                prevObject = NULL;
             }
             break;
 
          case OP_SAVEFIELD_STR:
+            tempValue.cleanup();
+            tempValue.type = ConsoleValue::TypeInternalStackString;
+            tempValue.setStackStringValue(STR.getStringValue());
+
             if(curObject)
-               curObject->setDataField(curField, curFieldArray, STR.getStringValue());
+               curObject->setDataFieldValue(curField, curFieldArray, tempValue);
             else
             {
                // The field is not being set on an object. Maybe it's
                // a special accessor?
-               setFieldComponent( prevObject, prevField, prevFieldArray, curField );
+               setFieldComponent( prevObject, prevField, prevFieldArray, curField, &tempValue );
                prevObject = NULL;
             }
             break;

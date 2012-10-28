@@ -1304,7 +1304,8 @@ ConsoleFunction(getTag, const char *, 2, 2, "(string textTagString)"
    "@ingroup Networking")
 {
    TORQUE_UNUSED(argc);
-   if(argv[1][0] == StringTagPrefixByte)
+   const char *commandName = argv[1];
+   if(commandName[0] == StringTagPrefixByte)
    {
       const char *arg  = argv[1];
       const char * space = dStrchr(argv[1], ' ');
@@ -1322,7 +1323,7 @@ ConsoleFunction(getTag, const char *, 2, 2, "(string textTagString)"
       return(ret);
    }
    else
-      return(argv[1]);
+      return(commandName);
 }
 
 

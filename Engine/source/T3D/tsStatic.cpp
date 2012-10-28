@@ -202,7 +202,7 @@ void TSStatic::initPersistFields()
    Parent::initPersistFields();
 }
 
-bool TSStatic::_setFieldSkin( void *object, const char *index, ConsoleValue *data )
+bool TSStatic::_setFieldSkin( void *object, const char *index, ConsoleValueRef data )
 {
    TSStatic *ts = static_cast<TSStatic*>( object );
    if ( ts )
@@ -210,7 +210,7 @@ bool TSStatic::_setFieldSkin( void *object, const char *index, ConsoleValue *dat
    return false;
 }
 
-ConsoleValue *TSStatic::_getFieldSkin( void *object, ConsoleValue *data )
+ConsoleValue *TSStatic::_getFieldSkin( void *object, ConsoleValueRef data )
 {
    TSStatic *ts = static_cast<TSStatic*>( object );
    return Con::getReturnValue(ts ? ts->mSkinNameHandle.getString() : "");

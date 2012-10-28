@@ -42,121 +42,6 @@ enum TypeReq
    TypeReqVar
 };
 
-/*
-
-CodeBuilder
-
-Builds code. e.g.
-
-function foo(a,b,c)
-{
-  // Do this
-  return 1 + doThis(2);
-}
-
-->
-
-beginFunction("foo");
-beginFunctionParameters();
-   emitVariable("a");
-   nextFunctionParameter();
-   emitVariable("b");
-   nextFunctionParameter();
-   emitVariable("c");
-endFunctionParameters();
-beginFunctionBody();
-   addComment("Do this");
-   beginReturnStatement();
-   emitValue(1);
-   doOp("+");
-   callFunction("doThis");
-   beginFunctionCallParameters();
-      emitValue(2);
-   endFunctionCallParameters();
-endFunctionBody();
-
-*/
-class CodeBuilder
-{
-   CodeBuilder() {;}
-   virtual ~CodeBuilder() {;}
-
-   // function foo(params) { body }
-   virtual void beginFunction(const char *name, const char *ns);
-   virtual void beginFunctionParameters();
-   virtual void nextFunctionParameter();
-   virtual void endFunctionParameters();
-   virtual void beginFunctionBody();
-   virtual void endFunctionBody();
-   virtual void endFunction(); // ends current function
-
-   virtual void addComment(const char *value);
-
-   // new Object(Name)
-   virtual void beginObject(const char *name);
-   virtual void beginObjectConstructorParams();
-   virtual void nextObjectConstructorParam();
-   virtual void endObjectConstructorParams();
-   virtual void beginObjectValueAssignment(const char *name);
-   virtual void endObjectValueAssignment();
-   virtual void endObject();
-
-   // local value, global value
-   virtual void addGlobalVariable(const char *name, bool isArray);
-   virtual void addLocalVariable(const char *name, bool isArray);
-
-   // value = value / return value
-   virtual void beginValueStatement();
-   virtual void beginReturnStatement();
-   virtual void emitValue(const char *value, bool subArray);
-   virtual void emitValue(int value);
-   virtual void emitValue(float value);
-   virtual void emitVariable(const char *name);
-   virtual void pushAssignment(); // ()
-   virtual void popAssignment();
-   virtual void doOp(const char opCode); // value OPCODE value2
-   virtual void endAssignValue();
-
-   virtual void beginArrayIndex();
-   virtual void nextArrayIndex(); // [a,b]
-   virtual void endArrayIndex();
-   virtual void nextStatement(); //;
-
-   virtual void beginSwitch(const char *value, bool isString);
-   virtual void beginCase(const char *value);
-   virtual void endCase();
-   virtual void endSwitch();
-
-   // if (conditions) { body } else { body }
-   virtual void beginIf(bool hasElse);
-   virtual void beginIfConditions();
-   virtual void endIfConditions();
-   virtual void beginIfBody();
-   virtual void endIfBody();
-   virtual void beginElseBody();
-   virtual void endElseBody();
-   virtual void endIf();
-
-   virtual void beginForLoop();
-   virtual void beginDoLoop();
-   virtual void beginWhileLoop();
-   virtual void endLoop();
-
-   virtual void doContinue();
-   virtual void doBreak();
-
-   // field.field.field... (prefixes value and function)
-   virtual void pushField(const char *name);
-   virtual void emitFields();  // sets current field
-   virtual void clearFields(); // clears all fields
-
-   // function(params)
-   virtual void callFunction(const char *name);
-   virtual void beginFunctionCallParameters();
-   virtual void nextFunctionCallParameter();
-   virtual void endFunctionCallParameters();
-};
-
 /// Representation of a node for the scripting language parser.
 ///
 /// When the scripting language is evaluated, it is turned from a string representation,
@@ -204,7 +89,6 @@ struct StmtNode
    virtual U32 compileStmt(U32 *codeStream, U32 ip, U32 continuePoint, U32 breakPoint) = 0;
    virtual void setPackage(StringTableEntry packageName);
 
-   //virtual void assembleCode(CodeBuilder *builder);
    /// @}
 };
 

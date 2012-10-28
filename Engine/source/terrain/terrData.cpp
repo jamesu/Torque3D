@@ -228,7 +228,7 @@ void TerrainBlock::_onTextureEvent( GFXTexCallbackCode code )
    }
 }
 
-bool TerrainBlock::_setSquareSize( void *object, const char *index, ConsoleValue *data )
+bool TerrainBlock::_setSquareSize( void *object, const char *index, ConsoleValueRef data )
 {
    TerrainBlock *terrain = static_cast<TerrainBlock*>( object );
 
@@ -246,7 +246,7 @@ bool TerrainBlock::_setSquareSize( void *object, const char *index, ConsoleValue
    return false;
 }
 
-bool TerrainBlock::_setBaseTexSize( void *object, const char *index, ConsoleValue *data )
+bool TerrainBlock::_setBaseTexSize( void *object, const char *index, ConsoleValueRef data )
 {
    TerrainBlock *terrain = static_cast<TerrainBlock*>( object );
 
@@ -269,7 +269,7 @@ bool TerrainBlock::_setBaseTexSize( void *object, const char *index, ConsoleValu
    return false;
 }
 
-bool TerrainBlock::_setLightMapSize( void *object, const char *index, ConsoleValue *data )
+bool TerrainBlock::_setLightMapSize( void *object, const char *index, ConsoleValueRef data )
 {
    TerrainBlock *terrain = static_cast<TerrainBlock*>(object);
 
@@ -317,7 +317,7 @@ bool TerrainBlock::save(const char *filename)
    return mFile->save(filename);
 }
 
-bool TerrainBlock::_setTerrainFile( void *object, const char *index, ConsoleValue *data )
+bool TerrainBlock::_setTerrainFile( void *object, const char *index, ConsoleValueRef data )
 {
    static_cast<TerrainBlock*>( object )->setFile( FileName( data->getStringValue() ) );
    return false;

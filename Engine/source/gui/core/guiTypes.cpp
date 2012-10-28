@@ -183,7 +183,7 @@ void GuiControlProfile::setBitmapHandle(GFXTexHandle handle)
    mBitmapName = StringTable->insert("texhandle");
 }
 
-bool GuiControlProfile::protectedSetBitmap( void *object, const char *index, ConsoleValue *data )
+bool GuiControlProfile::protectedSetBitmap( void *object, const char *index, ConsoleValueRef data )
 {
    GuiControlProfile *profile = static_cast<GuiControlProfile*>( object );
    
@@ -210,7 +210,7 @@ bool GuiControlProfile::protectedSetBitmap( void *object, const char *index, Con
    return false;
 }
 
-ConsoleValue* GuiControlProfile::protectedGetSoundButtonDown( void *object, ConsoleValue *data )
+ConsoleValue* GuiControlProfile::protectedGetSoundButtonDown( void *object, ConsoleValueRef data )
 {
    GuiControlProfile* profile = reinterpret_cast< GuiControlProfile* >( object );
 
@@ -221,13 +221,13 @@ ConsoleValue* GuiControlProfile::protectedGetSoundButtonDown( void *object, Cons
    return Con::getReturnValue(track->getName());
 }
 
-bool GuiControlProfile::protectedSetSoundButtonDown( void *object, const char *index, ConsoleValue *data )
+bool GuiControlProfile::protectedSetSoundButtonDown( void *object, const char *index, ConsoleValueRef data )
 {
    GuiControlProfile* profile = reinterpret_cast< GuiControlProfile* >( object );
    
    SFXTrack* track = NULL;
    const char *dataValue = data->getStringValue();
-   if( data && dataValue[ 0] && !Sim::findObject( dataValue, track ) )
+   if( !data.isNull() && !Sim::findObject( dataValue, track ) )
    {
       Con::errorf( "GuiControlProfile::protectedSetSoundButtonDown - no SFXTrack '%s'", data );
       return false;
@@ -238,7 +238,7 @@ bool GuiControlProfile::protectedSetSoundButtonDown( void *object, const char *i
    return false;
 }
 
-ConsoleValue *GuiControlProfile::protectedGetSoundButtonOver( void *object, ConsoleValue *data )
+ConsoleValue *GuiControlProfile::protectedGetSoundButtonOver( void *object, ConsoleValueRef data )
 {
    GuiControlProfile* profile = reinterpret_cast< GuiControlProfile* >( object );
 
@@ -249,13 +249,13 @@ ConsoleValue *GuiControlProfile::protectedGetSoundButtonOver( void *object, Cons
    return Con::getReturnValue(track->getName());
 }
 
-bool GuiControlProfile::protectedSetSoundButtonOver( void *object, const char *index, ConsoleValue *data )
+bool GuiControlProfile::protectedSetSoundButtonOver( void *object, const char *index, ConsoleValueRef data )
 {
    GuiControlProfile* profile = reinterpret_cast< GuiControlProfile* >( object );
    
    SFXTrack* track = NULL;
    const char *dataValue = data->getStringValue();
-   if( data && dataValue[ 0] && !Sim::findObject( dataValue, track ) )
+   if( !data.isNull() && !Sim::findObject( dataValue, track ) )
    {
       Con::errorf( "GuiControlProfile::protectedSetSoundButtonOver - no SFXTrack '%s'", data );
       return false;

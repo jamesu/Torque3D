@@ -149,8 +149,8 @@ class GuiControl : public SimGroup
       /// @name Control State
       /// @{   
       
-      static bool setProfileProt( void *object, const char *index, ConsoleValue *data );
-      static bool setTooltipProfileProt( void *object, const char *index, ConsoleValue *data );
+      static bool setProfileProt( void *object, const char *index, ConsoleValueRef data );
+      static bool setTooltipProfileProt( void *object, const char *index, ConsoleValueRef data );
       
       S32      mTipHoverTime;
       
@@ -301,8 +301,8 @@ class GuiControl : public SimGroup
       const char* execAltConsoleCallback();
       /// @}
       
-      static bool _setVisible( void *object, const char *index, ConsoleValue *data ) { static_cast<GuiControl*>(object)->setVisible( dAtob( data->getStringValue() ) ); return false; };
-      static bool _setActive( void *object, const char *index, ConsoleValue *data ) { static_cast<GuiControl*>(object)->setActive( dAtob( data->getStringValue() ) ); return false; };
+      static bool _setVisible( void *object, const char *index, ConsoleValueRef data ) { static_cast<GuiControl*>(object)->setVisible( dAtob( data->getStringValue() ) ); return false; };
+      static bool _setActive( void *object, const char *index, ConsoleValueRef data ) { static_cast<GuiControl*>(object)->setActive( dAtob( data->getStringValue() ) ); return false; };
             
       /// @name Editor
       /// These functions are used by the GUI Editor

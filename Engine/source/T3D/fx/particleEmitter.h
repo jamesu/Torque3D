@@ -53,7 +53,7 @@ class ParticleEmitterData : public GameBaseData
 {
    typedef GameBaseData Parent;
 
-   static bool _setAlignDirection( void *object, const char *index, ConsoleValue *data );
+   static bool _setAlignDirection( void *object, const char *index, ConsoleValueRef data );
 
   public:
   

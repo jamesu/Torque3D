@@ -144,7 +144,7 @@ public:
       return Con::getReturnValue(T::__getObjectId( obj ));
    }
 
-   virtual void setData( void* dptr, S32 argc, ConsoleValue *argv[], const EnumTable*, BitSet32 )
+   virtual void setData( void* dptr, S32 argc, ConsoleValueRef argv[], const EnumTable*, BitSet32 )
    {
       SimObjectRef<T> *objRef = static_cast< SimObjectRef<T>* >( dptr );
 

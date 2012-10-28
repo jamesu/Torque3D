@@ -2200,7 +2200,7 @@ ConsoleMethod( PersistenceManager, setDirty, void, 3, 4, "(SimObject object, [fi
               "Mark an existing SimObject as dirty (will be written out when saveDirty() is called).")
 {
    SimObject *dirtyObject = NULL;
-   if (argv[2][0])
+   if (!argv[2].isNull())
    {
       if (!Sim::findObject(argv[2], dirtyObject))
       {
@@ -2219,7 +2219,7 @@ ConsoleMethod( PersistenceManager, setDirty, void, 3, 4, "(SimObject object, [fi
 
    if (dirtyObject)
    {
-      if (argc == 4 && argv[3][0])
+      if (argc == 4 && !argv[3].isNull())
          object->setDirty(dirtyObject, argv[3]);
       else
          object->setDirty(dirtyObject);
@@ -2230,7 +2230,7 @@ ConsoleMethod( PersistenceManager, removeDirty, void, 3, 3, "(SimObject object)"
               "Remove a SimObject from the dirty list.")
 {
    SimObject *dirtyObject = NULL;
-   if (argv[2][0])
+   if (!argv[1].isNull())
    {
       if (!Sim::findObject(argv[2], dirtyObject))
       {
@@ -2247,7 +2247,7 @@ ConsoleMethod( PersistenceManager, isDirty, bool, 3, 3, "(SimObject object)"
               "Returns true if the SimObject is on the dirty list.")
 {
    SimObject *dirtyObject = NULL;
-   if (argv[2][0])
+   if (!argv[2].isNull())
    {
       if (!Sim::findObject(argv[2], dirtyObject))
       {
@@ -2329,7 +2329,7 @@ ConsoleMethod( PersistenceManager, saveDirtyObject, bool, 3, 3, "(SimObject obje
               "Save a dirty SimObject to it's file.")
 {
    SimObject *dirtyObject = NULL;
-   if (argv[2][0])
+   if (!argv[2].isNull())
    {
       if (!Sim::findObject(argv[2], dirtyObject))
       {
@@ -2354,7 +2354,7 @@ ConsoleMethod( PersistenceManager, removeObjectFromFile, void, 3, 4, "(SimObject
                the one it was created in.")
 {
    SimObject *dirtyObject = NULL;
-   if (argv[2][0])
+   if (!argv[2].isNull())
    {
       if (!Sim::findObject(argv[2], dirtyObject))
       {
@@ -2365,7 +2365,7 @@ ConsoleMethod( PersistenceManager, removeObjectFromFile, void, 3, 4, "(SimObject
 
    if (dirtyObject)
    {
-      if (argc == 4 && argv[3][0])
+      if (argc == 4 && !argv[3].isNull())
          object->removeObjectFromFile(dirtyObject, argv[3]);
       else
          object->removeObjectFromFile(dirtyObject);
@@ -2376,7 +2376,7 @@ ConsoleMethod( PersistenceManager, removeField, void, 4, 4, "(SimObject object, 
               "Remove a specific field from an object declaration.")
 {
    SimObject *dirtyObject = NULL;
-   if (argv[2][0])
+   if (!argv[2].isNull())
    {
       if (!Sim::findObject(argv[2], dirtyObject))
       {
@@ -2387,7 +2387,7 @@ ConsoleMethod( PersistenceManager, removeField, void, 4, 4, "(SimObject object, 
 
    if (dirtyObject)
    {
-      if (argv[3][0])
+      if (!argv[3].isNull())
          object->addRemoveField(dirtyObject, argv[3]);
    }
 }

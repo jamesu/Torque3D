@@ -205,7 +205,7 @@ public:
    void setNodeWidth( U32 idx, F32 width );   
 
    /// Protected 'Node' Field setter that will add a node to the list.
-   static bool addNodeFromField( void *object, const char *index, ConsoleValue *data );  
+   static bool addNodeFromField( void *object, const char *index, ConsoleValueRef data );  
 
    static SimSet* getServerSet();
   
@@ -228,8 +228,8 @@ protected:
    void _onTerrainChanged( U32 type, TerrainBlock* tblock, const Point2I &min, const Point2I &max );
 
    // static protected field set methods
-   static bool ptSetBreakAngle( void *object, const char *index, ConsoleValue *data );
-   static bool ptSetTextureLength( void *object, const char *index, ConsoleValue *data );
+   static bool ptSetBreakAngle( void *object, const char *index, ConsoleValueRef data );
+   static bool ptSetTextureLength( void *object, const char *index, ConsoleValueRef data );
   
 protected:
 

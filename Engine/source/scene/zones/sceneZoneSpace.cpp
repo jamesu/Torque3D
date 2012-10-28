@@ -354,7 +354,7 @@ void SceneZoneSpace::dumpZoneState( bool update )
 
 //-----------------------------------------------------------------------------
 
-bool SceneZoneSpace::_setZoneGroup( void *object, const char *index, ConsoleValue *data )
+bool SceneZoneSpace::_setZoneGroup( void *object, const char *index, ConsoleValueRef data )
 {
    SceneZoneSpace* zone = reinterpret_cast< SceneZoneSpace* >( object );
    zone->setZoneGroup( data->getIntValue() );

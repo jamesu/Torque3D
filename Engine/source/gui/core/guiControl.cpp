@@ -1544,7 +1544,7 @@ void GuiControl::setControlProfile( GuiControlProfile *prof )
 
 //-----------------------------------------------------------------------------
 
-bool GuiControl::setProfileProt( void *object, const char *index, ConsoleValue *data )
+bool GuiControl::setProfileProt( void *object, const char *index, ConsoleValueRef data )
 {
    GuiControl* ctrl = static_cast<GuiControl*>( object );   
    GuiControlProfile *prof = dynamic_cast<GuiControlProfile*>( Sim::findObject( data->getStringValue() ) );
@@ -1560,7 +1560,7 @@ bool GuiControl::setProfileProt( void *object, const char *index, ConsoleValue *
 
 //-----------------------------------------------------------------------------
 
-bool GuiControl::setTooltipProfileProt( void *object, const char *index, ConsoleValue *data )
+bool GuiControl::setTooltipProfileProt( void *object, const char *index, ConsoleValueRef data )
 {
    GuiControl* ctrl = static_cast<GuiControl*>( object );   
    GuiControlProfile *prof = dynamic_cast<GuiControlProfile*>( Sim::findObject( data->getStringValue() ) );

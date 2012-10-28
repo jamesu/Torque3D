@@ -72,13 +72,13 @@ bool RenderPassStateToken::isEnabled() const
    return false;
 }
 
-static bool _set_enable( void *object, const char *index, ConsoleValue *data )
+static bool _set_enable( void *object, const char *index, ConsoleValueRef data )
 {
    reinterpret_cast<RenderPassStateToken *>(object)->enable(dAtob(data->getStringValue()));
    return false;
 }
 
-static ConsoleValue *_get_enable(void* obj, ConsoleValue* data)
+static ConsoleValue *_get_enable(void* obj, ConsoleValueRef data)
 {
    TORQUE_UNUSED(data);
    return reinterpret_cast<RenderPassStateToken *>(obj)->isEnabled() ? Con::getReturnValue("true") : Con::getReturnValue("false");

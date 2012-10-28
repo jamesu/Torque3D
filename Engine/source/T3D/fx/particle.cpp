@@ -342,7 +342,7 @@ void ParticleData::unpackData(BitStream* stream)
    }
 }
 
-bool ParticleData::protectedSetTimes( void *object, const char *index, ConsoleValue *data) 
+bool ParticleData::protectedSetTimes( void *object, const char *index, ConsoleValueRef data) 
 {
    ParticleData *pData = static_cast<ParticleData*>( object );
    F32 val = data->getFloatValue();

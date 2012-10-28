@@ -509,7 +509,7 @@ struct ShapeBaseData : public GameBaseData {
   private:
    typedef GameBaseData Parent;
    
-   static bool _setMass( void* object, const char* index, ConsoleValue* data );
+   static bool _setMass( void* object, const char* index, ConsoleValueRef data );
 
 public:
    /// Various constants relating to the ShapeBaseData
@@ -1139,8 +1139,8 @@ public:
    TSShapeInstance* getShapeInstance() { return mShapeInstance; }
 
    static void initPersistFields();
-   static bool _setFieldSkin( void *object, const char *index, ConsoleValue *data );
-   static ConsoleValue *_getFieldSkin( void *object, ConsoleValue *data );
+   static bool _setFieldSkin( void *object, const char *index, ConsoleValueRef data );
+   static ConsoleValue *_getFieldSkin( void *object, ConsoleValueRef data );
 
    /// @name Network state masks
    /// @{

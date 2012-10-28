@@ -241,7 +241,7 @@ protected:
    virtual void _setupTexture( U32 slot, GFXTexHandle &inputTex, const RectI *inTexViewport );
 
    /// Protected set method for toggling the enabled state.
-   static bool _setIsEnabled( void *object, const char *index, ConsoleValue *data );
+   static bool _setIsEnabled( void *object, const char *index, ConsoleValueRef data );
 
    /// Called from the light manager activate signal.
    /// @see LightManager::addActivateCallback

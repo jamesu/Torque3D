@@ -1188,7 +1188,7 @@ void Camera::consoleInit()
 
 //-----------------------------------------------------------------------------
 
-bool Camera::_setNewtonField( void *object, const char *index, ConsoleValue *data )
+bool Camera::_setNewtonField( void *object, const char *index, ConsoleValueRef data )
 {
    static_cast<Camera*>(object)->setMaskBits(NewtonCameraMask);
    return true;  // ok to set value
@@ -1196,7 +1196,7 @@ bool Camera::_setNewtonField( void *object, const char *index, ConsoleValue *dat
 
 //-----------------------------------------------------------------------------
 
-bool Camera::_setModeField( void *object, const char *index, ConsoleValue *cData )
+bool Camera::_setModeField( void *object, const char *index, ConsoleValueRef cData )
 {
    Camera *cam = static_cast<Camera*>( object );
    const char *data = cData->getStringValue();

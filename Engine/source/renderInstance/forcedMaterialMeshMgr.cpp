@@ -114,7 +114,7 @@ void ForcedMaterialMeshMgr::render(SceneRenderState * state)
    }
 }
 
-ConsoleValue *ForcedMaterialMeshMgr::_getOverrideMat( void *object, ConsoleValue *data )
+ConsoleValue *ForcedMaterialMeshMgr::_getOverrideMat( void *object, ConsoleValueRef data )
 {
    ForcedMaterialMeshMgr &mgr = *reinterpret_cast<ForcedMaterialMeshMgr *>( object );
    if( mgr.mOverrideMaterial.isValid() )
@@ -123,7 +123,7 @@ ConsoleValue *ForcedMaterialMeshMgr::_getOverrideMat( void *object, ConsoleValue
       return Con::getReturnValue("0");
 }
 
-bool ForcedMaterialMeshMgr::_setOverrideMat( void *object, const char *index, ConsoleValue *data )
+bool ForcedMaterialMeshMgr::_setOverrideMat( void *object, const char *index, ConsoleValueRef data )
 {
    ForcedMaterialMeshMgr &mgr = *reinterpret_cast<ForcedMaterialMeshMgr *>( object );   
    BaseMatInstance* material;

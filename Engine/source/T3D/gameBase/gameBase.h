@@ -206,7 +206,7 @@ protected:
    /// The WaterObject we are currently within.
    WaterObject *mCurrentWaterObject;
    
-   static bool setDataBlockProperty( void *object, const char *index, ConsoleValue *data );
+   static bool setDataBlockProperty( void *object, const char *index, ConsoleValueRef data );
 
 #ifdef TORQUE_DEBUG_NET_MOVES
    U32 mLastMoveId;

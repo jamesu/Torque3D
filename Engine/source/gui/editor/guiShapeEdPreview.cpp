@@ -193,7 +193,7 @@ void GuiShapeEdPreview::initPersistFields()
    Parent::initPersistFields();
 }
 
-bool GuiShapeEdPreview::setFieldCurrentDL( void *object, const char *index, ConsoleValue *data )
+bool GuiShapeEdPreview::setFieldCurrentDL( void *object, const char *index, ConsoleValueRef data )
 {
    GuiShapeEdPreview* gui = static_cast<GuiShapeEdPreview*>( object );
    if ( gui )
@@ -201,7 +201,7 @@ bool GuiShapeEdPreview::setFieldCurrentDL( void *object, const char *index, Cons
    return false;
 }
 
-bool GuiShapeEdPreview::setFieldSunDiffuse( void *object, const char *index, ConsoleValue *data )
+bool GuiShapeEdPreview::setFieldSunDiffuse( void *object, const char *index, ConsoleValueRef data )
 {
    GuiShapeEdPreview* gui = static_cast<GuiShapeEdPreview*>( object );
    if ( gui )
@@ -214,7 +214,7 @@ bool GuiShapeEdPreview::setFieldSunDiffuse( void *object, const char *index, Con
    return false;
 }
 
-bool GuiShapeEdPreview::setFieldSunAmbient( void *object, const char *index, ConsoleValue *data )
+bool GuiShapeEdPreview::setFieldSunAmbient( void *object, const char *index, ConsoleValueRef data )
 {
    GuiShapeEdPreview* gui = static_cast<GuiShapeEdPreview*>( object );
    if ( gui )
@@ -227,7 +227,7 @@ bool GuiShapeEdPreview::setFieldSunAmbient( void *object, const char *index, Con
    return false;
 }
 
-bool GuiShapeEdPreview::setFieldSunAngleX( void *object, const char *index, ConsoleValue *data )
+bool GuiShapeEdPreview::setFieldSunAngleX( void *object, const char *index, ConsoleValueRef data )
 {
    GuiShapeEdPreview* gui = static_cast<GuiShapeEdPreview*>( object );
    if ( gui )
@@ -240,7 +240,7 @@ bool GuiShapeEdPreview::setFieldSunAngleX( void *object, const char *index, Cons
    return false;
 }
 
-bool GuiShapeEdPreview::setFieldSunAngleZ( void *object, const char *index, ConsoleValue *data )
+bool GuiShapeEdPreview::setFieldSunAngleZ( void *object, const char *index, ConsoleValueRef data )
 {
    GuiShapeEdPreview* gui = static_cast<GuiShapeEdPreview*>( object );
    if ( gui )
@@ -253,7 +253,7 @@ bool GuiShapeEdPreview::setFieldSunAngleZ( void *object, const char *index, Cons
    return false;
 }
 
-bool GuiShapeEdPreview::setFieldThreadPos( void *object, const char *index, ConsoleValue *data )
+bool GuiShapeEdPreview::setFieldThreadPos( void *object, const char *index, ConsoleValueRef data )
 {
    GuiShapeEdPreview* gui = static_cast<GuiShapeEdPreview*>( object );
    if ( gui && ( gui->mActiveThread >= 0 ) && gui->mThreads[gui->mActiveThread].key )
@@ -261,7 +261,7 @@ bool GuiShapeEdPreview::setFieldThreadPos( void *object, const char *index, Cons
    return false;
 }
 
-ConsoleValue *GuiShapeEdPreview::getFieldThreadPos( void *object, ConsoleValue *data )
+ConsoleValue *GuiShapeEdPreview::getFieldThreadPos( void *object, ConsoleValueRef data )
 {
    GuiShapeEdPreview* gui = static_cast<GuiShapeEdPreview*>( object );
    if ( gui && ( gui->mActiveThread >= 0 ) && gui->mThreads[gui->mActiveThread].key )
@@ -270,7 +270,7 @@ ConsoleValue *GuiShapeEdPreview::getFieldThreadPos( void *object, ConsoleValue *
       return Con::getReturnValue(0.0f);
 }
 
-bool GuiShapeEdPreview::setFieldThreadDir( void *object, const char *index, ConsoleValue *data )
+bool GuiShapeEdPreview::setFieldThreadDir( void *object, const char *index, ConsoleValueRef data )
 {
    GuiShapeEdPreview* gui = static_cast<GuiShapeEdPreview*>( object );
    if ( gui && ( gui->mActiveThread >= 0 ) )
@@ -285,7 +285,7 @@ bool GuiShapeEdPreview::setFieldThreadDir( void *object, const char *index, Cons
    return false;
 }
 
-ConsoleValue *GuiShapeEdPreview::getFieldThreadDir( void *object, ConsoleValue *data )
+ConsoleValue *GuiShapeEdPreview::getFieldThreadDir( void *object, ConsoleValueRef data )
 {
    GuiShapeEdPreview* gui = static_cast<GuiShapeEdPreview*>( object );
    if ( gui && ( gui->mActiveThread >= 0 ) )
@@ -294,7 +294,7 @@ ConsoleValue *GuiShapeEdPreview::getFieldThreadDir( void *object, ConsoleValue *
       return Con::getReturnValue(0.0f);
 }
 
-bool GuiShapeEdPreview::setFieldThreadPingPong( void *object, const char *index, ConsoleValue *data )
+bool GuiShapeEdPreview::setFieldThreadPingPong( void *object, const char *index, ConsoleValueRef data )
 {
    GuiShapeEdPreview* gui = static_cast<GuiShapeEdPreview*>( object );
    ConsoleValueRef ref;
@@ -304,7 +304,7 @@ bool GuiShapeEdPreview::setFieldThreadPingPong( void *object, const char *index,
    return false;
 }
 
-ConsoleValue *GuiShapeEdPreview::getFieldThreadPingPong( void *object, ConsoleValue *data )
+ConsoleValue *GuiShapeEdPreview::getFieldThreadPingPong( void *object, ConsoleValueRef data )
 {
    GuiShapeEdPreview* gui = static_cast<GuiShapeEdPreview*>( object );
    if ( gui && ( gui->mActiveThread >= 0 ) )

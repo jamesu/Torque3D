@@ -95,7 +95,7 @@ TimeOfDay::~TimeOfDay()
 {
 }
 
-bool TimeOfDay::setTimeOfDay( void *object, const char *index, ConsoleValue *data )
+bool TimeOfDay::setTimeOfDay( void *object, const char *index, ConsoleValueRef data )
 {
    TimeOfDay *tod = static_cast<TimeOfDay*>(object);
    tod->setTimeOfDay( data->getFloatValue() );
@@ -103,7 +103,7 @@ bool TimeOfDay::setTimeOfDay( void *object, const char *index, ConsoleValue *dat
    return false;
 }
 
-bool TimeOfDay::setPlay( void *object, const char *index, ConsoleValue *data )
+bool TimeOfDay::setPlay( void *object, const char *index, ConsoleValueRef data )
 {
    TimeOfDay *tod = static_cast<TimeOfDay*>(object);
    tod->setPlay( dAtob( data->getStringValue() ) );
@@ -111,7 +111,7 @@ bool TimeOfDay::setPlay( void *object, const char *index, ConsoleValue *data )
    return false;
 }
 
-bool TimeOfDay::setDayLength( void *object, const char *index, ConsoleValue *data )
+bool TimeOfDay::setDayLength( void *object, const char *index, ConsoleValueRef data )
 {
    TimeOfDay *tod = static_cast<TimeOfDay*>(object);
    F32 length = data->getFloatValue();

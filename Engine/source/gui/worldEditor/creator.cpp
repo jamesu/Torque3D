@@ -261,7 +261,9 @@ ConsoleMethod( CreatorTree, fileNameMatch, bool, 5, 5, "(string world, string ty
       return(false);
 
    // world
-   if(dToupper(argv[4][0]) != dToupper(argv[2][0]))
+   char c1 = argv[4]->getStringValue()[0];
+   char c2 = argv[2]->getStringValue()[0];
+   if(dToupper(c1) != dToupper(c2))
       return(false);
 
    return(!dStrnicmp(((const char*)argv[4])+1, argv[3], typeLen));

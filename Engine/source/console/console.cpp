@@ -1395,7 +1395,7 @@ void setData(S32 type, void *dptr, S32 index, S32 argc, const char *argv[], cons
    AssertFatal(cbt, "Con::setData - could not resolve type ID!");
 
    ConsoleValue tempArgs[StringStack::MaxArgs];
-   ConsoleValue *args[StringStack::MaxArgs];
+   ConsoleValueRef args[StringStack::MaxArgs];
    for (int i=0; i<argc; i++) {
       tempArgs[i].setStackStringValue(argv[i]);
       args[i] = &tempArgs[i];
@@ -1415,11 +1415,7 @@ void setDataValue(S32 type, void *dptr, S32 index, S32 argc, ConsoleValueRef arg
    ConsoleBaseType *cbt = ConsoleBaseType::getType(type);
    AssertFatal(cbt, "Con::setData - could not resolve type ID!");
 
-   ConsoleValue *args[StringStack::MaxArgs];
-   for (int i=0; i<argc; i++) {
-      args[i] = argv[i].value;
-   }
-   cbt->setData((void *) (((const char *)dptr) + index * cbt->getTypeSize()),argc, args, tbl, flag);
+   cbt->setData((void *) (((const char *)dptr) + index * cbt->getTypeSize()),argc, argv, tbl, flag);
 }
 
 ConsoleValueRef getDataValue(S32 type, void *dptr, S32 index, const EnumTable *tbl, BitSet32 flag)
@@ -1601,6 +1597,14 @@ DefineEngineFunction( logWarning, void, ( const char* message ),,
    Con::warnf( "%s", message );
 }
 
+   
+ConsoleValueRef& ConsoleValueRef::operator=(const ConsoleValueRef &newValue)
+{
+   value = newValue.value;
+   stringStackValue = newValue.stringStackValue;
+   return *this;
+}
+
 ConsoleValueRef::ConsoleValueRef(const ConsoleValueRef &ref)
 {
 	value = ref.value;
@@ -1609,28 +1613,29 @@ ConsoleValueRef::ConsoleValueRef(const ConsoleValueRef &ref)
 
 ConsoleValueRef::ConsoleValueRef(const char *newValue) : value(NULL)
 {
-   *this = newValue;
+   value = CSTK.pushStackString(newValue);
+   stringStackValue = NULL;
 }
 
-ConsoleValueRef::ConsoleValueRef(const String &newValue) : value(NULL)
+ConsoleValueRef::ConsoleValueRef(const String &newValue) : stringStackValue(NULL)
 {
-   *this = (const char*)(newValue.utf8());
+   value = CSTK.pushStackString((const char*)newValue.utf8());
 }
 
 
-ConsoleValueRef::ConsoleValueRef(S32 newValue) : value(NULL)
+ConsoleValueRef::ConsoleValueRef(S32 newValue) : stringStackValue(NULL)
 {
-   *this = newValue;
+   value = CSTK.pushUINT(newValue);
 }
 
-ConsoleValueRef::ConsoleValueRef(F32 newValue) : value(NULL)
+ConsoleValueRef::ConsoleValueRef(F32 newValue) : stringStackValue(NULL)
 {
-   *this = newValue;
+   value = CSTK.pushFLT(newValue);
 }
 
-ConsoleValueRef::ConsoleValueRef(F64 newValue) : value(NULL)
+ConsoleValueRef::ConsoleValueRef(F64 newValue) : stringStackValue(NULL)
 {
-   *this = newValue;
+   value = CSTK.pushFLT(newValue);
 }
 
 StringStackWrapper::StringStackWrapper(int targc, ConsoleValueRef targv[])
@@ -1673,14 +1678,20 @@ StringStackConsoleWrapper::~StringStackConsoleWrapper()
    delete[] argv;
 }
 
-
+S32 ConsoleValue::getSignedIntValue()
+{
+   if(type <= TypeInternalString)
+      return (S32)fval;
+   else
+      return Con::getDataValue(type, dataPtr, 0, enumTable).getSignedIntValue();
+}
 
 U32 ConsoleValue::getIntValue()
 {
    if(type <= TypeInternalString)
       return ival;
    else
-      return dAtoi(Con::getData(type, dataPtr, 0, enumTable));
+      return Con::getDataValue(type, dataPtr, 0, enumTable).getIntValue();
 }
 
 F32 ConsoleValue::getFloatValue()
@@ -1688,19 +1699,42 @@ F32 ConsoleValue::getFloatValue()
    if(type <= TypeInternalString)
       return fval;
    else
-      return dAtof(Con::getData(type, dataPtr, 0, enumTable));
+      return Con::getDataValue(type, dataPtr, 0, enumTable).getFloatValue();
 }
 
 const char *ConsoleValue::getStringValue()
 {
+   char returnBuffer[256];
+
    if(type == TypeInternalString || type == TypeInternalStackString)
       return sval;
-   if(type == TypeInternalFloat)
-      return Con::getData(TypeF32, &fval, 0);
-   else if(type == TypeInternalInt)
-      return Con::getData(TypeS32, &ival, 0);
-   else
+   if(type == TypeInternalFloat) {
+      dSprintf(returnBuffer, 256, "%g", fval);
+      return Con::getReturnBuffer(returnBuffer);
+   } else if(type == TypeInternalInt) {
+      dSprintf(returnBuffer, 256, "%i", ival);
+      return Con::getReturnBuffer(returnBuffer);
+   } else
       return Con::getDataValue(type, dataPtr, 0, enumTable).getStringValue();
+}
+
+bool ConsoleValue::getBoolValue()
+{
+   if(type == TypeInternalString || type == TypeInternalStackString)
+      return dAtob(sval);
+   if(type == TypeInternalFloat)
+      return fval > 0;
+   else if(type == TypeInternalInt)
+      return ival > 0;
+   else {
+      const char *value = Con::getDataValue(type, dataPtr, 0, enumTable).getStringValue();
+      return dAtob(value);
+   }
+}
+
+void ConsoleValue::setIntValue(S32 val)
+{
+   setFloatValue(val);
 }
 
 void ConsoleValue::setIntValue(U32 val)
@@ -1718,9 +1752,17 @@ void ConsoleValue::setIntValue(U32 val)
    }
    else
    {
-      ConsoleValueRef data = Con::getData(TypeF32, &val, 0);
-      Con::setDataValue(type, dataPtr, 0, 1, &data, enumTable);
+      ConsoleValue data;
+      data.type = TypeInternalInt;
+      data.setIntValue(val);
+      ConsoleValueRef ref = &data;
+      Con::setDataValue(type, dataPtr, 0, 1, &ref, enumTable);
    }
+}
+
+void ConsoleValue::setBoolValue(bool val)
+{
+   return setIntValue(val ? 1 : 0);
 }
 
 void ConsoleValue::setFloatValue(F32 val)
@@ -1738,8 +1780,11 @@ void ConsoleValue::setFloatValue(F32 val)
    }
    else
    {
-      ConsoleValueRef data = Con::getData(TypeF32, &val, 0);
-      Con::setDataValue(type, dataPtr, 0, 1, &data, enumTable);
+      ConsoleValue data;
+      data.type = TypeInternalFloat;
+      data.setFloatValue(val);
+      ConsoleValueRef ref = &data;
+      Con::setDataValue(type, dataPtr, 0, 1, &ref, enumTable);
    }
 }
 
@@ -1747,8 +1792,8 @@ void ConsoleValue::copyInto(ConsoleValue &other)
 {
    if (type < 0) {
       other.cleanup();
-      if (type == TypeInternalString) {
-         other.sval = dStrdup(sval);
+      if (type == TypeInternalString || type == TypeInternalStackString) {
+         other.sval = sval == typeValueEmpty ? typeValueEmpty : dStrdup(sval);
       } else {
          other.sval = sval;
       }
@@ -1756,10 +1801,12 @@ void ConsoleValue::copyInto(ConsoleValue &other)
       other.fval = fval;
    } else if (other.type >= 0 && !other.isAllocated) {
       // Copy by setting variable (since this is a field or static variable)
-
+      // TOOD
+      int todo = 1;
    } else {
       // Cleanup dataPtr
       if (other.type >= 0 && other.isAllocated) {
+         // TODO
       }
 
       // Copy by making an allocated clone
@@ -1768,7 +1815,7 @@ void ConsoleValue::copyInto(ConsoleValue &other)
       other.isAllocated = true;
    }
 
-   other.type = type;
+   other.type = type == TypeInternalStackString ? TypeInternalString : type;
 }
 
 
@@ -1788,41 +1835,6 @@ const char *ConsoleValueRef::getStringArgValue()
 
 
 extern ConsoleValueStack CSTK;
-   
-ConsoleValueRef& ConsoleValueRef::operator=(const ConsoleValueRef &newValue)
-{
-   value = newValue.value;
-   stringStackValue = newValue.stringStackValue;
-   return *this;
-}
-
-ConsoleValueRef& ConsoleValueRef::operator=(const char *newValue)
-{
-   value = CSTK.pushStackString(newValue);
-   stringStackValue = NULL;
-   return *this;
-}
-
-ConsoleValueRef& ConsoleValueRef::operator=(S32 newValue)
-{
-   value = CSTK.pushUINT(newValue);
-   stringStackValue = NULL;
-   return *this;
-}
-
-ConsoleValueRef& ConsoleValueRef::operator=(F32 newValue)
-{
-   value = CSTK.pushFLT(newValue);
-   stringStackValue = NULL;
-   return *this;
-}
-
-ConsoleValueRef& ConsoleValueRef::operator=(F64 newValue)
-{
-   value = CSTK.pushFLT(newValue);
-   stringStackValue = NULL;
-   return *this;
-}
 
 namespace Con
 {

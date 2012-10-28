@@ -67,7 +67,7 @@ class SceneAmbientSoundObject : public Base
    private:
 
       // Console field getters/setters.
-      static bool _setSoundAmbience( void* object, const char* index, ConsoleValue* data );
+      static bool _setSoundAmbience( void* object, const char* index, ConsoleValueRef data );
 };
 
 #endif // !_SCENEAMBIENTSOUNDOBJECT_H_

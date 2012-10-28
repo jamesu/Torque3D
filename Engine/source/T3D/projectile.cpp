@@ -477,7 +477,7 @@ void ProjectileData::unpackData(BitStream* stream)
    }
 }
 
-bool ProjectileData::setLifetime( void *obj, const char *index, ConsoleValue *data )
+bool ProjectileData::setLifetime( void *obj, const char *index, ConsoleValueRef data )
 {
 	S32 value = data->getIntValue();
    value = scaleValue(value);
@@ -488,7 +488,7 @@ bool ProjectileData::setLifetime( void *obj, const char *index, ConsoleValue *da
    return false;
 }
 
-bool ProjectileData::setArmingDelay( void *obj, const char *index, ConsoleValue *data )
+bool ProjectileData::setArmingDelay( void *obj, const char *index, ConsoleValueRef data )
 {
 	S32 value = data->getIntValue();
    value = scaleValue(value);
@@ -499,7 +499,7 @@ bool ProjectileData::setArmingDelay( void *obj, const char *index, ConsoleValue 
    return false;
 }
 
-bool ProjectileData::setFadeDelay( void *obj, const char *index, ConsoleValue *data )
+bool ProjectileData::setFadeDelay( void *obj, const char *index, ConsoleValueRef data )
 {
 	S32 value = data->getIntValue();
    value = scaleValue(value);
@@ -510,7 +510,7 @@ bool ProjectileData::setFadeDelay( void *obj, const char *index, ConsoleValue *d
    return false;
 }
 
-ConsoleValue *ProjectileData::getScaledValue( void *obj, ConsoleValue *data)
+ConsoleValue *ProjectileData::getScaledValue( void *obj, ConsoleValueRef data)
 {
 
 	S32 value = data->getIntValue();
@@ -617,7 +617,7 @@ void Projectile::initPersistFields()
    Parent::initPersistFields();
 }
 
-bool Projectile::_setInitialPosition( void *object, const char *index, ConsoleValue *data )
+bool Projectile::_setInitialPosition( void *object, const char *index, ConsoleValueRef data )
 {
    Projectile* p = static_cast<Projectile*>( object );
    if ( p )
@@ -644,7 +644,7 @@ void Projectile::setInitialPosition( const Point3F& pos )
    mCurrPosition = pos;
 }
 
-bool Projectile::_setInitialVelocity( void *object, const char *index, ConsoleValue *data )
+bool Projectile::_setInitialVelocity( void *object, const char *index, ConsoleValueRef data )
 {
    Projectile* p = static_cast<Projectile*>( object );
    if ( p )

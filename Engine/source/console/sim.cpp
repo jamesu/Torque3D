@@ -199,7 +199,7 @@ ConsoleFunction(schedule, S32, 4, 0, "schedule(time, refobject|0, command, <arg1
    SimObject *refObject = Sim::findObject(argv[2]);
    if(!refObject)
    {
-      if(argv[2][0] != '0')
+      if(!argv[2].isNull())
          return 0;
 
       refObject = Sim::getRootGroup();

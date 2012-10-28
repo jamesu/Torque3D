@@ -187,7 +187,7 @@ void AdvancedLightManager::_addLightInfoEx( LightInfo *lightInfo )
 void AdvancedLightManager::_initLightFields()
 {
    #define DEFINE_LIGHT_FIELD( var, type, enum_ )                             \
-   static inline ConsoleValue* _get##var##Field( void *obj, ConsoleValue *data )\
+   static inline ConsoleValue* _get##var##Field( void *obj, ConsoleValueRef data )\
    {                                                                          \
       ShadowMapParams *p = _getShadowMapParams( obj );                        \
       if ( p )                                                                \
@@ -196,7 +196,7 @@ void AdvancedLightManager::_initLightFields()
          return Con::getReturnValue("");                                      \
    }                                                                          \
                                                                               \
-   static inline bool _set##var##Field( void *object, const char *index, ConsoleValue *data )  \
+   static inline bool _set##var##Field( void *object, const char *index, ConsoleValueRef data )  \
    {                                                                                         \
       ShadowMapParams *p = _getShadowMapParams( object );                     \
       if ( p )                                                                \
@@ -210,7 +210,7 @@ void AdvancedLightManager::_initLightFields()
    }
 
    #define DEFINE_LIGHTMAP_FIELD( var, type, enum_ )                          \
-   static inline ConsoleValue* _get##var##Field( void *obj, ConsoleValue *data )  \
+   static inline ConsoleValue* _get##var##Field( void *obj, ConsoleValueRef data )  \
    {                                                                          \
       LightMapParams *p = _getLightMapParams( obj );                          \
       if ( p )                                                                \
@@ -219,7 +219,7 @@ void AdvancedLightManager::_initLightFields()
         return Con::getReturnValue("");                                       \
    }                                                                          \
    \
-   static inline bool _set##var##Field( void *object, const char *index, ConsoleValue *data )  \
+   static inline bool _set##var##Field( void *object, const char *index, ConsoleValueRef data )  \
    {                                                                                         \
       LightMapParams *p = _getLightMapParams( object );                       \
       if ( p )                                                                \

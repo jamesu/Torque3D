@@ -60,6 +60,7 @@ private:
 
    void           freeEntry(Entry *entry);
    Entry*         addEntry( U32 bucket, StringTableEntry slotName, ConsoleBaseType* type, char* value = 0 );
+   Entry*         addEntryValue( U32 bucket, StringTableEntry slotName, ConsoleBaseType* type, ConsoleValue* value = 0 );
 
    static U32     getHashValue( StringTableEntry slotName );
    static U32     getHashValue( const String& fieldName );
@@ -80,7 +81,9 @@ public:
    void setFieldType(StringTableEntry slotName, const U32 typeId);
    void setFieldType(StringTableEntry slotName, ConsoleBaseType *type);
    void setFieldValue(StringTableEntry slotName, const char *value);
+   void setFieldConsoleValue(StringTableEntry slotName, ConsoleValue *value);
    const char *getFieldValue(StringTableEntry slotName);
+   ConsoleValue *getFieldConsoleValue(StringTableEntry slotName);
    U32 getFieldType(StringTableEntry slotName) const;
    Entry  *findDynamicField(const String &fieldName) const;
    Entry  *findDynamicField( StringTableEntry fieldName) const;

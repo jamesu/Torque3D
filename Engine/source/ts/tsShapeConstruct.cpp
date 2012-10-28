@@ -133,11 +133,11 @@ TSShapeConstructor::~TSShapeConstructor()
 {
 }
 
-bool TSShapeConstructor::addSequenceFromField( void *obj, const char *index, ConsoleValue *data )
+bool TSShapeConstructor::addSequenceFromField( void *obj, const char *index, ConsoleValueRef data )
 {
    TSShapeConstructor *pObj = static_cast<TSShapeConstructor*>( obj );
 
-   if ( data && data->getStringValue()[0] )
+   if ( !data.isNull() )
       pObj->mSequences.push_back( FileName(data->getStringValue()) );
 
    return false;

@@ -369,19 +369,19 @@ void Trigger::initPersistFields()
    Parent::initPersistFields();
 }
 
-bool Trigger::setEnterCmd( void *object, const char *index, ConsoleValue *data )
+bool Trigger::setEnterCmd( void *object, const char *index, ConsoleValueRef data )
 {
    static_cast<Trigger*>(object)->setMaskBits(EnterCmdMask);
    return true; // to update the actual field
 }
 
-bool Trigger::setLeaveCmd(void *object, const char *index, ConsoleValue *data)
+bool Trigger::setLeaveCmd(void *object, const char *index, ConsoleValueRef data)
 {
    static_cast<Trigger*>(object)->setMaskBits(LeaveCmdMask);
    return true; // to update the actual field
 }
 
-bool Trigger::setTickCmd(void *object, const char *index, ConsoleValue *data)
+bool Trigger::setTickCmd(void *object, const char *index, ConsoleValueRef data)
 {
    static_cast<Trigger*>(object)->setMaskBits(TickCmdMask);
    return true; // to update the actual field

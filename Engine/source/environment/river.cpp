@@ -668,7 +668,7 @@ void River::consoleInit()
 	   "@ingroup Editors\n");
 }
 
-bool River::addNodeFromField( void *object, const char *index, ConsoleValue *data )
+bool River::addNodeFromField( void *object, const char *index, ConsoleValueRef data )
 {
    River *pObj = static_cast<River*>(object);
 

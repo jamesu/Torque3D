@@ -104,7 +104,7 @@ protected:
    void _updateChildren();
    void _onFileChanged( const Torque::Path &path );
 
-   static bool protectedSetFile( void *object, const char *index, ConsoleValue *data );
+   static bool protectedSetFile( void *object, const char *index, ConsoleValueRef data );
 
    /// @name Callbacks
    /// @{

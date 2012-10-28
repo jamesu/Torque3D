@@ -186,7 +186,7 @@ protected:
    S32 mNextFenceIdx;
    S32 mNumFences;
 
-   static bool setProtectedNumFences( void *object, const char *index, ConsoleValue *data );
+   static bool setProtectedNumFences( void *object, const char *index, ConsoleValueRef data );
    virtual void setupFences();
    
    void checkLockMouseMove( const GuiEvent& event );

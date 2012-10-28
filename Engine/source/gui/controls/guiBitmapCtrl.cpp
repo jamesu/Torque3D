@@ -60,7 +60,7 @@ GuiBitmapCtrl::GuiBitmapCtrl(void)
 {	
 }
 
-bool GuiBitmapCtrl::setBitmapName( void *object, const char *index, ConsoleValue *data )
+bool GuiBitmapCtrl::setBitmapName( void *object, const char *index, ConsoleValueRef data )
 {
    // Prior to this, you couldn't do bitmap.bitmap = "foo.jpg" and have it work.
    // With protected console types you can now call the setBitmap function and

@@ -732,7 +732,7 @@ Portal::Side Portal::getSideRelativeToPortalPlane( const Point3F& point ) const
 
 //-----------------------------------------------------------------------------
 
-bool Portal::_setFrontSidePassable( void* object, const char* index, ConsoleValue* data )
+bool Portal::_setFrontSidePassable( void* object, const char* index, ConsoleValueRef data )
 {
    Portal* portal = reinterpret_cast< Portal* >( object );
    portal->setSidePassable( Portal::FrontSide, EngineUnmarshallData< bool >()( data->getStringValue() ) );
@@ -741,7 +741,7 @@ bool Portal::_setFrontSidePassable( void* object, const char* index, ConsoleValu
 
 //-----------------------------------------------------------------------------
 
-bool Portal::_setBackSidePassable( void* object, const char* index, ConsoleValue* data )
+bool Portal::_setBackSidePassable( void* object, const char* index, ConsoleValueRef data )
 {
    Portal* portal = reinterpret_cast< Portal* >( object );
    portal->setSidePassable( Portal::BackSide, EngineUnmarshallData< bool >()( data->getStringValue() ) );

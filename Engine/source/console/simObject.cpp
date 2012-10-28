@@ -264,6 +264,51 @@ bool SimObject::writeField(StringTableEntry fieldname, const char *value)
    return true;
 }
 
+bool SimObject::writeFieldValue(StringTableEntry fieldname, ConsoleValue *value)
+{
+   // Don't write empty fields.
+   if (value->isNull())
+      return false;
+
+   // Don't write owner field for components
+   static StringTableEntry sOwner = StringTable->insert( "owner" );
+   if( fieldname == sOwner )
+      return false;
+
+   // Don't write ParentGroup
+   static StringTableEntry sParentGroup = StringTable->insert( "parentGroup" );
+   if( fieldname == sParentGroup )
+      return false;
+
+   // Don't write name, is within the parenthesis already
+   static StringTableEntry sName = StringTable->insert( "name" );
+   if( fieldname == sName )
+      return false;
+
+   // Don't write className, it is read for legacy support but we
+   // write it out as class.
+   static StringTableEntry sClassName = StringTable->insert( "className" );
+   if( fieldname == sClassName )
+      return false;
+
+   // Write persistent ID only if present.
+   static StringTableEntry sPersistentId = StringTable->insert( "persistentId" );
+   if( fieldname == sPersistentId && ( value->isNull() ) )
+      return false;
+      
+   // Don't write hidden and locked flags if they are at their default value.
+      
+   static StringTableEntry sHidden = StringTable->insert( "hidden" );
+   static StringTableEntry sLocked = StringTable->insert( "locked" );
+
+   if( fieldname == sHidden && !dAtob( value->getStringValue() ) )
+      return false;
+   if( fieldname == sLocked && !dAtob( value->getStringValue() ) )
+      return false;
+
+   return true;
+}
+
 //-----------------------------------------------------------------------------
 
 void SimObject::writeFields(Stream &stream, U32 tabStop)
@@ -284,45 +329,82 @@ void SimObject::writeFields(Stream &stream, U32 tabStop)
       {
          char array[8];
          dSprintf( array, 8, "%d", j );
-         const char *val = getDataField(StringTable->insert( f->pFieldname ), array );
+
+         if (dStrcmp(f->pFieldname, "groupNum") == 0) {
+           int bug = 1;
+         }
+         ConsoleValueRef val = getDataFieldValue(StringTable->insert( f->pFieldname ), array );
+
+
 
          // Make a copy for the field check.
-         if (!val)
+         if (val.isNull())
             continue;
 
-         U32 nBufferSize = dStrlen( val ) + 1;
-         FrameTemp<char> valCopy( nBufferSize );
-         dStrcpy( (char *)valCopy, val );
-
-         if (!writeField(f->pFieldname, valCopy))
+         if (!writeFieldValue(f->pFieldname, val))
             continue;
 
-         val = valCopy;
+         // Print correct version
+         if (((val.isAdvanced() || val.isString()) && !(val->type == TypeF32 || val->type == TypeS32 || val->type == TypeBool || val->type == TypeS8))) {
+            // Note: for now we're assuming here everything should be a string
+            const char *strVal = val->getStringValue();
 
-         U32 expandedBufferSize = ( nBufferSize  * 2 ) + dStrlen(f->pFieldname) + 32;
-         FrameTemp<char> expandedBuffer( expandedBufferSize );
-         if(f->elementCount == 1)
-            dSprintf(expandedBuffer, expandedBufferSize, "%s = \"", f->pFieldname);
-         else
-            dSprintf(expandedBuffer, expandedBufferSize, "%s[%d] = \"", f->pFieldname, j);
+            U32 nBufferSize = dStrlen( strVal ) + 1;
+            FrameTemp<char> valCopy( nBufferSize );
+            dStrcpy( (char *)valCopy, strVal );
 
-         // detect and collapse relative path information
-         char fnBuf[1024];
-         if (f->type == TypeFilename ||
-             f->type == TypeStringFilename ||
-             f->type == TypeImageFilename ||
-             f->type == TypePrefabFilename ||
-             f->type == TypeShapeFilename)
-         {
-            Con::collapseScriptFilename(fnBuf, 1024, val);
-            val = fnBuf;
+            strVal = valCopy;
+
+            U32 expandedBufferSize = ( nBufferSize  * 2 ) + dStrlen(f->pFieldname) + 32;
+            FrameTemp<char> expandedBuffer( expandedBufferSize );
+            if(f->elementCount == 1)
+               dSprintf(expandedBuffer, expandedBufferSize, "%s = \"", f->pFieldname);
+            else
+               dSprintf(expandedBuffer, expandedBufferSize, "%s[%d] = \"", f->pFieldname, j);
+
+            // detect and collapse relative path information
+            char fnBuf[1024];
+            if (f->type == TypeFilename ||
+                f->type == TypeStringFilename ||
+                f->type == TypeImageFilename ||
+                f->type == TypePrefabFilename ||
+                f->type == TypeShapeFilename)
+            {
+               Con::collapseScriptFilename(fnBuf, 1024, strVal);
+               val = fnBuf;
+            }
+
+            expandEscape((char*)expandedBuffer + dStrlen(expandedBuffer), strVal);
+
+            dStrcat(expandedBuffer, "\";\r\n");
+
+            stream.writeTabs(tabStop);
+            stream.write(dStrlen(expandedBuffer),expandedBuffer);
+
+         } else {
+            // No quotes are needed for ints and floats
+            U32 expandedBufferSize = 64 + dStrlen(f->pFieldname) + 32;
+            FrameTemp<char> expandedBuffer( expandedBufferSize );
+            if(f->elementCount == 1)
+               dSprintf(expandedBuffer, expandedBufferSize, "%s = ", f->pFieldname);
+            else
+               dSprintf(expandedBuffer, expandedBufferSize, "%s[%d] = ", f->pFieldname, j);
+
+            char numBuffer[64];
+            if (val.isInt()) {
+               dSprintf(numBuffer, 64, "%u", val.getIntValue());
+            } else if (val.isFloat()) {
+               dSprintf(numBuffer, 64, "%g", val.getFloatValue());
+            } else {
+               dStrcpy(numBuffer, "0");
+            }
+
+            dStrcat(expandedBuffer, numBuffer);
+            dStrcat(expandedBuffer, ";\r\n");
+
+            stream.writeTabs(tabStop);
+            stream.write(dStrlen(expandedBuffer),expandedBuffer);
          }
-
-         expandEscape((char*)expandedBuffer + dStrlen(expandedBuffer), val);
-         dStrcat(expandedBuffer, "\";\r\n");
-
-         stream.writeTabs(tabStop);
-         stream.write(dStrlen(expandedBuffer),expandedBuffer);
       }
    }
    
@@ -439,7 +521,7 @@ SimPersistID* SimObject::getOrCreatePersistentId()
 
 //-----------------------------------------------------------------------------
 
-bool SimObject::_setPersistentID( void *object, const char *index, ConsoleValue *data )
+bool SimObject::_setPersistentID( void *object, const char *index, ConsoleValueRef data )
 {
    SimObject* simObject = reinterpret_cast< SimObject* >( object );
 
@@ -777,6 +859,10 @@ void SimObject::assignFieldsFrom(SimObject *parent)
             continue;
 
          S32 lastField = f->elementCount - 1;
+         ConsoleValue sanitizedValue;
+         sanitizedValue.init();
+         sanitizedValue.type = ConsoleValue::TypeInternalStackString;
+
          for(S32 j = 0; j <= lastField; j++)
          {
             ConsoleValue *fieldVal = (*f->getDataFn)( parent,  Con::getDataValue(f->type, (void *) (((const char *)parent) + f->offset), j, f->table, f->flag).value);
@@ -786,19 +872,27 @@ void SimObject::assignFieldsFrom(SimObject *parent)
             if ( fieldVal == NULL || (!writeField( f->pFieldname, fieldVal->getStringValue() ) ) )
                continue;
 
-            // code copied from SimObject::setDataField().
-            // TODO: paxorr: abstract this into a better setData / getData that considers prot fields.
+            ConsoleValueRef fieldRef;
+            ConsoleValue sanitizedValue;
             FrameTemp<char> buffer(2048);
             FrameTemp<char> bufferSecure(2048); // This buffer is used to make a copy of the data
-            ConsoleBaseType *cbt = ConsoleBaseType::getType( f->type );
-            //const char* szBuffer = cbt->prepData( fieldVal, buffer, 2048 );
-            //dMemset( bufferSecure, 0, 2048 );
-            //dMemcpy( bufferSecure, szBuffer, dStrlen( szBuffer ) );
 
-            ConsoleValueRef fieldRef;
-            fieldRef.value = fieldVal;
+            if (fieldVal->type > -3 && fieldVal->type != TypeF32 && fieldVal->type != TypeS32 && fieldVal->type != TypeBool && fieldVal->type != TypeS8) {
+               // Sanitize string values
+               // code copied from SimObject::setDataField().
+               // TODO: paxorr: abstract this into a better setData / getData that considers prot fields.
+               ConsoleBaseType *cbt = ConsoleBaseType::getType( f->type );
+               const char* szBuffer = cbt->prepData( fieldVal->getStringValue(), buffer, 2048 );
+               dMemset( bufferSecure, 0, 2048 );
+               dMemcpy( bufferSecure, szBuffer, dStrlen( szBuffer ) );
 
-            if((*f->setDataFn)( this, NULL, fieldVal ) )
+               sanitizedValue.setStackStringValue(bufferSecure);
+               fieldRef.value = &sanitizedValue;
+            } else {
+               fieldRef.value = fieldVal;
+            }
+
+            if((*f->setDataFn)( this, NULL, fieldRef ) )
                Con::setDataValue(f->type, (void *) (((const char *)this) + f->offset), j, 1, &fieldRef, f->table);
          }
       }
@@ -914,6 +1008,8 @@ void SimObject::setDataFieldValue(StringTableEntry slotName, const char *array, 
             // set the data, otherwise, assume the set notify callback has either
             // already set the data, or has deemed that the data should not
             // be set at all.
+            ConsoleValueRef fieldRef;
+            ConsoleValue sanitizedValue;
             FrameTemp<char> buffer(2048);
             FrameTemp<char> bufferSecure(2048); // This buffer is used to make a copy of the data
             // so that if the prep functions or any other functions use the string stack, the data
@@ -922,15 +1018,24 @@ void SimObject::setDataFieldValue(StringTableEntry slotName, const char *array, 
             ConsoleBaseType *cbt = ConsoleBaseType::getType( fld->type );
             AssertFatal( cbt != NULL, "Could not resolve Type Id." );
 
-            ConsoleValueRef valueRef;
-            valueRef.value = &value;
-            if( (*fld->setDataFn)( this, array, &value ) )
-               Con::setDataValue(fld->type, (void *) (((const char *)this) + fld->offset), array1, 1, &valueRef, fld->table);
+            if (fld->type != TypeF32 && fld->type != TypeS32 && fld->type != TypeBool && fld->type != TypeS8) {
+               const char* szBuffer = cbt->prepData( value.getStringValue(), buffer, 2048 );
+               dMemset( bufferSecure, 0, 2048 );
+               dMemcpy( bufferSecure, szBuffer, dStrlen( szBuffer ) );
+
+               sanitizedValue.setStackStringValue(bufferSecure);
+               fieldRef.value = &sanitizedValue;
+            } else {
+               fieldRef.value = &value;
+            }
+
+            if( (*fld->setDataFn)( this, array, fieldRef ) )
+               Con::setDataValue(fld->type, (void *) (((const char *)this) + fld->offset), array1, 1, &fieldRef, fld->table);
 
             if(fld->validator)
                fld->validator->validateType(this, (void *) (((const char *)this) + fld->offset));
 
-            onStaticModified( slotName, value.getStringValue() );
+            onStaticModified( slotName, fieldRef.getStringValue() );
 
             return;
          }
@@ -948,9 +1053,9 @@ void SimObject::setDataFieldValue(StringTableEntry slotName, const char *array, 
       if(!mFieldDictionary)
          mFieldDictionary = new SimFieldDictionary;
 
-      if(!array)
+      if(!array || array[0] == '\0')
       {
-         mFieldDictionary->setFieldValue(slotName, value.getStringValue() );
+         mFieldDictionary->setFieldConsoleValue(slotName, &value );
          onDynamicModified( slotName, value.getStringValue() );
       }
       else
@@ -959,7 +1064,7 @@ void SimObject::setDataFieldValue(StringTableEntry slotName, const char *array, 
          dStrcpy(buf, slotName);
          dStrcat(buf, array);
          StringTableEntry permanentSlotName = StringTable->insert(buf);
-         mFieldDictionary->setFieldValue(permanentSlotName, value.getStringValue() );
+         mFieldDictionary->setFieldConsoleValue(permanentSlotName, &value );
          onDynamicModified( permanentSlotName, value.getStringValue() );
       }
    }
@@ -1890,22 +1995,22 @@ void SimObject::setCopySource( SimObject* object )
 
 //---------------------------------------------------------------------------
 
-bool SimObject::_setCanSave( void *object, const char *index, ConsoleValue *data )
+bool SimObject::_setCanSave( void *object, const char *index, ConsoleValueRef data )
 {
    SimObject* obj = reinterpret_cast< SimObject* >( object );
-   obj->setCanSave( dAtob( data->getStringValue() ) );
+   obj->setCanSave( data->getBoolValue() );
    return false;
 }
 
 //-----------------------------------------------------------------------------
 
-ConsoleValue* SimObject::_getCanSave( void *object, ConsoleValue *data )
+ConsoleValue* SimObject::_getCanSave( void *object, ConsoleValueRef data )
 {
    SimObject* obj = reinterpret_cast< SimObject* >( object );
    if( obj->getCanSave() )
-      return Con::getReturnValue("1");
+      return Con::getReturnBoolValue(true);
    else
-      return Con::getReturnValue("0");
+      return Con::getReturnBoolValue(false);
 }
 
 //---------------------------------------------------------------------------
@@ -1921,7 +2026,7 @@ void SimObject::copyTo( SimObject* object  )
 
 //-----------------------------------------------------------------------------
 
-bool SimObject::setProtectedParent( void *object, const char *index, ConsoleValue *data )
+bool SimObject::setProtectedParent( void *object, const char *index, ConsoleValueRef data )
 {
    SimGroup *parent = NULL;
    SimObject *obj = static_cast<SimObject*>(object);
@@ -1935,7 +2040,7 @@ bool SimObject::setProtectedParent( void *object, const char *index, ConsoleValu
 
 //-----------------------------------------------------------------------------
 
-bool SimObject::setProtectedName(void *object, const char *index, ConsoleValue *data)
+bool SimObject::setProtectedName(void *object, const char *index, ConsoleValueRef data)
 {   
    SimObject *obj = static_cast<SimObject*>(object);
    

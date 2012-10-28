@@ -73,7 +73,7 @@ class GuiSliderCtrl : public GuiControl
       
       /// @}
       
-      static bool _setValue( void *object, const char *index, ConsoleValue *data ) { static_cast< GuiSliderCtrl* >( object )->setValue( data->getFloatValue() ); return false; }
+      static bool _setValue( void *object, const char *index, ConsoleValueRef data ) { static_cast< GuiSliderCtrl* >( object )->setValue( data->getFloatValue() ); return false; }
 
    public:
          

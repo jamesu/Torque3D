@@ -229,7 +229,7 @@ void Prefab::unpackUpdate(NetConnection *conn, BitStream *stream)
    }
 }
 
-bool Prefab::protectedSetFile( void *object, const char *index, ConsoleValue *data )
+bool Prefab::protectedSetFile( void *object, const char *index, ConsoleValueRef data )
 {
    Prefab *prefab = static_cast<Prefab*>(object);
    

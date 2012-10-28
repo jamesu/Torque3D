@@ -329,7 +329,7 @@ void ScenePolyhedralObject< Base, P >::writeFields( Stream& stream, U32 tabStop 
 //-----------------------------------------------------------------------------
 
 template< typename Base, typename P >
-bool ScenePolyhedralObject< Base, P >::_setPlane( void* object, const char* index, ConsoleValue* data )
+bool ScenePolyhedralObject< Base, P >::_setPlane( void* object, const char* index, ConsoleValueRef data )
 {
    ScenePolyhedralObject* obj = reinterpret_cast< ScenePolyhedralObject* >( object );
 
@@ -352,7 +352,7 @@ bool ScenePolyhedralObject< Base, P >::_setPlane( void* object, const char* inde
 //-----------------------------------------------------------------------------
 
 template< typename Base, typename P >
-bool ScenePolyhedralObject< Base, P >::_setPoint( void* object, const char* index, ConsoleValue* data )
+bool ScenePolyhedralObject< Base, P >::_setPoint( void* object, const char* index, ConsoleValueRef data )
 {
    ScenePolyhedralObject* obj = reinterpret_cast< ScenePolyhedralObject* >( object );
 
@@ -374,7 +374,7 @@ bool ScenePolyhedralObject< Base, P >::_setPoint( void* object, const char* inde
 //-----------------------------------------------------------------------------
 
 template< typename Base, typename P >
-bool ScenePolyhedralObject< Base, P >::_setEdge( void* object, const char* index, ConsoleValue* data )
+bool ScenePolyhedralObject< Base, P >::_setEdge( void* object, const char* index, ConsoleValueRef data )
 {
    ScenePolyhedralObject* obj = reinterpret_cast< ScenePolyhedralObject* >( object );
 

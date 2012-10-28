@@ -127,7 +127,7 @@ public:
    /// @name Console Type Interface
    /// @{
 
-   virtual void setData( void* dptr, S32 argc, ConsoleValue *argv[], const EnumTable* tbl, BitSet32 flag )
+   virtual void setData( void* dptr, S32 argc, ConsoleValueRef argv[], const EnumTable* tbl, BitSet32 flag )
    {
       if( argc == 1 )
       {

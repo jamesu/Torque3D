@@ -502,7 +502,7 @@ public:
    static SimSet* getServerSet();
 
    /// Protected 'Component' Field setter that will add a component to the list.
-   static bool addNodeFromField( void *object, const char *index, ConsoleValue *data );
+   static bool addNodeFromField( void *object, const char *index, ConsoleValueRef data );
 
    static bool smEditorOpen;
    static bool smWireframe;

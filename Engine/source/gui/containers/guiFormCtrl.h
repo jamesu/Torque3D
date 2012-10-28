@@ -80,7 +80,7 @@ private:
    bool mMouseOver;
    bool mDepressed;
    
-   static bool _setHasMenu( void *object, const char *index, ConsoleValue *data );
+   static bool _setHasMenu( void *object, const char *index, ConsoleValueRef data );
 
 protected:
    /// @name Callbacks

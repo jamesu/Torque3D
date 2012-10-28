@@ -126,15 +126,15 @@ protected:
    /// @li @b ChangePath (bool) : <c>Will change the working path of the tools to the selected path when not canceled</c>
    /// @code %fd.ChangePath = true; // Change Working Path on Success @endcode
    /// @internal
-   static bool setDefaultPath( void *object, const char *index, ConsoleValue *data );
-   static bool setDefaultFile( void *object, const char *index, ConsoleValue *data );
-   static bool setFilters( void *object, const char *index, ConsoleValue *data );
-   static bool setChangePath( void *object, const char *index, ConsoleValue *data );
-   static ConsoleValue* getChangePath(void* obj, ConsoleValue* data);
+   static bool setDefaultPath( void *object, const char *index, ConsoleValueRef data );
+   static bool setDefaultFile( void *object, const char *index, ConsoleValueRef data );
+   static bool setFilters( void *object, const char *index, ConsoleValueRef data );
+   static bool setChangePath( void *object, const char *index, ConsoleValueRef data );
+   static ConsoleValue* getChangePath(void* obj, ConsoleValueRef data);
    ///
    /// @}
 
-   static bool setFile( void *object, const char *index, ConsoleValue *data );
+   static bool setFile( void *object, const char *index, ConsoleValueRef data );
 };
 /// @}
 
@@ -163,12 +163,12 @@ protected:
    /// @}
 
    /// Must Exist Property
-   static bool setMustExist( void *object, const char *index, ConsoleValue *data );
-   static ConsoleValue* getMustExist(void* obj, ConsoleValue* data);
+   static bool setMustExist( void *object, const char *index, ConsoleValueRef data );
+   static ConsoleValue* getMustExist(void* obj, ConsoleValueRef data);
 
    /// Multiple Files Property
-   static bool setMultipleFiles( void *object, const char *index, ConsoleValue *data );
-   static ConsoleValue* getMultipleFiles(void* obj, ConsoleValue* data);
+   static bool setMultipleFiles( void *object, const char *index, ConsoleValueRef data );
+   static ConsoleValue* getMultipleFiles(void* obj, ConsoleValueRef data);
 };
 
 class OpenFolderDialog : public OpenFileDialog
@@ -200,8 +200,8 @@ public:
 
 protected:
    // Overwrite Prompt Property
-   static bool setOverwritePrompt( void *object, const char *index, ConsoleValue *data );
-   static ConsoleValue* getOverwritePrompt(void* obj, ConsoleValue* data);
+   static bool setOverwritePrompt( void *object, const char *index, ConsoleValueRef data );
+   static ConsoleValue* getOverwritePrompt(void* obj, ConsoleValueRef data);
 
 };
 

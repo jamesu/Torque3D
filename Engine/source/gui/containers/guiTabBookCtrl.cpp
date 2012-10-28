@@ -855,7 +855,7 @@ void GuiTabBookCtrl::selectPage( GuiTabPageCtrl *page )
 
 //-----------------------------------------------------------------------------
 
-bool GuiTabBookCtrl::_setSelectedPage( void *object, const char *index, ConsoleValue *data )
+bool GuiTabBookCtrl::_setSelectedPage( void *object, const char *index, ConsoleValueRef data )
 {
    GuiTabBookCtrl* book = reinterpret_cast< GuiTabBookCtrl* >( object );
    book->selectPage( dAtoi( data->getStringValue() ) );

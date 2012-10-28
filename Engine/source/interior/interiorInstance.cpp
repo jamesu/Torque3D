@@ -1124,9 +1124,9 @@ S32 InteriorInstance::getSurfaceZone(U32 surfaceindex, Interior *detail)
 
 //-----------------------------------------------------------------------------
 
-bool InteriorInstance::_setInteriorFile( void *object, const char *, ConsoleValue *data )
+bool InteriorInstance::_setInteriorFile( void *object, const char *, ConsoleValueRef data )
 {
-   if(data == NULL)
+   if(data.isNull())
       return true;
 
    InteriorInstance *inst = static_cast<InteriorInstance *>(object);

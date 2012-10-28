@@ -330,29 +330,29 @@ class SimObject: public ConsoleObject
 
       /// @}
 
-      static bool _setCanSave( void *object, const char *index, ConsoleValue *data );
-      static ConsoleValue* _getCanSave( void *object, ConsoleValue *data );
+      static bool _setCanSave( void *object, const char *index, ConsoleValueRef data );
+      static ConsoleValue* _getCanSave( void *object, ConsoleValueRef data );
       
-      static ConsoleValue* _getHidden( void *object, ConsoleValue *data )
+      static ConsoleValue* _getHidden( void *object, ConsoleValueRef data )
          { if( static_cast< SimObject* >( object )->isHidden() ) return Con::getReturnValue("1"); return Con::getReturnValue("0"); }
-      static ConsoleValue* _getLocked( void *object, ConsoleValue *data )
+      static ConsoleValue* _getLocked( void *object, ConsoleValueRef data )
          { if( static_cast< SimObject* >( object )->isLocked() ) return Con::getReturnValue("1"); return Con::getReturnValue("0"); }
-      static bool _setHidden( void *object, const char *index, ConsoleValue *data )
+      static bool _setHidden( void *object, const char *index, ConsoleValueRef data )
          { static_cast< SimObject* >( object )->setHidden( dAtob( data->getStringValue() ) ); return false; }
-      static bool _setLocked( void *object, const char *index, ConsoleValue *data )
+      static bool _setLocked( void *object, const char *index, ConsoleValueRef data )
          { static_cast< SimObject* >( object )->setLocked( dAtob( data->getStringValue() ) ); return false; }
 
       // Namespace protected set methods
-      static bool setClass( void *object, const char *index, ConsoleValue *data )
+      static bool setClass( void *object, const char *index, ConsoleValueRef data )
          { static_cast<SimObject*>(object)->setClassNamespace(data->getStringValue()); return false; };
-      static bool setSuperClass(void *object, const char *index, ConsoleValue *data)     
+      static bool setSuperClass(void *object, const char *index, ConsoleValueRef data)     
          { static_cast<SimObject*>(object)->setSuperClassNamespace(data->getStringValue()); return false; };
 
       // Group hierarchy protected set method 
-      static bool setProtectedParent(void *object, const char *index, ConsoleValue *data);
+      static bool setProtectedParent(void *object, const char *index, ConsoleValueRef data);
 
       // Object name protected set method
-      static bool setProtectedName(void *object, const char *index, ConsoleValue *data);
+      static bool setProtectedName(void *object, const char *index, ConsoleValueRef data);
 
    protected:
    
@@ -380,7 +380,7 @@ class SimObject: public ConsoleObject
       /// object in serializations regardless of stream object ordering.
       SimPersistID* mPersistentId;
       
-      static bool _setPersistentID( void *object, const char *index, ConsoleValue *data );
+      static bool _setPersistentID( void *object, const char *index, ConsoleValueRef data );
          
       /// @}
       
@@ -759,6 +759,7 @@ class SimObject: public ConsoleObject
       /// @param   fiedname The name of the field being written.
       /// @param   value The value of the field.
       virtual bool writeField(StringTableEntry fieldname, const char* value);
+      virtual bool writeFieldValue(StringTableEntry fieldname, ConsoleValue* value);
 
       /// Output the TorqueScript to recreate this object.
       ///

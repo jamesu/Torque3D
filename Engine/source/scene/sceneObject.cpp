@@ -583,7 +583,7 @@ void SceneObject::initPersistFields()
 
 //-----------------------------------------------------------------------------
 
-bool SceneObject::_setFieldPosition( void *object, const char *index, ConsoleValue *data )
+bool SceneObject::_setFieldPosition( void *object, const char *index, ConsoleValueRef data )
 {
    SceneObject* so = static_cast<SceneObject*>( object );
    if ( so )
@@ -599,7 +599,7 @@ bool SceneObject::_setFieldPosition( void *object, const char *index, ConsoleVal
 
 //-----------------------------------------------------------------------------
 
-bool SceneObject::_setFieldRotation( void *object, const char *index, ConsoleValue *data )
+bool SceneObject::_setFieldRotation( void *object, const char *index, ConsoleValueRef data )
 {
    SceneObject* so = static_cast<SceneObject*>( object );
    if ( so )
@@ -615,7 +615,7 @@ bool SceneObject::_setFieldRotation( void *object, const char *index, ConsoleVal
 
 //-----------------------------------------------------------------------------
 
-bool SceneObject::_setFieldScale( void *object, const char *index, ConsoleValue *data )
+bool SceneObject::_setFieldScale( void *object, const char *index, ConsoleValueRef data )
 {
    SceneObject* so = static_cast<SceneObject*>( object );
    if ( so )
@@ -711,7 +711,7 @@ void SceneObject::setRenderEnabled( bool value )
 
 //-----------------------------------------------------------------------------
 
-ConsoleValue* SceneObject::_getRenderEnabled( void *object, ConsoleValue *data )
+ConsoleValue* SceneObject::_getRenderEnabled( void *object, ConsoleValueRef data )
 {
    SceneObject* obj = reinterpret_cast< SceneObject* >( object );
    if( obj->mObjectFlags.test( RenderEnabledFlag ) )
@@ -722,7 +722,7 @@ ConsoleValue* SceneObject::_getRenderEnabled( void *object, ConsoleValue *data )
 
 //-----------------------------------------------------------------------------
 
-bool SceneObject::_setRenderEnabled( void *object, const char *index, ConsoleValue *data )
+bool SceneObject::_setRenderEnabled( void *object, const char *index, ConsoleValueRef data )
 {
    SceneObject* obj = reinterpret_cast< SceneObject* >( object );
    obj->setRenderEnabled( dAtob( data->getStringValue() ) );
@@ -751,7 +751,7 @@ void SceneObject::setSelectionEnabled( bool value )
 
 //-----------------------------------------------------------------------------
 
-ConsoleValue* SceneObject::_getSelectionEnabled( void *object, ConsoleValue *data )
+ConsoleValue* SceneObject::_getSelectionEnabled( void *object, ConsoleValueRef data )
 {
    SceneObject* obj = reinterpret_cast< SceneObject* >( object );
    if( obj->mObjectFlags.test( SelectionEnabledFlag ) )
@@ -762,7 +762,7 @@ ConsoleValue* SceneObject::_getSelectionEnabled( void *object, ConsoleValue *dat
 
 //-----------------------------------------------------------------------------
 
-bool SceneObject::_setSelectionEnabled( void *object, const char *index, ConsoleValue *data )
+bool SceneObject::_setSelectionEnabled( void *object, const char *index, ConsoleValueRef data )
 {
    SceneObject* obj = reinterpret_cast< SceneObject* >( object );
    obj->setSelectionEnabled( dAtob( data->getStringValue() ) );
@@ -1020,7 +1020,7 @@ SceneObject* SceneObject::getMountNodeObject(S32 node)
 
 //-----------------------------------------------------------------------------
 
-bool SceneObject::_setMountPID( void *object, const char *index, ConsoleValue *data )
+bool SceneObject::_setMountPID( void *object, const char *index, ConsoleValueRef data )
 {
    SceneObject* so = static_cast<SceneObject*>( object );
    if ( so )

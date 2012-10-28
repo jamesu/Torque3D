@@ -129,23 +129,23 @@ protected:
    // Mounted objects
    Vector<MountedShape*>   mMounts;
 
-   static bool setFieldCurrentDL( void *object, const char *index, ConsoleValue *data );
-   static bool setFieldSunDiffuse( void *object, const char *index, ConsoleValue *data );
-   static bool setFieldSunAmbient( void *object, const char *index, ConsoleValue *data );
-   static bool setFieldSunAngleX( void *object, const char *index, ConsoleValue *data );
-   static bool setFieldSunAngleZ( void *object, const char *index, ConsoleValue *data );
+   static bool setFieldCurrentDL( void *object, const char *index, ConsoleValueRef data );
+   static bool setFieldSunDiffuse( void *object, const char *index, ConsoleValueRef data );
+   static bool setFieldSunAmbient( void *object, const char *index, ConsoleValueRef data );
+   static bool setFieldSunAngleX( void *object, const char *index, ConsoleValueRef data );
+   static bool setFieldSunAngleZ( void *object, const char *index, ConsoleValueRef data );
 
-   static bool setFieldThreadPos( void *object, const char *index, ConsoleValue *data );
-   static bool setFieldThreadIn( void *object, const char *index, ConsoleValue *data );
-   static bool setFieldThreadOut( void *object, const char *index, ConsoleValue *data );
-   static bool setFieldThreadDir( void *object, const char *index, ConsoleValue *data );
-   static bool setFieldThreadPingPong( void *object, const char *index, ConsoleValue *data );
+   static bool setFieldThreadPos( void *object, const char *index, ConsoleValueRef data );
+   static bool setFieldThreadIn( void *object, const char *index, ConsoleValueRef data );
+   static bool setFieldThreadOut( void *object, const char *index, ConsoleValueRef data );
+   static bool setFieldThreadDir( void *object, const char *index, ConsoleValueRef data );
+   static bool setFieldThreadPingPong( void *object, const char *index, ConsoleValueRef data );
 
-   static ConsoleValue *getFieldThreadPos( void *object, ConsoleValue *data );
-   static ConsoleValue *getFieldThreadIn( void *object, ConsoleValue *data );
-   static ConsoleValue *getFieldThreadOut( void *object, ConsoleValue *data );
-   static ConsoleValue *getFieldThreadDir( void *object, ConsoleValue *data );
-   static ConsoleValue *getFieldThreadPingPong( void *object, ConsoleValue *data );
+   static ConsoleValue *getFieldThreadPos( void *object, ConsoleValueRef data );
+   static ConsoleValue *getFieldThreadIn( void *object, ConsoleValueRef data );
+   static ConsoleValue *getFieldThreadOut( void *object, ConsoleValueRef data );
+   static ConsoleValue *getFieldThreadDir( void *object, ConsoleValueRef data );
+   static ConsoleValue *getFieldThreadPingPong( void *object, ConsoleValueRef data );
 
    // Generic mouse event handlers
    void handleMouseDown(const GuiEvent& event, GizmoMode mode);

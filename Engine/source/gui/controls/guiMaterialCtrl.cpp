@@ -73,7 +73,7 @@ void GuiMaterialCtrl::onSleep()
    Parent::onSleep();
 }
 
-bool GuiMaterialCtrl::_setMaterial( void *object, const char *index, ConsoleValue *data )
+bool GuiMaterialCtrl::_setMaterial( void *object, const char *index, ConsoleValueRef data )
 {
    static_cast<GuiMaterialCtrl *>( object )->setMaterial( data->getStringValue() );
 

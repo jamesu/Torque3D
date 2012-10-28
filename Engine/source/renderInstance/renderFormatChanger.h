@@ -74,11 +74,11 @@ protected:
    void _onTextureEvent( GFXTexCallbackCode code );
    virtual bool _handleGFXEvent(GFXDevice::GFXDeviceEventType event);
 
-   static bool _setFmt( void *object, const char *index, ConsoleValue *data );
-   static ConsoleValue* _getCopyPostEffect( void *object, ConsoleValue *data );
-   static ConsoleValue* _getResolvePostEffect( void *object, ConsoleValue *data );
-   static bool _setCopyPostEffect( void *object, const char *index, ConsoleValue *data );
-   static bool _setResolvePostEffect( void *object, const char *index, ConsoleValue *data );
+   static bool _setFmt( void *object, const char *index, ConsoleValueRef data );
+   static ConsoleValue* _getCopyPostEffect( void *object, ConsoleValueRef data );
+   static ConsoleValue* _getResolvePostEffect( void *object, ConsoleValueRef data );
+   static bool _setCopyPostEffect( void *object, const char *index, ConsoleValueRef data );
+   static bool _setResolvePostEffect( void *object, const char *index, ConsoleValueRef data );
    
 public:
 

@@ -498,7 +498,7 @@ void WaterBlock::innerRender( SceneRenderState *state )
    }   
 }
 
-bool WaterBlock::setGridSizeProperty( void *object, const char *index, ConsoleValue *data )
+bool WaterBlock::setGridSizeProperty( void *object, const char *index, ConsoleValueRef data )
 {
    WaterBlock* waterblock = static_cast<WaterBlock*>(object);
    F32 gridSize = data->getFloatValue();

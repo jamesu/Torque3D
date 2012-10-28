@@ -143,8 +143,8 @@ class Camera: public ShapeBase
       void _calcOrbitPoint( MatrixF* mat, const Point3F& rot );
       void _calcEditOrbitPoint( MatrixF *mat, const Point3F& rot );
 
-      static bool _setModeField( void *object, const char *index, ConsoleValue *data );
-      static bool _setNewtonField( void *object, const char *index, ConsoleValue *data );
+      static bool _setModeField( void *object, const char *index, ConsoleValueRef data );
+      static bool _setNewtonField( void *object, const char *index, ConsoleValueRef data );
 
       // ShapeBase.
       virtual F32 getCameraFov();

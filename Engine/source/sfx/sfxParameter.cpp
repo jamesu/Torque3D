@@ -149,7 +149,7 @@ void SFXParameter::initPersistFields()
 
 //-----------------------------------------------------------------------------
 
-bool SFXParameter::_setValue( void *object, const char *index, ConsoleValue *data )
+bool SFXParameter::_setValue( void *object, const char *index, ConsoleValueRef data )
 {
    reinterpret_cast< SFXParameter* >( object )->setValue( data->getFloatValue() );
    return false;
@@ -157,7 +157,7 @@ bool SFXParameter::_setValue( void *object, const char *index, ConsoleValue *dat
 
 //-----------------------------------------------------------------------------
 
-bool SFXParameter::_setRange( void *object, const char *index, ConsoleValue *data )
+bool SFXParameter::_setRange( void *object, const char *index, ConsoleValueRef data )
 {
    Point2F range = EngineUnmarshallData< Point2F >()( data->getStringValue() );
    reinterpret_cast< SFXParameter* >( object )->setRange( range );
@@ -166,7 +166,7 @@ bool SFXParameter::_setRange( void *object, const char *index, ConsoleValue *dat
 
 //-----------------------------------------------------------------------------
 
-bool SFXParameter::_setChannel( void *object, const char *index, ConsoleValue *data )
+bool SFXParameter::_setChannel( void *object, const char *index, ConsoleValueRef data )
 {
    SFXChannel channel = EngineUnmarshallData< SFXChannel >()( data->getStringValue() );
    reinterpret_cast< SFXParameter* >( object )->setChannel( channel );
@@ -175,7 +175,7 @@ bool SFXParameter::_setChannel( void *object, const char *index, ConsoleValue *d
 
 //-----------------------------------------------------------------------------
 
-bool SFXParameter::_setDefaultValue( void *object, const char *index, ConsoleValue *data )
+bool SFXParameter::_setDefaultValue( void *object, const char *index, ConsoleValueRef data )
 {
    reinterpret_cast< SFXParameter* >( object )->setDefaultValue( data->getFloatValue() );
    return false;

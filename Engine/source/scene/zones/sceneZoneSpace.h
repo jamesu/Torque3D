@@ -292,7 +292,7 @@ class SceneZoneSpace : public SceneSpace
 
    private:
 
-      static bool _setZoneGroup( void *object, const char *index, ConsoleValue *data );
+      static bool _setZoneGroup( void *object, const char *index, ConsoleValueRef data );
 };
 
 #endif // !_SCENEZONESPACE_H_

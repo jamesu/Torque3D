@@ -465,11 +465,11 @@ public:
 protected:
    GuiControlProfile* mChildrenProfile;         ///< Profile used with children controls (such as the scroll bar on a popup menu) when defined.
 
-   static bool protectedSetBitmap( void *object, const char *index, ConsoleValue *data );
-   static bool protectedSetSoundButtonDown( void *object, const char *index, ConsoleValue *data );
-   static bool protectedSetSoundButtonOver( void *object, const char *index, ConsoleValue *data );
-   static ConsoleValue* protectedGetSoundButtonDown( void *object, ConsoleValue *data );
-   static ConsoleValue* protectedGetSoundButtonOver( void *object, ConsoleValue *data );
+   static bool protectedSetBitmap( void *object, const char *index, ConsoleValueRef data );
+   static bool protectedSetSoundButtonDown( void *object, const char *index, ConsoleValueRef data );
+   static bool protectedSetSoundButtonOver( void *object, const char *index, ConsoleValueRef data );
+   static ConsoleValue* protectedGetSoundButtonDown( void *object, ConsoleValueRef data );
+   static ConsoleValue* protectedGetSoundButtonOver( void *object, ConsoleValueRef data );
 
 public:
    DECLARE_CONOBJECT(GuiControlProfile);

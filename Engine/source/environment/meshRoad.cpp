@@ -677,7 +677,7 @@ void MeshRoad::consoleInit()
 	   "@ingroup Editors\n");
 }
 
-bool MeshRoad::addNodeFromField( void *object, const char *index, ConsoleValue *data )
+bool MeshRoad::addNodeFromField( void *object, const char *index, ConsoleValueRef data )
 {
    MeshRoad *pObj = static_cast<MeshRoad*>(object);
 

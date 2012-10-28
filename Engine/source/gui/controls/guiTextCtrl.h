@@ -69,9 +69,9 @@ public:
    const char *getText() { return (const char*)mText; }
 
    // Text Property Accessors
-   static bool setTextProperty(void *object, const char *index, ConsoleValue *data) 
+   static bool setTextProperty(void *object, const char *index, ConsoleValueRef data) 
       { static_cast<GuiTextCtrl*>(object)->setText(data->getStringValue()); return true; }
-   static ConsoleValue* getTextProperty(void* obj, ConsoleValue* data) 
+   static ConsoleValue* getTextProperty(void* obj, ConsoleValueRef data) 
       { return Con::getReturnValue(static_cast<GuiTextCtrl*>(obj)->getText()); }
 
 

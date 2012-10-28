@@ -48,8 +48,8 @@ private:
    BaseMatInstance* mOverrideInstance;
    SimObjectPtr<Material> mOverrideMaterial;
    
-   static ConsoleValue* _getOverrideMat( void *object, ConsoleValue *data );
-   static bool _setOverrideMat( void *object, const char *index, ConsoleValue *data );
+   static ConsoleValue* _getOverrideMat( void *object, ConsoleValueRef data );
+   static bool _setOverrideMat( void *object, const char *index, ConsoleValueRef data );
 };
 
 #endif

@@ -165,17 +165,23 @@ public:
    };
    
    U32 getIntValue();
+   S32 getSignedIntValue();
    
    F32 getFloatValue();
    
    const char *getStringValue();
+
+   bool getBoolValue();
    
    void setIntValue(U32 val);
+   void setIntValue(S32 val);
 
    void setFloatValue(F32 val);
    
    void setStringValue(const char *value);
    void setStackStringValue(const char *value);
+
+   void setBoolValue(bool val);
 
    // Changes the variable to a custom type. Allocated data will be 
    void setCustomType(StringTableEntry type);
@@ -184,7 +190,7 @@ public:
    void copyInto(ConsoleValue &other);
 
    bool isNull() {
-      return type == TypeInternalString && sval == typeValueEmpty;
+      return type == TypeInternalString && (sval == typeValueEmpty || !sval[0]);
    }
 
    ConsoleValue() : type(TypeInternalString), sval(0) {;}
@@ -198,6 +204,10 @@ public:
       sval = typeValueEmpty;
       bufferLen = 0;
    }
+
+   
+   // TODO: cleanup should not free string unless it makes sense
+
    
    void cleanup()
    {
@@ -221,6 +231,10 @@ public:
 // Proxy class for console variables
 // Can point to existing console variables,
 // or act like a free floating value.
+//
+// By default any values will be pushed to the console value stack which
+// is usually popped by the console code upon evaluation.
+//
 class ConsoleValueRef
 {
 public:
@@ -228,6 +242,7 @@ public:
    const char *stringStackValue;
 
    ConsoleValueRef() : value(0), stringStackValue(0) { ; }
+   ConsoleValueRef(ConsoleValue *value) : value(value), stringStackValue(0) { ; }
    ~ConsoleValueRef() { ; }
 
    ConsoleValueRef(const ConsoleValueRef &ref);
@@ -240,25 +255,28 @@ public:
    const char *getStringValue() { return value ? value->getStringValue() : ""; }
    const char *getStringArgValue();
 
-   inline S32 getIntValue() { return value ? value->getIntValue() : 0; }
+   inline U32 getIntValue() { return value ? value->getSignedIntValue() : 0; }
+   inline S32 getSignedIntValue() { return value ? value->getSignedIntValue() : 0; }
    inline F32 getFloatValue() { return value ? value->getFloatValue() : 0.0f; }
+   inline bool getBoolValue() { return value ? value->getBoolValue() : false; }
 
    inline operator const char*() { return getStringValue(); }
    inline operator String() { return String(getStringValue()); }
-   inline operator S32() { return getIntValue(); }
+   inline operator U32() { return getIntValue(); }
+   inline operator S32() { return getSignedIntValue(); }
    inline operator F32() { return getFloatValue(); }
+   inline operator ConsoleValue*() { return value; }
+   inline ConsoleValue* operator->() { return value; }
+
 
    inline bool isString() { return value ? value->type >= ConsoleValue::TypeInternalStackString : true; }
    inline bool isInt() { return value ? value->type == ConsoleValue::TypeInternalInt : false; }
    inline bool isFloat() { return value ? value->type == ConsoleValue::TypeInternalFloat : false; }
-   inline bool isNull() { return value; }
+   inline bool isNull() { return value ? value->isNull() : true; }
+   inline bool isAdvanced() { return value ? value->type > 0 : false; }
 
    // Note: operators replace value
    ConsoleValueRef& operator=(const ConsoleValueRef &other);
-   ConsoleValueRef& operator=(const char *newValue);
-   ConsoleValueRef& operator=(S32 newValue);
-   ConsoleValueRef& operator=(F32 newValue);
-   ConsoleValueRef& operator=(F64 newValue);
 };
 
 // Overrides to allow ConsoleValueRefs to be directly converted to S32&F32
@@ -271,6 +289,11 @@ inline S32 dAtoi(ConsoleValueRef &ref)
 inline F32 dAtof(ConsoleValueRef &ref)
 {
    return ref.getFloatValue();
+}
+
+inline bool dAtob(ConsoleValue &ref)
+{
+   return ref.getBoolValue();
 }
 
 
@@ -843,9 +866,12 @@ namespace Con
    char* getReturnBuffer( const StringBuilder& str );
 
    ConsoleValue *getReturnValue( const char *value );
+   ConsoleValue *getStackReturnValue( const char *value );
    ConsoleValue *getReturnValue( ConsoleValue &value );
    ConsoleValue *getReturnValue( F32 value );
+   ConsoleValue *getReturnValue( U32 value );
    ConsoleValue *getReturnValue( S32 value );
+   ConsoleValue *getReturnBoolValue( bool value );
 
    char* getArgBuffer(U32 bufferSize);
    ConsoleValueRef getFloatArg(F64 arg);

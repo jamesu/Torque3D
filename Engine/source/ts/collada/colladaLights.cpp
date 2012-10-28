@@ -168,7 +168,7 @@ ConsoleFunction( loadColladaLights, bool, 2, 4,
    // the MissionGroup if not specified.
    SimGroup* missionGroup = dynamic_cast<SimGroup*>(Sim::findObject("MissionGroup"));
    SimGroup* group = 0;
-   if ((argc > 2) && (argv[2][0])) {
+   if ((argc > 2) && (!argv[2].isNull())) {
       if (!Sim::findObject(argv[2], group)) {
          // Create the group if it could not be found
          group = new SimGroup;

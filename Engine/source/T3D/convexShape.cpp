@@ -198,7 +198,7 @@ static const ColorI sgConvexFaceColors[ sgConvexFaceColorCount ] =
 
 bool ConvexShape::smRenderEdges = false;
 
-bool ConvexShape::protectedSetSurface( void *object, const char *index, ConsoleValue *cData )
+bool ConvexShape::protectedSetSurface( void *object, const char *index, ConsoleValueRef cData )
 {
    ConvexShape *shape = static_cast< ConvexShape* >( object );
    const char *data = cData->getStringValue();

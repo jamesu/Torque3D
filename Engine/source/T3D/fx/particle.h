@@ -79,7 +79,7 @@ class ParticleData : public SimDataBlock
    StringTableEntry  textureName;
    GFXTexHandle      textureHandle;
 
-   static bool protectedSetTimes( void *object, const char *index, ConsoleValue *data );
+   static bool protectedSetTimes( void *object, const char *index, ConsoleValueRef data );
 
   public:
    ParticleData();

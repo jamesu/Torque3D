@@ -69,7 +69,7 @@ GuiFormCtrl::~GuiFormCtrl()
       mMenuBar->deleteObject();
 }
 
-bool GuiFormCtrl::_setHasMenu( void *object, const char *index, ConsoleValue *data )
+bool GuiFormCtrl::_setHasMenu( void *object, const char *index, ConsoleValueRef data )
 {
    GuiFormCtrl* ctrl = reinterpret_cast< GuiFormCtrl* >( object );
    ctrl->setHasMenu( dAtob( data->getStringValue() ) );

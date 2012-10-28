@@ -296,15 +296,13 @@ ImplementConsoleTypeCasters( TypeS8, S8 )
 
 ConsoleGetType( TypeS8 )
 {
-   char returnBuffer[256];
-   dSprintf(returnBuffer, 256, "%d", *((U8 *) dptr) );
-   return Con::getReturnValue(returnBuffer);
+   return Con::getReturnValue(*((S8 *) dptr));
 }
 
 ConsoleSetType( TypeS8 )
 {
    if(argc == 1)
-      *((U8 *) dptr) = argv[0]->getIntValue();
+      *((U8 *) dptr) = argv[0]->getSignedIntValue();
    else
       Con::printf("(TypeU8) Cannot set multiple args to a single S8.");
 }
@@ -317,15 +315,13 @@ ImplementConsoleTypeCasters(TypeS32, S32)
 
 ConsoleGetType( TypeS32 )
 {
-   char returnBuffer[256];
-   dSprintf(returnBuffer, 256, "%d", *((S32 *) dptr) );
-   return Con::getReturnValue(returnBuffer);
+   return Con::getReturnValue(*((S32 *) dptr));
 }
 
 ConsoleSetType( TypeS32 )
 {
    if(argc == 1)
-      *((S32 *) dptr) = argv[0]->getIntValue();
+      *((S32 *) dptr) = argv[0]->getSignedIntValue();
    else
       Con::printf("(TypeS32) Cannot set multiple args to a single S32.");
 }
@@ -396,9 +392,7 @@ ImplementConsoleTypeCasters(TypeF32, F32)
 
 ConsoleGetType( TypeF32 )
 {
-   char returnBuffer[256];
-   dSprintf(returnBuffer, 256, "%g", *((F32 *) dptr) );
-   return Con::getReturnValue(returnBuffer);
+   return Con::getReturnValue(*((F32 *) dptr));
 }
 ConsoleSetType( TypeF32 )
 {
@@ -473,13 +467,13 @@ ImplementConsoleTypeCasters( TypeBool, bool )
 
 ConsoleGetType( TypeBool )
 {
-   return Con::getReturnValue(*((bool *) dptr) ? "1" : "0");
+   return Con::getReturnBoolValue(*((bool *) dptr));
 }
 
 ConsoleSetType( TypeBool )
 {
    if(argc == 1)
-      *((bool *) dptr) = dAtob(argv[0]->getStringValue());
+      *((bool *) dptr) = dAtob(argv[0]);
    else
       Con::printf("(TypeBool) Cannot set multiple args to a single bool.");
 }

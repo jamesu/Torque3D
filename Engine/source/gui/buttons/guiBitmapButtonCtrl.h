@@ -118,8 +118,8 @@ class GuiBitmapButtonCtrl : public GuiButtonCtrl
       
       virtual void renderButton( GFXTexHandle &texture, const Point2I& offset, const RectI& updateRect );
       
-      static bool _setAutoFitExtents( void *object, const char *index, ConsoleValue *data );
-      static bool _setBitmap( void *object, const char *index, ConsoleValue *data );
+      static bool _setAutoFitExtents( void *object, const char *index, ConsoleValueRef data );
+      static bool _setBitmap( void *object, const char *index, ConsoleValueRef data );
       
       State getState() const
       {

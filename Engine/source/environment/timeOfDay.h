@@ -155,9 +155,9 @@ protected:
 	  // Grab our sun and sky colors based upon sun elevation.
    void _getSunColor( ColorF *outColor ) const;
 
-   static bool setTimeOfDay( void *object, const char *index, ConsoleValue *data );
-   static bool setPlay( void *object, const char *index, ConsoleValue *data );
-   static bool setDayLength( void *object, const char *index, ConsoleValue *data );
+   static bool setTimeOfDay( void *object, const char *index, ConsoleValueRef data );
+   static bool setPlay( void *object, const char *index, ConsoleValueRef data );
+   static bool setDayLength( void *object, const char *index, ConsoleValueRef data );
 
    /*
 	// Get a pointer to the sun's light object

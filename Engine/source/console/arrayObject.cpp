@@ -147,7 +147,7 @@ void ArrayObject::initPersistFields()
 
 //-----------------------------------------------------------------------------
 
-bool ArrayObject::_addKeyFromField( void *object, const char *index, ConsoleValue *data )
+bool ArrayObject::_addKeyFromField( void *object, const char *index, ConsoleValueRef data )
 {
    static_cast<ArrayObject*>( object )->push_back( index, data->getStringValue() );
    return false;
