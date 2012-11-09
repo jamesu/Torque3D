@@ -515,8 +515,12 @@ stmt_expr
       { $$ = $1; }
    | VAR '=' expr
       { $$ = AssignExprNode::alloc( $1.lineNumber, $1.value, NULL, $3); }
+   | VAR '=' '{' expr_list '}'
+      { $$ = AssignExprNode::alloc( $1.lineNumber, $1.value, NULL, ArrayNode::alloc( $1.lineNumber, $4 ) ); }
    | VAR '[' aidx_expr ']' '=' expr
       { $$ = AssignExprNode::alloc( $1.lineNumber, $1.value, $3, $6); }
+   | VAR '[' aidx_expr ']' '=' '{' expr_list '}'
+      { $$ = AssignExprNode::alloc( $1.lineNumber, $1.value, $3, ArrayNode::alloc( $1.lineNumber, $7 )); }
    | VAR assign_op_struct
       { $$ = AssignOpExprNode::alloc( $1.lineNumber, $1.value, NULL, $2.expr, $2.token); }
    | VAR '[' aidx_expr ']' assign_op_struct
@@ -526,7 +530,7 @@ stmt_expr
    | slot_acc '=' expr
       { $$ = SlotAssignNode::alloc( $1.lineNumber, $1.object, $1.array, $1.slotName, $3); }
    | slot_acc '=' '{' expr_list '}'
-      { $$ = SlotAssignNode::alloc( $1.lineNumber, $1.object, $1.array, $1.slotName, $4); }
+      { $$ = SlotAssignNode::alloc( $1.lineNumber, $1.object, $1.array, $1.slotName, ArrayNode::alloc($1.lineNumber, $4)); }
    ;
 
 funcall_expr
@@ -550,6 +554,8 @@ expr_list_decl
       { $$ = NULL; }
    | expr_list
       { $$ = $1; }
+   | '{' expr_list '}'
+      { $$ = ArrayNode::alloc( $1.lineNumber, $2 ); }
    ;
 
 expr_list
@@ -593,4 +599,3 @@ aidx_expr
       { $$ = CommaCatExprNode::alloc( $1->dbgLineNumber, $1, $3); }
    ;
 %%
-

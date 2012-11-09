@@ -332,18 +332,36 @@ public:
          return value.getFloatValue();
       }
 
+      inline ConsoleValue* getValue()
+      {
+         return &value;
+      }
+
       inline const char *getStringValue()
       {
          return value.getStringValue();
       }
 
-      void setIntValue(U32 val)
+      inline bool checkCanChange()
       {
          if( mIsConstant )
          {
             Con::errorf( "Cannot assign value to constant '%s'.", name );
-            return;
+            return false;
          }
+         return true;
+      }
+
+      void notifyChanged()
+      {
+         if ( notify )
+            notify->trigger();
+      }
+
+      void setIntValue(U32 val)
+      {
+         if(!checkCanChange())
+            return;
          
          value.setIntValue(val);
 
@@ -354,6 +372,9 @@ public:
 
       void setFloatValue(F32 val)
       {
+         if(!checkCanChange())
+            return;
+
          if( mIsConstant )
          {
             Con::errorf( "Cannot assign value to constant '%s'.", name );
@@ -369,6 +390,9 @@ public:
 
       void setStringValue(const char *newValue)
       {
+         if(!checkCanChange())
+            return;
+
          if( mIsConstant )
          {
             Con::errorf( "Cannot assign value to constant '%s'.", name );
@@ -376,6 +400,25 @@ public:
          }
          
          value.setStringValue(newValue);
+         
+         
+         // Fire off the notification if we have one.
+         if ( notify )
+            notify->trigger();
+      }
+
+      void setArrayValue(Vector<ConsoleValue> &newValue)
+      {
+         if(!checkCanChange())
+            return;
+
+         if( mIsConstant )
+         {
+            Con::errorf( "Cannot assign value to constant '%s'.", name );
+            return;
+         }
+         
+         value.setArrayValue(newValue);
          
          
          // Fire off the notification if we have one.
@@ -465,6 +508,7 @@ public:
    SimObject *thisObject;
    Dictionary::Entry *currentVariable;
    Dictionary::Entry *copyVariable;
+   int currentVariableIndex;
    bool traceOn;
 
    U32 mStackDepth;
@@ -486,6 +530,8 @@ public:
 
    void setCurVarName(StringTableEntry name);
    void setCurVarNameCreate(StringTableEntry name);
+   Dictionary::Entry *lookupVariable(StringTableEntry name);
+   ConsoleValue *getActiveValue();
 
    S32 getIntVariable();
    F64 getFloatVariable();
@@ -493,6 +539,7 @@ public:
    void setIntVariable(S32 val);
    void setFloatVariable(F64 val);
    void setStringVariable(const char *str);
+   void setArrayValue(Vector<ConsoleValue> &val);
    void setCopyVariable();
 
    void pushFrame(StringTableEntry frameName, Namespace *ns);

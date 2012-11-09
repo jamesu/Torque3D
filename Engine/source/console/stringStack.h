@@ -273,6 +273,7 @@ struct StringStack
 
    void popFrame()
    {
+      AssertFatal(mNumFrames != 0, "Popping frame too much"); 
       mStartStackSize = mFrameOffsets[--mNumFrames];
       mStart = mStartOffsets[mStartStackSize];
       mLen = 0;
@@ -297,13 +298,14 @@ public:
    ~ConsoleValueStack();
 
    void pushVar(ConsoleValue *variable);
-   void pushValue(ConsoleValue &value);
+   ConsoleValue* pushValue(ConsoleValue &value);
    ConsoleValue* pop();
 
-   ConsoleValue *pushString(const char *value);
-   ConsoleValue *pushStackString(const char *value);
-   ConsoleValue *pushUINT(U32 value);
-   ConsoleValue *pushFLT(float value);
+   ConsoleValue* pushString(const char *value);
+   ConsoleValue* pushStackString(const char *value);
+   ConsoleValue* pushUINT(U32 value);
+   ConsoleValue* pushFLT(float value);
+   ConsoleValue* pushArray(Vector<ConsoleValue> &value);
 
    void pushFrame();
    void popFrame();
@@ -311,6 +313,7 @@ public:
    void resetFrame();
 
    void getArgcArgv(StringTableEntry name, U32 *argc, ConsoleValueRef **in_argv, bool popStackFrame = false);
+   void getArrayElements(Vector<ConsoleValue> &dest);
 
    ConsoleValue mStack[MaxStackDepth];
    U32 mStackFrames[MaxStackDepth];

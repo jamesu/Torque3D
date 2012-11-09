@@ -349,9 +349,7 @@ bool TSShapeConstructor::onAdd()
          // then we would have unexpanded ~/ in the file paths.
          String expanded;
          value.setStackStringValue(expanded.c_str());
-         ConsoleValueRef ref;
-         ref.value = &value;
-         Con::setDataValue( TypeStringFilename, &expanded, 0, 1, &ref );
+         Con::setDataValue( TypeStringFilename, &expanded, 0, &value );
          value.setStackStringValue(expanded.c_str());
          addSequenceFromField( this, NULL, &value );
       }

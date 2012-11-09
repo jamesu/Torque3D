@@ -330,9 +330,6 @@ void SimObject::writeFields(Stream &stream, U32 tabStop)
          char array[8];
          dSprintf( array, 8, "%d", j );
 
-         if (dStrcmp(f->pFieldname, "groupNum") == 0) {
-           int bug = 1;
-         }
          ConsoleValueRef val = getDataFieldValue(StringTable->insert( f->pFieldname ), array );
 
 
@@ -533,9 +530,7 @@ bool SimObject::_setPersistentID( void *object, const char *index, ConsoleValueR
    }
 
    SimPersistID* pid;
-   ConsoleValueRef ref;
-   ref.value = data;
-   Con::setDataValue( TypePID, &pid, 0, 1, &ref );
+   Con::setDataValue( TypePID, &pid, 0, data );
    if ( !pid )
       return false;
 
@@ -893,7 +888,7 @@ void SimObject::assignFieldsFrom(SimObject *parent)
             }
 
             if((*f->setDataFn)( this, NULL, fieldRef ) )
-               Con::setDataValue(f->type, (void *) (((const char *)this) + f->offset), j, 1, &fieldRef, f->table);
+               Con::setDataValue(f->type, (void *) (((const char *)this) + f->offset), j, fieldRef, f->table);
          }
       }
    }
@@ -948,7 +943,7 @@ void SimObject::setDataField(StringTableEntry slotName, const char *array, const
 
 
             if( (*fld->setDataFn)( this, array, &value ) )
-               Con::setDataValue(fld->type, (void *) (((const char *)this) + fld->offset), array1, 1, &ref, fld->table);
+               Con::setDataValue(fld->type, (void *) (((const char *)this) + fld->offset), array1, ref, fld->table);
 
             if(fld->validator)
                fld->validator->validateType(this, (void *) (((const char *)this) + fld->offset));
@@ -1030,7 +1025,7 @@ void SimObject::setDataFieldValue(StringTableEntry slotName, const char *array, 
             }
 
             if( (*fld->setDataFn)( this, array, fieldRef ) )
-               Con::setDataValue(fld->type, (void *) (((const char *)this) + fld->offset), array1, 1, &fieldRef, fld->table);
+               Con::setDataValue(fld->type, (void *) (((const char *)this) + fld->offset), array1, fieldRef, fld->table);
 
             if(fld->validator)
                fld->validator->validateType(this, (void *) (((const char *)this) + fld->offset));

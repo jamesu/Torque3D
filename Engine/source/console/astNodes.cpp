@@ -55,6 +55,8 @@ namespace Compiler
 #ifdef DEBUG_AST_NODES
          if(temp > 1000)
             Con::printf("suspect %s '%s' line %d", walk->dbgStmtType().c_str(), walk->dbgFileName, walk->dbgLineNumber);
+
+         walk->expectedSize = temp;
 #endif
          sum += temp;
       }
@@ -64,7 +66,18 @@ namespace Compiler
    U32 compileBlock(StmtNode *block, U32 *codeStream, U32 ip, U32 continuePoint, U32 breakPoint)
    {
       for(StmtNode *walk = block; walk; walk = walk->getNext())
+      {
+#ifdef DEBUG_AST_NODES
+         U32 start = ip;
          ip = walk->compileStmt(codeStream, ip, continuePoint, breakPoint);
+         if (ip-start != walk->expectedSize) {
+            Con::printf("Mismatch %s '%s' line %d", walk->dbgStmtType().c_str(), walk->dbgFileName, walk->dbgLineNumber);
+            ip = walk->compileStmt(codeStream, start, continuePoint, breakPoint); // for debugging
+         }
+#else
+         ip = walk->compileStmt(codeStream, ip, continuePoint, breakPoint);
+#endif
+      }
       return ip;
    }
 }
@@ -188,6 +201,24 @@ static U32 conversionOp(TypeReq src, TypeReq dst)
          break;
       }
    }
+   else if(src == TypeReqArray)
+   {
+      switch(dst)
+      {
+      case TypeReqUInt:
+         return OP_ARRAY_TO_UINT;
+      case TypeReqFloat:
+         return OP_ARRAY_TO_FLT;
+      case TypeReqString:
+         return OP_ARRAY_TO_STR;
+      case TypeReqVar:
+         return OP_SAVEVAR_ARRAY;
+      case TypeReqNone:
+         return OP_ARRAY_TO_NONE;
+      default:
+         break;
+      }
+   }
    return OP_INVALID;
 }
 
@@ -261,7 +292,7 @@ U32 ReturnStmtNode::precompileStmt(U32)
    U32 size = 0;
    if (expr) {
       TypeReq walkType = expr->getPreferredType();
-	  if (walkType == TypeReqNone) walkType = TypeReqString;
+	   if (walkType == TypeReqNone) walkType = TypeReqString;
       size = expr->precompile(walkType);
    }
 
@@ -286,6 +317,12 @@ U32 ReturnStmtNode::compileStmt(U32 *codeStream, U32 ip, U32, U32)
       break;
       case TypeReqFloat:
          codeStream[ip++] = OP_RETURN_FLT;
+      break;
+      case TypeReqVar:
+         codeStream[ip++] = OP_RETURN_VAR;
+      break;
+      case TypeReqArray:
+         codeStream[ip++] = OP_RETURN_ARRAY;
       break;
       default:
          codeStream[ip++] = OP_RETURN;
@@ -541,6 +578,8 @@ U32 ConditionalExprNode::precompile(TypeReq type)
    // falseExpr
    U32 exprSize;
 
+   //AssertFatal(type != TypeReqVar, "Need a VAR?!");
+
    if(testExpr->getPreferredType() == TypeReqUInt)
    {
       exprSize = testExpr->precompile(TypeReqUInt);
@@ -572,7 +611,9 @@ U32 ConditionalExprNode::compile(U32 *codeStream, U32 ip, TypeReq type)
 
 TypeReq ConditionalExprNode::getPreferredType()
 {
-   return trueExpr->getPreferredType();
+   TypeReq trueReq = trueExpr->getPreferredType();
+   TypeReq falseReq = falseExpr->getPreferredType();
+   return (trueReq != falseReq && trueReq == TypeReqVar) ? TypeReqString : trueReq; // e.g. %var = expr ? %var : "str" @ "str2";
 }
 
 //------------------------------------------------------------
@@ -826,7 +867,7 @@ U32 IntUnaryExprNode::precompile(TypeReq type)
 {
    integer = true;
    TypeReq prefType = expr->getPreferredType();
-   if(op == '!' && (prefType == TypeReqFloat || prefType == TypeReqString))
+   if(op == '!' && (prefType == TypeReqFloat || prefType == TypeReqString || prefType == TypeReqVar))
       integer = false;
 
    U32 exprSize = expr->precompile(integer ? TypeReqUInt : TypeReqFloat);
@@ -844,7 +885,7 @@ U32 IntUnaryExprNode::compile(U32 *codeStream, U32 ip, TypeReq type)
    else if(op == '~')
       codeStream[ip++] = OP_ONESCOMPLEMENT;
    if(type != TypeReqUInt)
-      codeStream[ip++] =conversionOp(TypeReqUInt, type);
+      codeStream[ip++] = conversionOp(TypeReqUInt, type);
    return ip;
 }
 
@@ -899,7 +940,7 @@ U32 VarNode::precompile(TypeReq type)
       return 0;
 
    precompileIdent(varName);
-   return (arrayIndex ? arrayIndex->precompile(TypeReqString) + 6 : 3);
+   return (arrayIndex ? arrayIndex->precompile(TypeReqString) + 5 : 3);
 }
 
 // Puts value of VarNode onto StringStack/intStack/fltStack
@@ -916,7 +957,7 @@ U32 VarNode::compile(U32 *codeStream, U32 ip, TypeReq type)
       // NOTE: in this case we have the start value loaded into STR
       codeStream[ip++] = OP_ADVANCE_STR;
       ip = arrayIndex->compile(codeStream, ip, TypeReqString); // Add on extra bits
-      codeStream[ip++] = OP_REWIND_STR; // Go back to start
+      //codeStream[ip++] = OP_REWIND_STR; // Go back to start
       codeStream[ip++] = OP_SETCURVAR_ARRAY; // Set variable name
    }
    switch(type)
@@ -943,7 +984,96 @@ U32 VarNode::compile(U32 *codeStream, U32 ip, TypeReq type)
 
 TypeReq VarNode::getPreferredType()
 {
-   return TypeReqNone; // no preferred type
+   return TypeReqVar;
+}
+
+
+//------------------------------------------------------------
+
+U32 ArrayNode::precompile(TypeReq type)
+{
+   if (type == TypeReqNone)
+      return 0;
+
+   // {1,2,3}
+   // 
+   // OP_BEGIN_ARRAY 3
+   // OP_PUSH_UINT 1
+   // OP_PUSH_UINT 2
+   // OP_PUSH_UINT 3
+   // OP_LOAD_ARRAY
+   // [array conversion]
+   //
+
+   int size = 3;
+   numElements = 0;
+
+   for(ExprNode *walk = arrayItems; walk; walk = (ExprNode *) walk->getNext()) {
+      TypeReq walkType = walk->getPreferredType();
+      if (walkType == TypeReqNone) walkType = TypeReqString;
+      size += walk->precompile(walkType) + 1;
+      numElements++;
+   }
+   if (type != TypeReqArray)
+      size++;
+   return size;
+}
+
+U32 ArrayNode::compile(U32 *codeStream, U32 ip, TypeReq type)
+{
+   if (type == TypeReqNone)
+      return ip;
+
+   codeStream[ip++] = OP_BEGIN_ARRAY;
+   codeStream[ip++] = numElements;
+
+   for(ExprNode *walk = arrayItems; walk; walk = (ExprNode *) walk->getNext()) {
+      TypeReq walkType = walk->getPreferredType();
+      if (walkType == TypeReqNone) walkType = TypeReqString;
+      ip = walk->compile(codeStream, ip, walkType);
+      switch (walk->getPreferredType())
+      {
+         case TypeReqFloat:
+            codeStream[ip++] = OP_PUSH_FLT;
+            break;
+         case TypeReqUInt:
+            codeStream[ip++] = OP_PUSH_UINT;
+            break;
+         case TypeReqVar:
+            codeStream[ip++] = OP_PUSH_VAR;
+            break;
+         case TypeReqArray:
+            codeStream[ip++] = OP_PUSH_ARRAY;
+            break;
+         default:
+            codeStream[ip++] = OP_PUSH;
+            break;
+      }
+   }
+
+   codeStream[ip++] = OP_LOAD_ARRAY;
+
+   switch(type)
+   {
+   case TypeReqString:
+      codeStream[ip++] = OP_ARRAY_TO_STR;
+      break;
+   case TypeReqVar:
+      codeStream[ip++] = OP_SAVEVAR_ARRAY;
+      break;
+   case TypeReqArray:
+      break;
+   default:
+      codeStream[ip++] = OP_ARRAY_TO_STR;
+      break;
+   }
+
+   return ip;
+}
+
+TypeReq ArrayNode::getPreferredType()
+{
+   return TypeReqArray;
 }
 
 //------------------------------------------------------------
@@ -1144,18 +1274,7 @@ U32 AssignExprNode::precompile(TypeReq type)
       subType = type;
    if(subType == TypeReqNone)
    {
-      // What we need to do in this case is turn it into a VarNode reference. 
-      // Unfortunately other nodes such as field access (SlotAccessNode) 
-      // cannot be optimized in the same manner as all fields are exposed 
-      // and set as strings.
-      if (dynamic_cast<VarNode*>(expr) != NULL)
-      {
-         subType = TypeReqVar;
-      }
-      else
-      {
-         subType = TypeReqString;
-      }
+      subType = TypeReqString;
    }
    // if it's an array expr, the formula is:
    // eval expr
@@ -1184,7 +1303,7 @@ U32 AssignExprNode::precompile(TypeReq type)
 
    precompileIdent(varName);
 
-   return retSize + addSize + (arrayIndex ? arrayIndex->precompile(TypeReqString) + (subType == TypeReqString ? 8 : 6 ) : 3);
+   return retSize + addSize + (arrayIndex ? arrayIndex->precompile(TypeReqString) + (subType == TypeReqString ? 7 : 5 ) : 3);
 }
 
 U32 AssignExprNode::compile(U32 *codeStream, U32 ip, TypeReq type)
@@ -1200,7 +1319,7 @@ U32 AssignExprNode::compile(U32 *codeStream, U32 ip, TypeReq type)
       ip++;
       codeStream[ip++] = OP_ADVANCE_STR;
       ip = arrayIndex->compile(codeStream, ip, TypeReqString);
-      codeStream[ip++] = OP_REWIND_STR;
+      //codeStream[ip++] = OP_REWIND_STR;
       codeStream[ip++] = OP_SETCURVAR_ARRAY_CREATE;
       if(subType == TypeReqString)
          codeStream[ip++] = OP_TERMINATE_REWIND_STR;
@@ -1224,6 +1343,9 @@ U32 AssignExprNode::compile(U32 *codeStream, U32 ip, TypeReq type)
       break;
    case TypeReqVar:
       codeStream[ip++] = OP_SAVEVAR_VAR;
+      break;
+   case TypeReqArray:
+      codeStream[ip++] = OP_SAVEVAR_ARRAY;
       break;
    case TypeReqNone:
       break;
@@ -1319,7 +1441,7 @@ U32 AssignOpExprNode::precompile(TypeReq type)
    else
    {
       size += arrayIndex->precompile(TypeReqString);
-      return size + 8;
+      return size + 7;
    }
 }
 
@@ -1339,7 +1461,7 @@ U32 AssignOpExprNode::compile(U32 *codeStream, U32 ip, TypeReq type)
       ip++;
       codeStream[ip++] = OP_ADVANCE_STR;
       ip = arrayIndex->compile(codeStream, ip, TypeReqString);
-      codeStream[ip++] = OP_REWIND_STR;
+      //codeStream[ip++] = OP_REWIND_STR;
       codeStream[ip++] = OP_SETCURVAR_ARRAY_CREATE;
    }
    codeStream[ip++] = (subType == TypeReqFloat) ? OP_LOADVAR_FLT : OP_LOADVAR_UINT;
@@ -1445,6 +1567,12 @@ U32 FuncCallExprNode::compile(U32 *codeStream, U32 ip, TypeReq type)
          case TypeReqUInt:
             codeStream[ip++] = OP_PUSH_UINT;
             break;
+         case TypeReqVar:
+            codeStream[ip++] = OP_PUSH_VAR;
+            break;
+         case TypeReqArray:
+            codeStream[ip++] = OP_PUSH_ARRAY;
+            break;
          default:
             codeStream[ip++] = OP_PUSH;
             break;
@@ -1528,6 +1656,7 @@ U32 SlotAccessNode::precompile(TypeReq type)
    // eval object expression sub + 3 (op_setCurField + OP_SETCUROBJECT)
    size += objectExpr->precompile(TypeReqString) + 3;
 
+   if (type == TypeReqVar) size++;
    // get field in desired type:
    return size + 1;
 }
@@ -1567,6 +1696,10 @@ U32 SlotAccessNode::compile(U32 *codeStream, U32 ip, TypeReq type)
       case TypeReqString:
          codeStream[ip++] = OP_LOADFIELD_STR;
          break;
+      case TypeReqVar:
+         codeStream[ip++] = OP_SETCURVAR_TEMP;
+         codeStream[ip++] = OP_LOADFIELD_VAR;
+         break;
       case TypeReqNone:
          break;
    }
@@ -1575,7 +1708,7 @@ U32 SlotAccessNode::compile(U32 *codeStream, U32 ip, TypeReq type)
 
 TypeReq SlotAccessNode::getPreferredType()
 {
-   return TypeReqNone;
+   return TypeReqVar;
 }
 
 //-----------------------------------------------------------------------------
@@ -1654,17 +1787,30 @@ U32 SlotAssignNode::precompile(TypeReq type)
    // convert to return type if necessary.
 
    U32 size = 0;
-   if(type != TypeReqString)
+   if(type != valueExpr->getPreferredType())
       size++;
 
    precompileIdent(slotName);
 
-   size += valueExpr->precompile(TypeReqString);
+   size += valueExpr->precompile(valueExpr->getPreferredType());
+   switch (valueExpr->getPreferredType()) {
+   case TypeReqUInt:
+   case TypeReqFloat:
+   case TypeReqVar:
+   case TypeReqArray:
+      size++;
+      break;
+   case TypeReqString:
+      size += 3;
+      break;
+   default:
+      break;
+   }
 
    if(objectExpr)
-      size += objectExpr->precompile(TypeReqString) + 5;
+      size += objectExpr->precompile(TypeReqString) + 3;
    else
-      size += 5;
+      size += 3;
 
    if(arrayExpr)
       size += arrayExpr->precompile(TypeReqString) + 3;
@@ -1672,13 +1818,11 @@ U32 SlotAssignNode::precompile(TypeReq type)
    if(typeID != -1)
       size += 2;
 
-   return size + 1;
+   return size;
 }
 
 U32 SlotAssignNode::compile(U32 *codeStream, U32 ip, TypeReq type)
 {
-   ip = valueExpr->compile(codeStream, ip, TypeReqString);
-   codeStream[ip++] = OP_ADVANCE_STR;
    if(arrayExpr)
    {
       ip = arrayExpr->compile(codeStream, ip, TypeReqString);
@@ -1700,8 +1844,29 @@ U32 SlotAssignNode::compile(U32 *codeStream, U32 ip, TypeReq type)
       codeStream[ip++] = OP_SETCURFIELD_ARRAY;
    }
 
-   codeStream[ip++] = OP_TERMINATE_REWIND_STR;
-   codeStream[ip++] = OP_SAVEFIELD_STR;
+   ip = valueExpr->compile(codeStream, ip, valueExpr->getPreferredType());
+
+   switch (valueExpr->getPreferredType()) {
+   case TypeReqUInt:
+      codeStream[ip++] = OP_SAVEFIELD_UINT;
+      break;
+   case TypeReqFloat:
+      codeStream[ip++] = OP_SAVEFIELD_FLT;
+      break;
+   case TypeReqString:
+      codeStream[ip++] = OP_ADVANCE_STR;
+      codeStream[ip++] = OP_TERMINATE_REWIND_STR;
+      codeStream[ip++] = OP_SAVEFIELD_STR;
+      break;
+   case TypeReqVar:
+      codeStream[ip++] = OP_SAVEFIELD_VAR;
+      break;
+   case TypeReqArray:
+      codeStream[ip++] = OP_SAVEFIELD_ARRAY;
+      break;
+   default:
+      break;
+   }
 
    if(typeID != -1)
    {
@@ -1710,7 +1875,7 @@ U32 SlotAssignNode::compile(U32 *codeStream, U32 ip, TypeReq type)
    }
 
    if(type != TypeReqString)
-      codeStream[ip++] = conversionOp(TypeReqString, type);
+      codeStream[ip++] = conversionOp(valueExpr->getPreferredType(), type);
    return ip;
 }
 
@@ -1878,6 +2043,12 @@ U32 ObjectDeclNode::compileSubObject(U32 *codeStream, U32 ip, bool root)
             break;
          case TypeReqUInt:
             codeStream[ip++] = OP_PUSH_UINT;
+            break;
+         case TypeReqVar:
+            codeStream[ip++] = OP_PUSH_VAR;
+            break;
+         case TypeReqArray:
+            codeStream[ip++] = OP_PUSH_ARRAY;
             break;
          default:
             codeStream[ip++] = OP_PUSH;

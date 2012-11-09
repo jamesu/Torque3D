@@ -276,7 +276,7 @@ ConsoleGetType( TypeTriggerPolyhedron )
 */
 ConsoleSetType( TypeTriggerPolyhedron )
 {
-   if (argc != 1) {
+   if (value.isArray()) {
       Con::printf("(TypeTriggerPolyhedron) multiple args not supported for polyhedra");
       return;
    }
@@ -284,7 +284,7 @@ ConsoleSetType( TypeTriggerPolyhedron )
    Point3F origin;
    Point3F vecs[3];
 
-   U32 numArgs = dSscanf(argv[0]->getStringValue(), "%g %g %g %g %g %g %g %g %g %g %g %g",
+   U32 numArgs = dSscanf(value.getStringValue(), "%g %g %g %g %g %g %g %g %g %g %g %g",
                          &origin.x, &origin.y, &origin.z,
                          &vecs[0].x, &vecs[0].y, &vecs[0].z,
                          &vecs[1].x, &vecs[1].y, &vecs[1].z,

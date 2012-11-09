@@ -157,13 +157,14 @@ namespace Con
 {
 
    char *getReturnBuffer(U32 bufferSize)
-
    {
       return STR.getReturnBuffer(bufferSize);
    }
 
    char *getReturnBuffer( const char *stringToCopy )
    {
+      if (!stringToCopy) return "";
+      if (stringToCopy == STR.mArgBuffer) return STR.mArgBuffer;
       U32 len = dStrlen( stringToCopy ) + 1;
       char *ret = STR.getReturnBuffer( len);
       dMemcpy( ret, stringToCopy, len );
@@ -221,9 +222,11 @@ namespace Con
 
    ConsoleValue *getReturnValue( const char *value )
    {
+      const char *stackValue = getReturnBuffer(value);
       CSTK.returnValue.cleanup();
       CSTK.returnValue.type = ConsoleValue::TypeInternalString;
-      CSTK.returnValue.setStringValue(value);
+      CSTK.returnValue.setStackStringValue(stackValue);
+      //CSTK.returnValue.setStringValue(value);
       return &CSTK.returnValue;
    }
 
@@ -286,6 +289,7 @@ inline void ExprEvalState::setCurVarName(StringTableEntry name)
       currentVariable = getCurrentFrame().lookup(name);
    if(!currentVariable && gWarnUndefinedScriptVariables)
 	   Con::warnf(ConsoleLogEntry::Script, "Variable referenced before assignment: %s", name);
+   currentVariableIndex = -1;
 }
 
 inline void ExprEvalState::setCurVarNameCreate(StringTableEntry name)
@@ -299,23 +303,82 @@ inline void ExprEvalState::setCurVarNameCreate(StringTableEntry name)
       currentVariable = NULL;
       Con::warnf(ConsoleLogEntry::Script, "Accessing local variable in global scope... failed: %s", name);
    }
+   currentVariableIndex = -1;
+}
+
+inline Dictionary::Entry* ExprEvalState::lookupVariable(StringTableEntry name)
+{
+   if(name[0] == '$')
+      return globalVars.lookup(name);
+   else if( getStackDepth() > 0 )
+      return getCurrentFrame().lookup(name);
+   return NULL;
+}
+
+inline ConsoleValue *ExprEvalState::getActiveValue()
+{
+   if (currentVariable && currentVariableIndex < 0)
+   {
+      return &currentVariable->value;
+   }
+   else if (currentVariable)
+   {
+      return currentVariable->value.getArrayElement(currentVariableIndex);
+   }
+   return NULL;
 }
 
 //------------------------------------------------------------
 
 inline S32 ExprEvalState::getIntVariable()
 {
-   return currentVariable ? currentVariable->getIntValue() : 0;
+   if (currentVariable && currentVariableIndex < 0)
+   {
+      return currentVariable->getIntValue();
+   }
+   else if (currentVariable)
+   {
+      ConsoleValue *arrayValue = currentVariable->value.getArrayElement(currentVariableIndex);
+      if (arrayValue)
+      {
+         return arrayValue->getIntValue();
+      }
+   }
+   return 0;
 }
 
 inline F64 ExprEvalState::getFloatVariable()
 {
-   return currentVariable ? currentVariable->getFloatValue() : 0;
+   if (currentVariable && currentVariableIndex < 0)
+   {
+      return currentVariable->getFloatValue();
+   }
+   else if (currentVariable)
+   {
+      ConsoleValue *arrayValue = currentVariable->value.getArrayElement(currentVariableIndex);
+      if (arrayValue)
+      {
+         return arrayValue->getFloatValue();
+      }
+   }
+   return 0;
 }
 
 inline const char *ExprEvalState::getStringVariable()
 {
-   return currentVariable ? currentVariable->getStringValue() : "";
+   if (currentVariable && currentVariableIndex < 0)
+   {
+      return currentVariable->getStringValue();
+   }
+   else if (currentVariable)
+   {
+      ConsoleValue *arrayValue = currentVariable->value.getArrayElement(currentVariableIndex);
+      if (arrayValue)
+      {
+         return arrayValue->getStringValue();
+      }
+   }
+   return "";
 }
 
 //------------------------------------------------------------
@@ -323,37 +386,96 @@ inline const char *ExprEvalState::getStringVariable()
 inline void ExprEvalState::setIntVariable(S32 val)
 {
    AssertFatal(currentVariable != NULL, "Invalid evaluator state - trying to set null variable!");
-   currentVariable->setIntValue(val);
+   if (currentVariableIndex < 0)
+   {
+      currentVariable->setIntValue(val);
+   }
+   else if (currentVariable->checkCanChange())
+   {
+      ConsoleValue *arrayValue = currentVariable->value.getArrayElement(currentVariableIndex);
+      if (arrayValue)
+      {
+         arrayValue->setIntValue(val);
+         currentVariable->notifyChanged();
+      }
+   }
 }
 
 inline void ExprEvalState::setFloatVariable(F64 val)
 {
    AssertFatal(currentVariable != NULL, "Invalid evaluator state - trying to set null variable!");
-   currentVariable->setFloatValue(val);
+   if (currentVariableIndex < 0)
+   {
+      currentVariable->setFloatValue(val);
+   }
+   else if (currentVariable->checkCanChange())
+   {
+      ConsoleValue *arrayValue = currentVariable->value.getArrayElement(currentVariableIndex);
+      if (arrayValue)
+      {
+         arrayValue->setFloatValue(val);
+         currentVariable->notifyChanged();
+      }
+   }
 }
 
 inline void ExprEvalState::setStringVariable(const char *val)
 {
    AssertFatal(currentVariable != NULL, "Invalid evaluator state - trying to set null variable!");
-   currentVariable->setStringValue(val);
+   if (currentVariableIndex < 0)
+   {
+      currentVariable->setStringValue(val);
+   }
+   else if (currentVariable->checkCanChange())
+   {
+      ConsoleValue *arrayValue = currentVariable->value.getArrayElement(currentVariableIndex);
+      if (arrayValue)
+      {
+         arrayValue->setStringValue(val);
+         currentVariable->notifyChanged();
+      }
+   }
+}
+
+inline void ExprEvalState::setArrayValue(Vector<ConsoleValue> &val)
+{
+   AssertFatal(currentVariable != NULL, "Invalid evaluator state - trying to set null variable!");
+   if (currentVariableIndex < 0)
+   {
+      currentVariable->setArrayValue(val);
+   }
+   else if (currentVariable->checkCanChange())
+   {
+      ConsoleValue *arrayValue = currentVariable->value.getArrayElement(currentVariableIndex);
+      if (arrayValue)
+      {
+         arrayValue->setArrayValue(val);
+         currentVariable->notifyChanged();
+      }
+   }
 }
 
 inline void ExprEvalState::setCopyVariable()
 {
    if (copyVariable)
    {
-      switch (copyVariable->value.type)
+      if (currentVariableIndex < 0)
       {
-         case ConsoleValue::TypeInternalInt:
-            currentVariable->setIntValue(copyVariable->getIntValue());
-         break;
-         case ConsoleValue::TypeInternalFloat:
-            currentVariable->setFloatValue(copyVariable->getFloatValue());
-         break;
-         default:
-            currentVariable->setStringValue(copyVariable->getStringValue());
-         break;
-	   }
+         if (currentVariable->checkCanChange())
+         {
+            copyVariable->value.copyInto(currentVariable->value);
+            currentVariable->notifyChanged();
+         }
+      }
+      else if (currentVariable->checkCanChange())
+      {
+         ConsoleValue *arrayValue = currentVariable->value.getArrayElement(currentVariableIndex);
+         if (arrayValue)
+         {
+            copyVariable->value.copyInto(*arrayValue);
+            currentVariable->notifyChanged();
+         }
+      }
    }
 }
 
@@ -610,6 +732,8 @@ ConsoleValueRef CodeBlock::exec(U32 ip, const char *functionName, Namespace *thi
    } objectCreationStack[ objectCreationStackSize ];
    
    SimObject *currentNewObject = 0;
+   Vector<ConsoleValue> currentArray;
+
    U32 failJump = 0;
    StringTableEntry prevField = NULL;
    StringTableEntry curField = NULL;
@@ -628,6 +752,8 @@ ConsoleValueRef CodeBlock::exec(U32 ip, const char *functionName, Namespace *thi
 
    static char curFieldArray[256];
    static char prevFieldArray[256];
+   static char curVarArray[256];
+   int curVarArrayIndex = -1;
 
    CodeBlock *saveCodeBlock = smCurrentCodeBlock;
    smCurrentCodeBlock = this;
@@ -641,6 +767,7 @@ ConsoleValueRef CodeBlock::exec(U32 ip, const char *functionName, Namespace *thi
    ConsoleValue tempValue;
    ConsoleValue *tempFieldValue;
    ConsoleValueRef tempReturnValue;
+   StringTableEntry tempVarName = StringTable->insert("$_tmpFC");
 
    // note: anything returned is pushed to CSTK and will be invalidated on the next exec()
    ConsoleValueRef returnValue;
@@ -1241,6 +1368,39 @@ breakContinue:
             _UINT--;
                
             goto execFinished;
+
+         case OP_RETURN_VAR:
+         
+            if( iterDepth > 0 )
+            {
+               // Clear iterator state.
+               while( iterDepth > 0 )
+               {
+                  iterStack[ -- _ITER ].mIsStringIter = false;
+                  -- iterDepth;
+               }
+            }
+
+            if (gEvalState.copyVariable)
+              returnValue.value = CSTK.pushValue(gEvalState.copyVariable->value);
+               
+            goto execFinished;
+
+         case OP_RETURN_ARRAY:
+         
+            if( iterDepth > 0 )
+            {
+               // Clear iterator state.
+               while( iterDepth > 0 )
+               {
+                  iterStack[ -- _ITER ].mIsStringIter = false;
+                  -- iterDepth;
+               }
+            }
+
+            returnValue.value = CSTK.pushArray(currentArray);
+               
+            goto execFinished;
             
          case OP_CMPEQ:
             intStack[_UINT+1] = bool(floatStack[_FLT] == floatStack[_FLT-1]);
@@ -1364,9 +1524,12 @@ breakContinue:
             // If a variable is set, then these must be NULL. It is necessary
             // to set this here so that the vector parser can appropriately
             // identify whether it's dealing with a vector.
-            prevField = NULL;
-            prevObject = NULL;
-            curObject = NULL;
+            //prevField = NULL;
+            if (!prevField)
+            {
+               curObject = NULL;
+               prevObject = NULL;
+            }
 
             gEvalState.setCurVarName(var);
 
@@ -1382,9 +1545,12 @@ breakContinue:
             ip++;
 
             // See OP_SETCURVAR
-            prevField = NULL;
-            prevObject = NULL;
-            curObject = NULL;
+            //prevField = NULL;
+            if (!prevField)
+            {
+               curObject = NULL;
+               prevObject = NULL;
+            }
 
             gEvalState.setCurVarNameCreate(var);
 
@@ -1394,14 +1560,27 @@ breakContinue:
             break;
 
          case OP_SETCURVAR_ARRAY:
-            var = STR.getSTValue();
-
             // See OP_SETCURVAR
-            prevField = NULL;
-            prevObject = NULL;
-            curObject = NULL;
+            //prevField = NULL;
+            if (!prevField)
+            {
+               curObject = NULL;
+               prevObject = NULL;
+            }
 
-            gEvalState.setCurVarName(var);
+            // Grab the index
+            dStrncpy(curVarArray, STR.getStringValue(), 256);
+            STR.setStringValue("");
+
+            // Check to see if var is an array, otherwise act as previously
+            gEvalState.currentVariable = gEvalState.lookupVariable(StringTable->insert(STR.getPreviousStringValue()));
+            if (gEvalState.currentVariable && gEvalState.currentVariable->value.isArray()) {
+               gEvalState.currentVariableIndex = dAtoi(curVarArray);
+            } else {
+               STR.setStringValue(curVarArray);
+               STR.rewind();
+               gEvalState.setCurVarName(STR.getSTValue());
+            }
 
             // See OP_SETCURVAR for why we do this.
             curFNDocBlock = NULL;
@@ -1409,14 +1588,40 @@ breakContinue:
             break;
 
          case OP_SETCURVAR_ARRAY_CREATE:
+            // See OP_SETCURVAR
+            //prevField = NULL;
+            //prevObject = NULL;
+            //curObject = NULL;
+
+            // Grab the index
+            dStrncpy(curVarArray, STR.getStringValue(), 256);
+            STR.setStringValue("");
+
+            // Check to see if var is an array, otherwise act as previously
+            gEvalState.currentVariable = gEvalState.lookupVariable(StringTable->insert(STR.getPreviousStringValue()));
+            if (gEvalState.currentVariable && gEvalState.currentVariable->value.isArray()) {
+               gEvalState.currentVariableIndex = dAtoi(curVarArray);
+            } else {
+               STR.setStringValue(curVarArray);
+               STR.rewind();
+               gEvalState.setCurVarNameCreate(STR.getSTValue());
+            }
+
+            // See OP_SETCURVAR for why we do this.
+            curFNDocBlock = NULL;
+            curNSDocBlock = NULL;
+            break;
+
+         case OP_SETCURVAR_TEMP:
             var = STR.getSTValue();
 
             // See OP_SETCURVAR
-            prevField = NULL;
-            prevObject = NULL;
-            curObject = NULL;
+            //prevField = NULL;
+            //prevObject = NULL;
+            //curObject = NULL;
 
-            gEvalState.setCurVarNameCreate(var);
+            gEvalState.setCurVarNameCreate(tempVarName);
+            gEvalState.copyVariable = gEvalState.currentVariable;
 
             // See OP_SETCURVAR for why we do this.
             curFNDocBlock = NULL;
@@ -1443,6 +1648,10 @@ breakContinue:
             gEvalState.copyVariable = gEvalState.currentVariable;
             break;
 
+         case OP_LOADVAR_ARRAY:
+            gEvalState.currentVariable->getValue()->copyIntoArray(currentArray);
+            break;
+
          case OP_SAVEVAR_UINT:
             gEvalState.setIntVariable(intStack[_UINT]);
             break;
@@ -1458,6 +1667,28 @@ breakContinue:
          case OP_SAVEVAR_VAR:
             // this basically handles %var1 = %var2
             gEvalState.setCopyVariable();
+            break;
+		    
+         case OP_SAVEVAR_ARRAY:
+            gEvalState.setArrayValue(currentArray);
+            break;
+
+         case OP_BEGIN_ARRAY:
+            intStack[_UINT+1] = code[ip];
+            ip++;
+
+            STR.pushFrame();
+            CSTK.pushFrame();
+
+            currentArray.reserve(intStack[_UINT+1]);
+            break;
+
+         case OP_LOAD_ARRAY:
+            CSTK.getArrayElements(currentArray);
+
+            STR.popFrame();
+            CSTK.popFrame();
+
             break;
 
          case OP_SETCUROBJECT:
@@ -1534,6 +1765,7 @@ breakContinue:
                intStack[_UINT+1] = dAtoi( valBuffer );
             }
             _UINT++;
+            prevField = NULL;
             break;
 
          case OP_LOADFIELD_FLT:
@@ -1547,6 +1779,7 @@ breakContinue:
                floatStack[_FLT+1] = dAtof( valBuffer );
             }
             _FLT++;
+            prevField = NULL;
             break;
 
          case OP_LOADFIELD_STR:
@@ -1562,6 +1795,42 @@ breakContinue:
                getFieldComponent( prevObject, prevField, prevFieldArray, curField, valBuffer, &tempFieldValue );
                STR.setStringValue( valBuffer );
             }
+            prevField = NULL;
+            break;
+
+         case OP_LOADFIELD_VAR:
+            if(curObject)
+            {
+               tempReturnValue = curObject->getDataFieldValue(curField, curFieldArray);
+               if (tempReturnValue.value)
+                  tempReturnValue.value->copyInto(*gEvalState.copyVariable->getValue());
+            }
+            else
+            {
+               // The field is not being retrieved from an object. Maybe it's
+               // a special accessor?
+               getFieldComponent( prevObject, prevField, prevFieldArray, curField, valBuffer, &tempFieldValue );
+               gEvalState.copyVariable->setStringValue( valBuffer );
+            }
+            prevField = NULL;
+            break;
+
+         case OP_LOADFIELD_ARRAY:
+            if(curObject)
+            {
+               tempReturnValue = curObject->getDataFieldValue(curField, curFieldArray);
+               if (tempReturnValue.value) {
+                  tempReturnValue.value->copyIntoArray(currentArray);
+               }
+            }
+            else
+            {
+               // The field is not being retrieved from an object. Maybe it's
+               // a special accessor?
+               getFieldComponent( prevObject, prevField, prevFieldArray, curField, valBuffer, &tempFieldValue );
+               STR.setStringValue( valBuffer );
+            }
+            prevField = NULL;
             break;
 
          case OP_SAVEFIELD_UINT:
@@ -1577,6 +1846,7 @@ breakContinue:
                setFieldComponent( prevObject, prevField, prevFieldArray, curField, &tempValue );
                prevObject = NULL;
             }
+            prevField = NULL;
             break;
 
          case OP_SAVEFIELD_FLT:
@@ -1592,6 +1862,7 @@ breakContinue:
                setFieldComponent( prevObject, prevField, prevFieldArray, curField, &tempValue );
                prevObject = NULL;
             }
+            prevField = NULL;
             break;
 
          case OP_SAVEFIELD_STR:
@@ -1608,6 +1879,53 @@ breakContinue:
                setFieldComponent( prevObject, prevField, prevFieldArray, curField, &tempValue );
                prevObject = NULL;
             }
+            prevField = NULL;
+            break;
+
+         case OP_SAVEFIELD_VAR:
+            if(curObject)
+            {
+               if (gEvalState.copyVariable == NULL)
+               {
+                  tempValue.cleanup();
+                  tempValue.type = ConsoleValue::TypeInternalString;
+                  tempValue.setStackStringValue("");
+                  curObject->setDataFieldValue(curField, curFieldArray, tempValue);
+               } 
+               else
+               {
+                  curObject->setDataFieldValue(curField, curFieldArray, *gEvalState.copyVariable->getValue());
+               }
+            }
+            else
+            {
+               // The field is not being set on an object. Maybe it's
+               // a special accessor?
+               setFieldComponent( prevObject, prevField, prevFieldArray, curField, gEvalState.copyVariable->getValue() );
+               prevObject = NULL;
+            }
+
+            tempValue.list = NULL;
+            prevField = NULL;
+            break;
+
+         case OP_SAVEFIELD_ARRAY:
+            tempValue.cleanup();
+            tempValue.type = ConsoleValue::TypeInternalArray;
+            tempValue.list = &currentArray;
+
+            if(curObject)
+               curObject->setDataFieldValue(curField, curFieldArray, tempValue);
+            else
+            {
+               // The field is not being set on an object. Maybe it's
+               // a special accessor?
+               setFieldComponent( prevObject, prevField, prevFieldArray, curField, &tempValue );
+               prevObject = NULL;
+            }
+
+            tempValue.list = NULL;
+            prevField = NULL;
             break;
 
          case OP_STR_TO_UINT:
@@ -1652,6 +1970,27 @@ breakContinue:
 
          case OP_UINT_TO_NONE:
             _UINT--;
+            break;
+
+         case OP_ARRAY_TO_FLT:
+            floatStack[_FLT+1] = 0;
+            _FLT++;
+            break;
+
+         case OP_ARRAY_TO_UINT:
+            floatStack[_UINT+1] = 0;
+            _UINT++;
+            break;
+
+         case OP_ARRAY_TO_STR:
+            tempValue.type = ConsoleValue::TypeInternalArray;
+            tempValue.list = &currentArray;
+            STR.setStringValue(tempValue.getStringValue());
+            tempValue.list = NULL;
+            break;
+
+         case OP_ARRAY_TO_NONE:
+            currentArray.clear();
             break;
 
          case OP_COPYVAR_TO_NONE:
@@ -2036,10 +2375,14 @@ breakContinue:
             _FLT--;
             break;
          case OP_PUSH_VAR:
-            if (gEvalState.currentVariable)
-               CSTK.pushValue(gEvalState.currentVariable->value);
+            tempReturnValue = gEvalState.getActiveValue();
+            if (gEvalState.currentVariable && tempReturnValue.value)
+               CSTK.pushVar(tempReturnValue.value);
             else
                CSTK.pushString("");
+            break;
+         case OP_PUSH_ARRAY:
+            CSTK.pushArray(currentArray);
             break;
 
          case OP_PUSH_FRAME:

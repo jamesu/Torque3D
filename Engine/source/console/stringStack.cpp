@@ -46,6 +46,18 @@ void ConsoleValueStack::getArgcArgv(StringTableEntry name, U32 *argc, ConsoleVal
       popFrame();
 }
 
+void ConsoleValueStack::getArrayElements(Vector<ConsoleValue> &dest)
+{
+   U32 startStack = mStackFrames[mFrame-1];
+   U32 itemCount  = mStackPos - startStack;
+   
+   U32 startSize = dest.size();
+   dest.setSize(dest.size() + itemCount);
+   for(U32 i = 0; i < itemCount; i++) {
+      mStack[startStack+i].copyInto(dest[startSize + i]);
+   }
+}
+
 ConsoleValueStack::ConsoleValueStack() : 
 mFrame(0),
 mStackPos(0)
@@ -67,33 +79,19 @@ void ConsoleValueStack::pushVar(ConsoleValue *variable)
       return;
    }
 
-   switch (variable->type)
-   {
-   case ConsoleValue::TypeInternalInt:
-      mStack[mStackPos++].setIntValue((S32)variable->getIntValue());
-   case ConsoleValue::TypeInternalFloat:
-      mStack[mStackPos++].setFloatValue((F32)variable->getFloatValue());
-   default:
-      mStack[mStackPos++].setStackStringValue(variable->getStringValue());
-   }
+   variable->copyInto(mStack[mStackPos++]);
 }
 
-void ConsoleValueStack::pushValue(ConsoleValue &variable)
+ConsoleValue* ConsoleValueStack::pushValue(ConsoleValue &variable)
 {
    if (mStackPos == ConsoleValueStack::MaxStackDepth) {
       AssertFatal(false, "Console Value Stack is empty");
-      return;
+      return NULL;
    }
 
-   switch (variable.type)
-   {
-   case ConsoleValue::TypeInternalInt:
-      mStack[mStackPos++].setIntValue((S32)variable.getIntValue());
-   case ConsoleValue::TypeInternalFloat:
-      mStack[mStackPos++].setFloatValue((F32)variable.getFloatValue());
-   default:
-      mStack[mStackPos++].setStringValue(variable.getStringValue());
-   }
+   variable.copyInto(mStack[mStackPos++]);
+
+   return &mStack[mStackPos-1];
 }
 
 ConsoleValue *ConsoleValueStack::pushString(const char *value)
@@ -145,6 +143,19 @@ ConsoleValue *ConsoleValueStack::pushFLT(float value)
    //Con::printf("[%i]CSTK pushFLT %f", mStackPos, value);
 
    mStack[mStackPos++].setFloatValue(value);
+   return &mStack[mStackPos-1];
+}
+
+ConsoleValue *ConsoleValueStack::pushArray(Vector<ConsoleValue> &value)
+{
+   if (mStackPos == ConsoleValueStack::MaxStackDepth) {
+      AssertFatal(false, "Console Value Stack is empty");
+      return NULL;
+   }
+
+   //Con::printf("[%i]CSTK pushFLT %f", mStackPos, value);
+
+   mStack[mStackPos++].setArrayValue(value);
    return &mStack[mStackPos-1];
 }
 

@@ -312,7 +312,7 @@ ConsoleGetType( TypeWayPointTeam )
 ConsoleSetType( TypeWayPointTeam )
 {
    WayPointTeam * pTeam = (WayPointTeam*)dptr;
-   pTeam->mTeamId = argv[0]->getIntValue();
+   pTeam->mTeamId = value.getIntValue();
 
    if(pTeam->mWayPoint && pTeam->mWayPoint->isServerObject())
       pTeam->mWayPoint->setMaskBits(WayPoint::UpdateTeamMask);

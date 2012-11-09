@@ -144,14 +144,14 @@ public:
       return Con::getReturnValue(T::__getObjectId( obj ));
    }
 
-   virtual void setData( void* dptr, S32 argc, ConsoleValueRef argv[], const EnumTable*, BitSet32 )
+   virtual void setData( void* dptr, ConsoleValueRef value, const EnumTable*, BitSet32 )
    {
       SimObjectRef<T> *objRef = static_cast< SimObjectRef<T>* >( dptr );
 
-      if ( argc != 1 ) 
+      if ( value.isArray() ) 
          return;
 
-      *objRef = argv[0]->getStringValue();
+      *objRef = value.getStringValue();
    }
 
    virtual const bool isDatablock() 

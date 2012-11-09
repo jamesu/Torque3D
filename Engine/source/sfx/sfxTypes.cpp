@@ -125,10 +125,10 @@ ConsoleGetType( TypeSFXSourceName )
 
 ConsoleSetType( TypeSFXSourceName )
 {
-   if( argc == 1 )
+   if( !value.isArray() )
    {
       SFXSource** obj = ( SFXSource**) dptr;
-      Sim::findObject( argv[ 0 ]->getStringValue(), *obj );
+      Sim::findObject( value.getStringValue(), *obj );
    }
    else
       Con::printf("(TypeSFXSourceName) Cannot set multiple args to a single SFXSource.");
@@ -147,8 +147,8 @@ ConsoleGetType( TypeSFXParameterName )
 
 ConsoleSetType( TypeSFXParameterName )
 {
-   if( argc == 1 )
-      *( ( const char** ) dptr ) = StringTable->insert( argv[ 0 ]->getStringValue() );
+   if( !value.isArray() )
+      *( ( const char** ) dptr ) = StringTable->insert( value.getStringValue() );
    else
       Con::errorf( "(TypeSFXParameterName) Cannot set multiple args to a single SFXParameter." );
 }
@@ -161,10 +161,10 @@ ConsoleType( SFXDescription, TypeSFXDescriptionName, SFXDescription* )
 
 ConsoleSetType( TypeSFXDescriptionName )
 {
-   if( argc == 1 )
+   if( !value.isArray() )
    {
       SFXDescription* description;
-      Sim::findObject( argv[ 0 ]->getStringValue(), description );
+      Sim::findObject( value.getStringValue(), description );
       *( ( SFXDescription** ) dptr ) = description;
    }
    else
@@ -188,10 +188,10 @@ ConsoleType( SFXTrack, TypeSFXTrackName, SFXTrack* )
 
 ConsoleSetType( TypeSFXTrackName )
 {
-   if( argc == 1 )
+   if( !value.isArray() )
    {
       SFXTrack* track;
-      Sim::findObject( argv[ 0 ]->getStringValue(), track );
+      Sim::findObject( value.getStringValue(), track );
       *( ( SFXTrack** ) dptr ) = track;
    }
    else
@@ -215,10 +215,10 @@ ConsoleType( SFXEnvironment, TypeSFXEnvironmentName, SFXEnvironment* )
 
 ConsoleSetType( TypeSFXEnvironmentName )
 {
-   if( argc == 1 )
+   if( !value.isArray() )
    {
       SFXEnvironment* environment;
-      Sim::findObject( argv[ 0 ]->getStringValue(), environment );
+      Sim::findObject( value.getStringValue(), environment );
       *( ( SFXEnvironment** ) dptr ) = environment;
    }
    else
@@ -242,10 +242,10 @@ ConsoleType( SFXState, TypeSFXStateName, SFXState* )
 
 ConsoleSetType( TypeSFXStateName )
 {
-   if( argc == 1 )
+   if( !value.isArray() )
    {
       SFXState* state;
-      Sim::findObject( argv[ 0 ]->getStringValue(), state );
+      Sim::findObject( value.getStringValue(), state );
       *( ( SFXState** ) dptr ) = state;
    }
    else
@@ -269,10 +269,10 @@ ConsoleType( SFXAmbience, TypeSFXAmbienceName, SFXAmbience* )
 
 ConsoleSetType( TypeSFXAmbienceName )
 {
-   if( argc == 1 )
+   if( !value.isArray() )
    {
       SFXAmbience* ambience;
-      Sim::findObject( argv[ 0 ]->getStringValue(), ambience );
+      Sim::findObject( value.getStringValue(), ambience );
       *( ( SFXAmbience** ) dptr ) = ambience;
    }
    else

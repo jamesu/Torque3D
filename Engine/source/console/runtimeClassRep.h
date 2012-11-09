@@ -127,12 +127,12 @@ public:
    /// @name Console Type Interface
    /// @{
 
-   virtual void setData( void* dptr, S32 argc, ConsoleValueRef argv[], const EnumTable* tbl, BitSet32 flag )
+   virtual void setData( void* dptr, ConsoleValueRef value, const EnumTable* tbl, BitSet32 flag )
    {
-      if( argc == 1 )
+      if( !value.isArray() )
       {
          T** obj = ( T** ) dptr;
-         *obj = dynamic_cast< T* >( T::__findObject( argv[ 0 ]->getStringValue() ) );
+         *obj = dynamic_cast< T* >( T::__findObject( value.getStringValue() ) );
       }
       else
          Con::errorf( "Cannot set multiple args to a single ConsoleObject*.");

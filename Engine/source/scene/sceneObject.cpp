@@ -589,9 +589,7 @@ bool SceneObject::_setFieldPosition( void *object, const char *index, ConsoleVal
    if ( so )
    {
       MatrixF txfm( so->getTransform() );
-      ConsoleValueRef ref;
-      ref.value = data;
-      Con::setDataValue( TypeMatrixPosition, &txfm, 0, 1, &ref );
+      Con::setDataValue( TypeMatrixPosition, &txfm, 0, data );
       so->setTransform( txfm );
    }
    return false;
@@ -605,9 +603,7 @@ bool SceneObject::_setFieldRotation( void *object, const char *index, ConsoleVal
    if ( so )
    {
       MatrixF txfm( so->getTransform() );
-      ConsoleValueRef ref;
-      ref.value = data;
-      Con::setDataValue( TypeMatrixRotation, &txfm, 0, 1, &ref );
+      Con::setDataValue( TypeMatrixRotation, &txfm, 0, data );
       so->setTransform( txfm );
    }
    return false;
@@ -621,9 +617,7 @@ bool SceneObject::_setFieldScale( void *object, const char *index, ConsoleValueR
    if ( so )
    {
       Point3F scale;
-      ConsoleValueRef ref;
-      ref.value = data;
-      Con::setDataValue( TypePoint3F, &scale, 0, 1, &ref );
+      Con::setDataValue( TypePoint3F, &scale, 0, data );
       so->setScale( scale );
    }
    return false;
@@ -1034,9 +1028,7 @@ bool SceneObject::_setMountPID( void *object, const char *index, ConsoleValueRef
       so->unmount();
 
       // Get the new PID (new object will be mounted on demand)
-      ConsoleValueRef ref;
-      ref.value = data;
-      Con::setDataValue( TypePID, &so->mMountPID, 0, 1, &ref );
+      Con::setDataValue( TypePID, &so->mMountPID, 0, data );
       if ( so->mMountPID )
          so->mMountPID->incRefCount();    // Prevent PID from being deleted out from under us!
    }

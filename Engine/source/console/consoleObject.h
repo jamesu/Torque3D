@@ -622,12 +622,12 @@ class ConcreteClassRep : public AbstractClassRep
       /// @name Console Type Interface
       /// @{
 
-      virtual void setData( void* dptr, S32 argc, ConsoleValueRef argv[], const EnumTable* tbl, BitSet32 flag )
+      virtual void setData( void* dptr, ConsoleValueRef value, const EnumTable* tbl, BitSet32 flag )
       {
-         if( argc == 1 )
+         if (!value.isArray())
          {
             T** obj = ( T** ) dptr;
-            *obj = dynamic_cast< T* >( T::__findObject( argv[ 0 ]->getStringValue() ) );
+            *obj = dynamic_cast< T* >( T::__findObject( value.getStringValue() ) );
          }
          else
             Con::errorf( "Cannot set multiple args to a single ConsoleObject*.");
@@ -1009,8 +1009,7 @@ inline bool ConsoleObject::setField(const char *fieldName, const char *value)
       myField->type,
       (void *) (((const char *)(this)) + myField->offset),
       0,
-      1,
-      &valueRef,
+      valueRef,
       myField->table,
       myField->flag);
 
@@ -1036,8 +1035,7 @@ inline bool ConsoleObject::setField(const char *fieldName, ConsoleValueRef &valu
       myField->type,
       (void *) (((const char *)(this)) + myField->offset),
       0,
-      1,
-      &value,
+      value,
       myField->table,
       myField->flag);
 

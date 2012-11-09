@@ -206,9 +206,7 @@ bool GuiShapeEdPreview::setFieldSunDiffuse( void *object, const char *index, Con
    GuiShapeEdPreview* gui = static_cast<GuiShapeEdPreview*>( object );
    if ( gui )
    {
-      ConsoleValueRef ref;
-      ref.value = data;
-      Con::setDataValue( TypeColorI, &gui->mSunDiffuseColor, 0, 1, &ref );
+      Con::setDataValue( TypeColorI, &gui->mSunDiffuseColor, 0, data );
       gui->updateSun();
    }
    return false;
@@ -219,9 +217,7 @@ bool GuiShapeEdPreview::setFieldSunAmbient( void *object, const char *index, Con
    GuiShapeEdPreview* gui = static_cast<GuiShapeEdPreview*>( object );
    if ( gui )
    {
-      ConsoleValueRef ref;
-      ref.value = data;
-      Con::setDataValue( TypeColorI, &gui->mSunAmbientColor, 0, 1, &ref );
+      Con::setDataValue( TypeColorI, &gui->mSunAmbientColor, 0, data );
       gui->updateSun();
    }
    return false;
@@ -232,9 +228,7 @@ bool GuiShapeEdPreview::setFieldSunAngleX( void *object, const char *index, Cons
    GuiShapeEdPreview* gui = static_cast<GuiShapeEdPreview*>( object );
    if ( gui )
    {
-      ConsoleValueRef ref;
-      ref.value = data;
-      Con::setDataValue( TypeF32, &gui->mSunRot.x, 0, 1, &ref );
+      Con::setDataValue( TypeF32, &gui->mSunRot.x, 0, data );
       gui->updateSun();
    }
    return false;
@@ -245,9 +239,7 @@ bool GuiShapeEdPreview::setFieldSunAngleZ( void *object, const char *index, Cons
    GuiShapeEdPreview* gui = static_cast<GuiShapeEdPreview*>( object );
    if ( gui )
    {
-      ConsoleValueRef ref;
-      ref.value = data;
-      Con::setDataValue( TypeF32, &gui->mSunRot.z, 0, 1, &ref );
+      Con::setDataValue( TypeF32, &gui->mSunRot.z, 0, data );
       gui->updateSun();
    }
    return false;
@@ -276,9 +268,7 @@ bool GuiShapeEdPreview::setFieldThreadDir( void *object, const char *index, Cons
    if ( gui && ( gui->mActiveThread >= 0 ) )
    {
       Thread& thread = gui->mThreads[gui->mActiveThread];
-      ConsoleValueRef ref;
-      ref.value = data;
-      Con::setDataValue( TypeS32, &(thread.direction), 0, 1, &ref );
+      Con::setDataValue( TypeS32, &(thread.direction), 0, data );
       if ( thread.key )
          gui->mModel->setTimeScale( thread.key, gui->mTimeScale * thread.direction );
    }
@@ -297,10 +287,8 @@ ConsoleValue *GuiShapeEdPreview::getFieldThreadDir( void *object, ConsoleValueRe
 bool GuiShapeEdPreview::setFieldThreadPingPong( void *object, const char *index, ConsoleValueRef data )
 {
    GuiShapeEdPreview* gui = static_cast<GuiShapeEdPreview*>( object );
-   ConsoleValueRef ref;
-   ref.value = data;
    if ( gui && ( gui->mActiveThread >= 0 ) )
-      Con::setDataValue( TypeBool, &(gui->mThreads[gui->mActiveThread].pingpong), 0, 1, &ref );
+      Con::setDataValue( TypeBool, &(gui->mThreads[gui->mActiveThread].pingpong), 0, data );
    return false;
 }
 

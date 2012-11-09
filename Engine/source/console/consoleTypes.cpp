@@ -43,8 +43,8 @@ ConsoleGetType( TypeString )
 
 ConsoleSetType( TypeString )
 {
-   if(argc == 1)
-      *((const char **) dptr) = StringTable->insert(argv[0]->getStringValue());
+   if (!value.isArray())
+      *((const char **) dptr) = StringTable->insert(value.getStringValue());
    else
       Con::printf("(TypeString) Cannot set multiple args to a single string.");
 }
@@ -56,8 +56,8 @@ ConsoleType( caseString, TypeCaseString, const char* )
 
 ConsoleSetType( TypeCaseString )
 {
-   if(argc == 1)
-      *((const char **) dptr) = StringTable->insert(argv[0]->getStringValue(), true);
+   if (!value.isArray())
+      *((const char **) dptr) = StringTable->insert(value.getStringValue(), true);
    else
       Con::printf("(TypeCaseString) Cannot set multiple args to a single string.");
 }
@@ -84,8 +84,8 @@ ConsoleSetType( TypeRealString )
 {
    String *theString = static_cast<String*>(dptr);
 
-   if(argc == 1)
-      *theString = (const char*)argv[0]->getStringValue();
+   if (!value.isArray())
+      *theString = value.getStringValue();
    else
       Con::printf("(TypeRealString) Cannot set multiple args to a single string.");
 }
@@ -106,8 +106,8 @@ ConsoleSetType( TypeCommand )
 {
    String *theString = static_cast<String*>(dptr);
 
-   if(argc == 1)
-      *theString = argv[0]->getStringValue();
+   if (!value.isArray())
+      *theString = value.getStringValue();
    else
       Con::printf("(TypeCommand) Cannot set multiple args to a single command.");
 }
@@ -119,9 +119,9 @@ ConsolePrepType( filename, TypeFilename, const char * )
 
 ConsoleSetType( TypeFilename )
 {
-   if(argc == 1)
+   if (!value.isArray())
    {
-      const char *fname = argv[0]->getStringValue();
+      const char *fname = value.getStringValue();
       char buffer[1024];
       if(fname[0] == '$')
       {
@@ -130,7 +130,7 @@ ConsoleSetType( TypeFilename )
       }
       else if (! Con::expandScriptFilename(buffer, 1024, fname))
       {
-         Con::warnf("(TypeFilename) illegal filename detected: %s", argv[0]);
+         Con::warnf("(TypeFilename) illegal filename detected: %s", value.getStringValue());
          return;
       }
 
@@ -163,9 +163,9 @@ ConsolePrepType( filename, TypeStringFilename, String )
 
 ConsoleSetType( TypeStringFilename )
 {
-   if(argc == 1)
+   if (!value.isArray())
    {
-      const char *fname = argv[0]->getStringValue();
+      const char *fname = value.getStringValue();
       char buffer[1024];
       if(fname[0] == '$')
       {
@@ -174,7 +174,7 @@ ConsoleSetType( TypeStringFilename )
       }
       else if (! Con::expandScriptFilename(buffer, 1024, fname))
       {
-         Con::warnf("(TypeStringFilename) illegal filename detected: %s", fname);
+         Con::warnf("(TypeStringFilename) illegal filename detected: %s", value.getStringValue());
          return;
       }
 
@@ -209,9 +209,7 @@ ConsolePrepType( filename, TypePrefabFilename, String )
 
 ConsoleSetType( TypePrefabFilename )
 {
-   ConsoleValueRef ref;
-   ref.value = argv[0];
-   Con::setDataValue(TypeStringFilename, dptr, 0, argc, &ref, tbl, flag);
+   Con::setDataValue(TypeStringFilename, dptr, 0, value, tbl, flag);
 }
 
 ConsoleGetType( TypePrefabFilename )
@@ -239,9 +237,7 @@ ConsolePrepType( filename, TypeImageFilename, String )
 
 ConsoleSetType( TypeImageFilename )
 {
-   ConsoleValueRef ref;
-   ref.value = argv[0];
-   Con::setDataValue(TypeStringFilename, dptr, 0, argc, &ref, tbl, flag);
+   Con::setDataValue(TypeStringFilename, dptr, 0, value, tbl, flag);
 }
 
 ConsoleGetType( TypeImageFilename )
@@ -267,9 +263,7 @@ ConsolePrepType( filename, TypeShapeFilename, const char* )
 
 ConsoleSetType( TypeShapeFilename )
 {
-   ConsoleValueRef ref;
-   ref.value = argv[0];
-   Con::setDataValue(TypeFilename, dptr, 0, argc, &ref, tbl, flag);
+   Con::setDataValue(TypeFilename, dptr, 0, value, tbl, flag);
 }
 
 ConsoleGetType( TypeShapeFilename )
@@ -301,8 +295,8 @@ ConsoleGetType( TypeS8 )
 
 ConsoleSetType( TypeS8 )
 {
-   if(argc == 1)
-      *((U8 *) dptr) = argv[0]->getSignedIntValue();
+   if (!value.isArray())
+      *((U8 *) dptr) = value.getSignedIntValue();
    else
       Con::printf("(TypeU8) Cannot set multiple args to a single S8.");
 }
@@ -320,8 +314,8 @@ ConsoleGetType( TypeS32 )
 
 ConsoleSetType( TypeS32 )
 {
-   if(argc == 1)
-      *((S32 *) dptr) = argv[0]->getSignedIntValue();
+   if (!value.isArray())
+      *((S32 *) dptr) = value.getSignedIntValue();
    else
       Con::printf("(TypeS32) Cannot set multiple args to a single S32.");
 }
@@ -359,9 +353,9 @@ ConsoleSetType( TypeS32Vector )
    Vector<S32> *vec = (Vector<S32> *)dptr;
    // we assume the vector should be cleared first (not just appending)
    vec->clear();
-   if(argc == 1)
+   if (!value.isArray())
    {
-      const char *values = argv[0]->getStringValue();
+      const char *values = value.getStringValue();
       const char *endValues = values + dStrlen(values);
       S32 value;
       // advance through the string, pulling off S32's and advancing the pointer
@@ -375,10 +369,11 @@ ConsoleSetType( TypeS32Vector )
             break;
       }
    }
-   else if (argc > 1)
+   else if (value.isArray())
    {
+      int argc = value->getNumArrayElements();
       for (S32 i = 0; i < argc; i++)
-         vec->push_back(argv[i]->getIntValue());
+         vec->push_back(value->getArrayElement(i)->getIntValue());
    }
    else
       Con::printf("Vector<S32> must be set as { a, b, c, ... } or \"a b c ...\"");
@@ -396,8 +391,8 @@ ConsoleGetType( TypeF32 )
 }
 ConsoleSetType( TypeF32 )
 {
-   if(argc == 1)
-      *((F32 *) dptr) = argv[0]->getFloatValue();
+   if (!value.isArray())
+      *((F32 *) dptr) = value.getFloatValue();
    else
       Con::printf("(TypeF32) Cannot set multiple args to a single F32.");
 }
@@ -434,9 +429,9 @@ ConsoleSetType( TypeF32Vector )
    Vector<F32> *vec = (Vector<F32> *)dptr;
    // we assume the vector should be cleared first (not just appending)
    vec->clear();
-   if(argc == 1)
+   if (!value.isArray())
    {
-      const char *values = argv[0]->getStringValue();
+      const char *values = value.getStringValue();
       const char *endValues = values + dStrlen(values);
       F32 value;
       // advance through the string, pulling off F32's and advancing the pointer
@@ -450,10 +445,11 @@ ConsoleSetType( TypeF32Vector )
             break;
       }
    }
-   else if (argc > 1)
+   else if (value.isArray())
    {
+      int argc = value->getNumArrayElements();
       for (S32 i = 0; i < argc; i++)
-         vec->push_back(argv[i]->getFloatValue());
+         vec->push_back(value->getArrayElement(i)->getFloatValue());
    }
    else
       Con::printf("Vector<F32> must be set as { a, b, c, ... } or \"a b c ...\"");
@@ -472,8 +468,8 @@ ConsoleGetType( TypeBool )
 
 ConsoleSetType( TypeBool )
 {
-   if(argc == 1)
-      *((bool *) dptr) = dAtob(argv[0]);
+   if (!value.isArray())
+      *((bool *) dptr) = value.getBoolValue();
    else
       Con::printf("(TypeBool) Cannot set multiple args to a single bool.");
 }
@@ -509,9 +505,9 @@ ConsoleSetType( TypeBoolVector )
    Vector<bool> *vec = (Vector<bool>*)dptr;
    // we assume the vector should be cleared first (not just appending)
    vec->clear();
-   if (argc == 1)
+   if (!value.isArray())
    {
-      const char *values = argv[0]->getStringValue();
+      const char *values = value.getStringValue();
       const char *endValues = values + dStrlen(values);
       S32 value;
       // advance through the string, pulling off bool's and advancing the pointer
@@ -525,10 +521,11 @@ ConsoleSetType( TypeBoolVector )
             break;
       }
    }
-   else if (argc > 1)
+   else if (value.isArray())
    {
+      int argc = value->getNumArrayElements();
       for (S32 i = 0; i < argc; i++)
-         vec->push_back(dAtob(argv[i]->getStringValue()));
+         vec->push_back(value->getArrayElement(i)->getBoolValue());
    }
    else
       Con::printf("Vector<bool> must be set as { a, b, c, ... } or \"a b c ...\"");
@@ -549,16 +546,7 @@ ConsoleGetType( TypeFlag )
 
 ConsoleSetType( TypeFlag )
 {
-   bool value = true;
-   if (argc != 1)
-   {
-      Con::printf("flag must be true or false");
-   }
-   else
-   {
-      value = dAtob(argv[0]->getStringValue());
-   }
-   ((BitSet32 *)dptr)->set(flag, value);
+   ((BitSet32 *)dptr)->set(flag, value->getBoolValue());
 }
 
 //-----------------------------------------------------------------------------
@@ -578,30 +566,30 @@ ConsoleGetType( TypeColorF )
 ConsoleSetType( TypeColorF )
 {
    ColorF *tmpColor = (ColorF *) dptr;
-   if(argc == 1)
+   if (!value.isArray())
    {
       tmpColor->set(0, 0, 0, 1);
       F32 r,g,b,a;
-      S32 args = dSscanf(argv[0]->getStringValue(), "%g %g %g %g", &r, &g, &b, &a);
+      S32 args = dSscanf(value.getStringValue(), "%g %g %g %g", &r, &g, &b, &a);
       tmpColor->red = r;
       tmpColor->green = g;
       tmpColor->blue = b;
       if (args == 4)
          tmpColor->alpha = a;
    }
-   else if(argc == 3)
+   else if(value->getNumArrayElements() == 3)
    {
-      tmpColor->red    = argv[0]->getFloatValue();
-      tmpColor->green  = argv[1]->getFloatValue();
-      tmpColor->blue   = argv[2]->getFloatValue();
+      tmpColor->red    = value->getArrayElement(0)->getFloatValue();
+      tmpColor->green  = value->getArrayElement(1)->getFloatValue();
+      tmpColor->blue   = value->getArrayElement(2)->getFloatValue();
       tmpColor->alpha  = 1.f;
    }
-   else if(argc == 4)
+   else if(value->getNumArrayElements() == 4)
    {
-      tmpColor->red    = argv[0]->getFloatValue();
-      tmpColor->green  = argv[1]->getFloatValue();
-      tmpColor->blue   = argv[2]->getFloatValue();
-      tmpColor->alpha  = argv[3]->getFloatValue();
+      tmpColor->red    = value->getArrayElement(0)->getFloatValue();
+      tmpColor->green  = value->getArrayElement(1)->getFloatValue();
+      tmpColor->blue   = value->getArrayElement(2)->getFloatValue();
+      tmpColor->alpha  = value->getArrayElement(3)->getFloatValue();
    }
    else
       Con::printf("Color must be set as { r, g, b [,a] }");
@@ -624,30 +612,30 @@ ConsoleGetType( TypeColorI )
 ConsoleSetType( TypeColorI )
 {
    ColorI *tmpColor = (ColorI *) dptr;
-   if(argc == 1)
+   if (!value.isArray())
    {
       tmpColor->set(0, 0, 0, 255);
       S32 r,g,b,a;
-      S32 args = dSscanf(argv[0]->getStringValue(), "%d %d %d %d", &r, &g, &b, &a);
+      S32 args = dSscanf(value.getStringValue(), "%d %d %d %d", &r, &g, &b, &a);
       tmpColor->red = r;
       tmpColor->green = g;
       tmpColor->blue = b;
       if (args == 4)
          tmpColor->alpha = a;
    }
-   else if(argc == 3)
+   else if(value->getNumArrayElements() == 3)
    {
-      tmpColor->red    = argv[0]->getIntValue();
-      tmpColor->green  = argv[1]->getIntValue();
-      tmpColor->blue   = argv[2]->getIntValue();
+      tmpColor->red    = value->getArrayElement(0)->getIntValue();
+      tmpColor->green  = value->getArrayElement(1)->getIntValue();
+      tmpColor->blue   = value->getArrayElement(2)->getIntValue();
       tmpColor->alpha  = 255;
    }
-   else if(argc == 4)
+   else if(value->getNumArrayElements() == 4)
    {
-      tmpColor->red    = argv[0]->getIntValue();
-      tmpColor->green  = argv[1]->getIntValue();
-      tmpColor->blue   = argv[2]->getIntValue();
-      tmpColor->alpha  = argv[3]->getIntValue();
+      tmpColor->red    = value->getArrayElement(0)->getIntValue();
+      tmpColor->green  = value->getArrayElement(1)->getIntValue();
+      tmpColor->blue   = value->getArrayElement(2)->getIntValue();
+      tmpColor->alpha  = value->getArrayElement(3)->getIntValue();
    }
    else
       Con::printf("Color must be set as { r, g, b [,a] }");
@@ -660,10 +648,10 @@ ConsoleType( SimObject, TypeSimObjectName, SimObject* )
 
 ConsoleSetType( TypeSimObjectName )
 {
-   if(argc == 1)
+   if (!value.isArray())
    {
       SimObject **obj = (SimObject **)dptr;
-      *obj = Sim::findObject(argv[0]->getStringValue());
+      *obj = Sim::findObject(value);
    }
    else
       Con::printf("(TypeSimObjectName) Cannot set multiple args to a single S32.");
@@ -704,8 +692,8 @@ ConsoleGetType( TypeParticleParameterString )
 
 ConsoleSetType( TypeParticleParameterString )
 {
-   if(argc == 1)
-      *((const char **) dptr) = StringTable->insert(argv[0]->getStringValue());
+   if (!value.isArray())
+      *((const char **) dptr) = StringTable->insert(value.getStringValue());
    else
       Con::printf("(TypeParticleParameterString) Cannot set multiple args to a single string.");
 }
@@ -726,8 +714,8 @@ ConsoleSetType( TypeMaterialName )
 {
    String *theString = static_cast<String*>(dptr);
 
-   if(argc == 1)
-      *theString = argv[0]->getStringValue();
+   if (!value.isArray())
+      *theString = value.getStringValue();
    else
       Con::printf("(TypeMaterialName) Cannot set multiple args to a single string.");
 }
@@ -747,8 +735,8 @@ ConsoleGetType( TypeTerrainMaterialIndex )
 
 ConsoleSetType( TypeTerrainMaterialIndex )
 {
-   if(argc == 1)
-      *((S32 *) dptr) = argv[0]->getIntValue();
+   if (!value.isArray())
+      *((S32 *) dptr) = value.getIntValue();
    else
       Con::printf("(TypeTerrainMaterialIndex) Cannot set multiple args to a single S32.");
 }
@@ -766,8 +754,8 @@ ConsoleGetType( TypeTerrainMaterialName )
 
 ConsoleSetType( TypeTerrainMaterialName )
 {
-   if(argc == 1)
-      *((const char **) dptr) = StringTable->insert(argv[0]->getStringValue());
+   if (!value.isArray())
+      *((const char **) dptr) = StringTable->insert(value.getStringValue());
    else
       Con::printf("(TypeTerrainMaterialName) Cannot set multiple args to a single string.");
 }
@@ -788,8 +776,8 @@ ConsoleSetType( TypeCubemapName )
 {
    String *theString = static_cast<String*>(dptr);
 
-   if(argc == 1)
-      *theString = (const char*)argv[0];
+   if (!value.isArray())
+      *theString = value.getStringValue();
    else
       Con::printf("(TypeCubemapName) Cannot set multiple args to a single string.");
 }
@@ -810,11 +798,11 @@ ConsoleGetType( TypeRectUV )
 
 ConsoleSetType( TypeRectUV )
 {
-   if(argc == 1)
-      dSscanf(argv[0]->getStringValue(), "%g %g %g %g", &((RectF *) dptr)->point.x, &((RectF *) dptr)->point.y,
+   if (!value.isArray())
+      dSscanf(value.getStringValue(), "%g %g %g %g", &((RectF *) dptr)->point.x, &((RectF *) dptr)->point.y,
               &((RectF *) dptr)->extent.x, &((RectF *) dptr)->extent.y);
-   else if(argc == 4)
-      *((RectF *) dptr) = RectF(argv[0]->getFloatValue(), argv[1]->getFloatValue(), argv[2]->getFloatValue(), argv[3]->getFloatValue());
+   else if(value->getNumArrayElements() == 4)
+      *((RectF *) dptr) = RectF(value->getArrayElement(0)->getFloatValue(), value->getArrayElement(1)->getFloatValue(), value->getArrayElement(2)->getFloatValue(), value->getArrayElement(3)->getFloatValue());
    else
       Con::printf("RectUV must be set as { x, y, w, h } or \"x y w h\"");
 }
@@ -833,12 +821,12 @@ ConsoleGetType( TypeUUID )
 
 ConsoleSetType( TypeUUID )
 {
-   if( argc == 1 )
+   if( !value.isArray() )
    {
       Torque::UUID* uuid = ( Torque::UUID* ) dptr;
-      const char *value = argv[0]->getStringValue();
-      if( !uuid->fromString( value ) )
-         Con::errorf( "Error parsing UUID: '%s'", value );
+      const char *svalue = value.getStringValue();
+      if( !uuid->fromString( svalue ) )
+         Con::errorf( "Error parsing UUID: '%s'", svalue );
    }
    else
       Con::printf( "(TypeUUID) Cannot set multiple args to a single uuid." );
@@ -861,19 +849,19 @@ ConsoleGetType( TypePID )
 
 ConsoleSetType( TypePID )
 {
-   if( argc == 1 )
+   if( !value.isArray() )
    {
       SimPersistID** pid = ( SimPersistID** ) dptr;
-      const char *value = argv[0]->getStringValue();
+      const char *svalue = value.getStringValue();
       
-      if( !value[0] )
+      if( !svalue[0] )
          *pid = NULL;
       else
       {
          Torque::UUID uuid;
-         if( !uuid.fromString( value ) )
+         if( !uuid.fromString( svalue ) )
          {
-            Con::errorf( "Error parsing UUID in PID: '%s'", value );
+            Con::errorf( "Error parsing UUID in PID: '%s'", svalue );
             *pid = NULL;
          }
          else
@@ -900,19 +888,19 @@ ConsoleGetType( TypeSimPersistId )
 
 ConsoleSetType( TypeSimPersistId )
 {
-   if( argc == 1 )
+   if( !value.isArray() )
    {
       SimPersistID** pid = ( SimPersistID** ) dptr;
-      const char *value = argv[ 0 ]->getStringValue();
+      const char *svalue = value.getStringValue();
       
-      if( !value[0] )
+      if( !svalue[0] )
          *pid = NULL;
       else
       {
          Torque::UUID uuid;
-         if( !uuid.fromString( value ) )
+         if( !uuid.fromString( svalue ) )
          {
-            Con::errorf( "Error parsing UUID in PID: '%s'", value );
+            Con::errorf( "Error parsing UUID in PID: '%s'", svalue );
             *pid = NULL;
          }
          else

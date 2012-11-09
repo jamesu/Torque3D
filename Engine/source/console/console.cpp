@@ -1394,13 +1394,21 @@ void setData(S32 type, void *dptr, S32 index, S32 argc, const char *argv[], cons
    ConsoleBaseType *cbt = ConsoleBaseType::getType(type);
    AssertFatal(cbt, "Con::setData - could not resolve type ID!");
 
-   ConsoleValue tempArgs[StringStack::MaxArgs];
-   ConsoleValueRef args[StringStack::MaxArgs];
-   for (int i=0; i<argc; i++) {
-      tempArgs[i].setStackStringValue(argv[i]);
-      args[i] = &tempArgs[i];
+   ConsoleValue tempVar;
+
+   if (argc > 1) {
+      tempVar.type = ConsoleValue::TypeInternalArray;
+      tempVar.list = new Vector<ConsoleValue>();
+      Vector<ConsoleValue> &list = *(tempVar.list);
+      for (int i=0; i<argc; i++) {
+         ConsoleValue value;
+         list.push_back(value);
+         list[i].setStackStringValue(argv[i]);
+      }
+   } else {
+      tempVar.setStringValue(argv[0]);
    }
-   cbt->setData((void *) (((const char *)dptr) + index * cbt->getTypeSize()),argc, args, tbl, flag);
+   cbt->setData((void *) (((const char *)dptr) + index * cbt->getTypeSize()), &tempVar, tbl, flag);
 }
 
 const char* getData(S32 type, void *dptr, S32 index, const EnumTable *tbl, BitSet32 flag)
@@ -1410,12 +1418,12 @@ const char* getData(S32 type, void *dptr, S32 index, const EnumTable *tbl, BitSe
    return cbt->getData((void *) (((const char *)dptr) + index * cbt->getTypeSize()), tbl, flag)->getStringValue();
 }
 
-void setDataValue(S32 type, void *dptr, S32 index, S32 argc, ConsoleValueRef argv[], const EnumTable *tbl, BitSet32 flag)
+void setDataValue(S32 type, void *dptr, S32 index, ConsoleValueRef value, const EnumTable *tbl, BitSet32 flag)
 {
    ConsoleBaseType *cbt = ConsoleBaseType::getType(type);
    AssertFatal(cbt, "Con::setData - could not resolve type ID!");
 
-   cbt->setData((void *) (((const char *)dptr) + index * cbt->getTypeSize()),argc, argv, tbl, flag);
+   cbt->setData((void *) (((const char *)dptr) + index * cbt->getTypeSize()), value, tbl, flag);
 }
 
 ConsoleValueRef getDataValue(S32 type, void *dptr, S32 index, const EnumTable *tbl, BitSet32 flag)
@@ -1702,20 +1710,38 @@ F32 ConsoleValue::getFloatValue()
       return Con::getDataValue(type, dataPtr, 0, enumTable).getFloatValue();
 }
 
+static char conConversionBuffer[4096];
+
 const char *ConsoleValue::getStringValue()
 {
-   char returnBuffer[256];
-
    if(type == TypeInternalString || type == TypeInternalStackString)
       return sval;
    if(type == TypeInternalFloat) {
-      dSprintf(returnBuffer, 256, "%g", fval);
-      return Con::getReturnBuffer(returnBuffer);
+      dSprintf(conConversionBuffer, 256, "%g", fval);
+      return conConversionBuffer;
    } else if(type == TypeInternalInt) {
-      dSprintf(returnBuffer, 256, "%i", ival);
-      return Con::getReturnBuffer(returnBuffer);
-   } else
-      return Con::getDataValue(type, dataPtr, 0, enumTable).getStringValue();
+      dSprintf(conConversionBuffer, 256, "%i", ival);
+      return conConversionBuffer;
+   } else if (type == TypeInternalArray) {
+      // Build up a string representation "0 1 2 ..."
+      StringBuilder str;
+      int size = getNumArrayElements();
+      for (int i=0; i<size; i++) {
+         str.append(getArrayElement(i)->getStringValue());
+         str.append(" ");
+      }
+      dStrncpy(conConversionBuffer, str.data(), 4096);
+      return conConversionBuffer;
+   }
+   else
+   {
+      const char *value = Con::getDataValue(type, dataPtr, 0, enumTable).getStringValue();
+      /*if (value == STR.mArgBuffer) { // Hack: Clone this to conConversionBuffer
+         dStrncpy(conConversionBuffer, value, 4096);
+         value = conConversionBuffer;
+      }*/
+      return value;
+   }
 }
 
 bool ConsoleValue::getBoolValue()
@@ -1739,6 +1765,14 @@ void ConsoleValue::setIntValue(S32 val)
 
 void ConsoleValue::setIntValue(U32 val)
 {
+   // Destroy array if present
+   if (type == TypeInternalArray)
+   {
+      if (list) delete list;
+      type = TypeInternalString;
+      sval = typeValueEmpty;
+   }
+
    if(type <= TypeInternalString)
    {
       fval = (F32)val;
@@ -1755,8 +1789,7 @@ void ConsoleValue::setIntValue(U32 val)
       ConsoleValue data;
       data.type = TypeInternalInt;
       data.setIntValue(val);
-      ConsoleValueRef ref = &data;
-      Con::setDataValue(type, dataPtr, 0, 1, &ref, enumTable);
+      Con::setDataValue(type, dataPtr, 0, &data, enumTable);
    }
 }
 
@@ -1767,6 +1800,14 @@ void ConsoleValue::setBoolValue(bool val)
 
 void ConsoleValue::setFloatValue(F32 val)
 {
+   // Destroy array if present
+   if (type == TypeInternalArray)
+   {
+      if (list) delete list;
+      type = TypeInternalString;
+      sval = typeValueEmpty;
+   }
+
    if(type <= TypeInternalString)
    {
       fval = val;
@@ -1783,39 +1824,154 @@ void ConsoleValue::setFloatValue(F32 val)
       ConsoleValue data;
       data.type = TypeInternalFloat;
       data.setFloatValue(val);
-      ConsoleValueRef ref = &data;
-      Con::setDataValue(type, dataPtr, 0, 1, &ref, enumTable);
+      Con::setDataValue(type, dataPtr, 0, &data, enumTable);
+   }
+}
+
+void ConsoleValue::setArrayValue(Vector<ConsoleValue> &value)
+{
+   // Make sure this is now an array
+   if(type <= TypeInternalString && type != TypeInternalArray)
+   {
+      if(sval != typeValueEmpty)
+      {
+         if (type != TypeInternalStackString) dFree(sval);
+         sval = typeValueEmpty;
+      }
+      type = TypeInternalArray;
+      list = new Vector<ConsoleValue>();
+   }
+
+   if (type == TypeInternalArray)
+   {
+      Vector<ConsoleValue> &dest = *list;
+      S32 size = value.size();
+      list->clear();
+      dest.setSize(size);
+      for (int i=0; i<size; i++) {
+         value[i].copyInto(dest[i]);
+      }
+   }
+   else
+   {
+      ConsoleValue data;
+      data.type = TypeInternalArray;
+      data.list = &value;
+      Con::setDataValue(type, dataPtr, 0, &data, enumTable);
+   }
+}
+
+void ConsoleValue::copyIntoArray(Vector<ConsoleValue> &dest)
+{
+   if (type == TypeInternalArray)
+   {
+      dest.clear();
+      Vector<ConsoleValue> &src = *list;
+      S32 size = src.size();
+      dest.setSize(size);
+      for (int i=0; i<size; i++) {
+         src[i].copyInto(dest[i]);
+      }
+   }
+   else if (type <= TypeInternalString)
+   {
+      dest.setSize(1);
+      switch (type) {
+         case TypeInternalInt:
+            dest[0].setIntValue(ival);
+            break;
+         case TypeInternalFloat:
+            dest[0].setFloatValue(fval);
+            break;
+         default:
+            dest[0].setStringValue(sval);
+            break;
+      }
+   }
+   else
+   {
+      ConsoleValue data;
+      data.type = TypeInternalArray;
+      data.list = new Vector<ConsoleValue>();
+      Con::setDataValue(type, dataPtr, 0, &data, enumTable);
+      data.copyIntoArray(dest);
    }
 }
 
 void ConsoleValue::copyInto(ConsoleValue &other)
 {
-   if (type < 0) {
-      other.cleanup();
-      if (type == TypeInternalString || type == TypeInternalStackString) {
-         other.sval = sval == typeValueEmpty ? typeValueEmpty : dStrdup(sval);
-      } else {
-         other.sval = sval;
-      }
-      other.ival = ival;
-      other.fval = fval;
-   } else if (other.type >= 0 && !other.isAllocated) {
-      // Copy by setting variable (since this is a field or static variable)
-      // TOOD
-      int todo = 1;
-   } else {
-      // Cleanup dataPtr
-      if (other.type >= 0 && other.isAllocated) {
-         // TODO
-      }
-
-      // Copy by making an allocated clone
-      other.dataPtr = dataPtr;
-      other.enumTable = enumTable;
-      other.isAllocated = true;
+   switch (type) {
+   case TypeInternalString:
+   case TypeInternalStackString:
+      other.setStringValue(sval);
+      break;
+   case TypeInternalFloat:
+      other.setFloatValue(fval);
+      break;
+   case TypeInternalInt:
+      other.setIntValue(ival);
+      break;
+   case TypeInternalArray:
+      other.setArrayValue(*list);
+      break;
+   default:
+      // TODO: proper type copy
+      other.setStringValue(getStringValue());
+   break;
    }
+}
 
-   other.type = type == TypeInternalStackString ? TypeInternalString : type;
+void ConsoleValue::setArraySize(U32 count)
+{
+   if (type != TypeInternalArray)
+      return;
+
+   list->setSize(count);
+}
+
+void ConsoleValue::reserveArrayElements(U32 count)
+{
+   if (type != TypeInternalArray)
+      return;
+
+   list->reserve(count);
+}
+
+ConsoleValue *ConsoleValue::getArrayElement(S32 idx)
+{
+   if (type != TypeInternalArray || idx < 0 || idx >= list->size())
+      return NULL;
+
+   return list->begin() + idx;
+}
+
+void ConsoleValue::setArrayElement(S32 idx, ConsoleValue *value)
+{
+   if (type != TypeInternalArray)
+      return;
+   if (idx < 0)
+      return;
+
+   if (idx < list->size())
+      list->setSize(idx);
+
+   value->copyInto((*list)[idx]);
+}
+
+void ConsoleValue::eraseArrayElement(S32 idx)
+{
+   if (type != TypeInternalArray)
+      return;
+
+   list->erase(idx);
+}
+
+S32 ConsoleValue::getNumArrayElements()
+{
+   if (type != TypeInternalArray)
+      return 0;
+
+   return list->size();
 }
 
 

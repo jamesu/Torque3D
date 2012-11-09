@@ -36,6 +36,7 @@
 
 #include "core/util/str.h"
 #include "core/util/journal/journaledSignal.h"
+#include "core/util/tVector.h"
 
 class SimObject;
 class Namespace;
@@ -120,6 +121,7 @@ public:
    
    enum
    {
+      TypeInternalArray = -5,
       TypeInternalInt = -4,
       TypeInternalFloat = -3,
       TypeInternalStackString = -2,
@@ -151,6 +153,7 @@ public:
          U32 bufferLen;
       };
       
+      // Custom type data
       struct
       {
          /// The real data pointer.
@@ -158,32 +161,39 @@ public:
          
          /// The enum lookup table for enumerated types.
          const EnumTable *enumTable;
+      };
 
-         /// Was the dataPtr allocated (i.e. not part of an object)?
-         bool isAllocated;
+      // TypeInternalArray data
+      struct
+      {
+         Vector<ConsoleValue> *list;
       };
    };
    
    U32 getIntValue();
    S32 getSignedIntValue();
-   
    F32 getFloatValue();
-   
    const char *getStringValue();
-
    bool getBoolValue();
    
    void setIntValue(U32 val);
    void setIntValue(S32 val);
-
    void setFloatValue(F32 val);
-   
    void setStringValue(const char *value);
    void setStackStringValue(const char *value);
-
    void setBoolValue(bool val);
 
-   // Changes the variable to a custom type. Allocated data will be 
+   // Array elements
+   void setArraySize(U32 count);
+   void reserveArrayElements(U32 count);
+   ConsoleValue *getArrayElement(S32 idx);
+   void setArrayElement(S32 idx, ConsoleValue *value);
+   void eraseArrayElement(S32 idx);
+   S32 getNumArrayElements();
+   void setArrayValue(Vector<ConsoleValue> &value);
+   void copyIntoArray(Vector<ConsoleValue> &dest);
+
+   // Changes the variable to a custom type
    void setCustomType(StringTableEntry type);
 
    // Turns other into an independent copy of this variable
@@ -191,6 +201,10 @@ public:
 
    bool isNull() {
       return type == TypeInternalString && (sval == typeValueEmpty || !sval[0]);
+   }
+   
+   bool isArray() {
+      return type == TypeInternalArray;
    }
 
    ConsoleValue() : type(TypeInternalString), sval(0) {;}
@@ -205,20 +219,16 @@ public:
       bufferLen = 0;
    }
 
-   
-   // TODO: cleanup should not free string unless it makes sense
-
-   
    void cleanup()
    {
-      if (type <= TypeInternalString &&
+      if (type == TypeInternalArray && list) {
+         list->clear();
+         delete list;
+         list = NULL;
+      }
+      else if (type <= TypeInternalString &&
           sval != typeValueEmpty && sval != NULL && type != TypeInternalStackString )
          dFree(sval);
-
-      if (type >= 0 && isAllocated && dataPtr) {
-         dFree(dataPtr);
-         dataPtr = NULL;
-      }
 
       sval = typeValueEmpty;
       type = ConsoleValue::TypeInternalString;
@@ -274,6 +284,7 @@ public:
    inline bool isFloat() { return value ? value->type == ConsoleValue::TypeInternalFloat : false; }
    inline bool isNull() { return value ? value->isNull() : true; }
    inline bool isAdvanced() { return value ? value->type > 0 : false; }
+   inline bool isArray() { return value ? value->type == ConsoleValue::TypeInternalArray : false; }
 
    // Note: operators replace value
    ConsoleValueRef& operator=(const ConsoleValueRef &other);
@@ -401,7 +412,8 @@ namespace Con
       /// 09/27/07 - RDB - 44->45 Patch from Andreas Kirsch: Added opcode to support correct void return
       /// 01/13/09 - TMS - 45->46 Added script assert
       /// 10/11/12 - JU  - 46->47 Added opcodes to reduce reliance on strings in function calls
-      DSOVersion = 47,
+      /// 11/09/12 - JU  - 47->48 Added opcodes to support basic arrays, improved field access
+      DSOVersion = 48,
 
       MaxLineLength = 512,  ///< Maximum length of a line of console input.
       MaxDataTypes = 256    ///< Maximum number of registered data types.
@@ -928,7 +940,7 @@ namespace Con
    const char *getData(S32 type, void *dptr, S32 index, const EnumTable *tbl = NULL, BitSet32 flag = 0);
 
    // ConsoleValueRef versions of the above
-   void setDataValue(S32 type, void *dptr, S32 index, S32 argc, ConsoleValueRef argv[], const EnumTable *tbl = NULL, BitSet32 flag = 0);
+   void setDataValue(S32 type, void *dptr, S32 index, ConsoleValueRef value, const EnumTable *tbl = NULL, BitSet32 flag = 0);
    ConsoleValueRef getDataValue(S32 type, void *dptr, S32 index, const EnumTable *tbl = NULL, BitSet32 flag = 0);
    
    const char *getFormattedData(S32 type, const char *data, const EnumTable *tbl = NULL, BitSet32 flag = 0);

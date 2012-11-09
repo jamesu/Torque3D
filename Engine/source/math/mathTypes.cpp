@@ -121,10 +121,10 @@ ConsoleGetType( TypePoint2I )
 
 ConsoleSetType( TypePoint2I )
 {
-   if(argc == 1)
-      dSscanf(argv[0]->getStringValue(), "%d %d", &((Point2I *) dptr)->x, &((Point2I *) dptr)->y);
-   else if(argc == 2)
-      *((Point2I *) dptr) = Point2I(argv[0]->getIntValue(), argv[1]->getIntValue());
+   if(!value.isArray())
+      dSscanf(value.getStringValue(), "%d %d", &((Point2I *) dptr)->x, &((Point2I *) dptr)->y);
+   else if(value->getNumArrayElements() == 2)
+      *((Point2I *) dptr) = Point2I(value->getArrayElement(0)->getIntValue(), value->getArrayElement(1)->getIntValue());
    else
       Con::printf("Point2I must be set as { x, y } or \"x y\"");
 }
@@ -145,10 +145,10 @@ ConsoleGetType( TypePoint2F )
 
 ConsoleSetType( TypePoint2F )
 {
-   if(argc == 1)
-      dSscanf(argv[0]->getStringValue(), "%g %g", &((Point2F *) dptr)->x, &((Point2F *) dptr)->y);
-   else if(argc == 2)
-      *((Point2F *) dptr) = Point2F(argv[0]->getFloatValue(), argv[1]->getFloatValue());
+   if(!value.isArray())
+      dSscanf(value.getStringValue(), "%g %g", &((Point2F *) dptr)->x, &((Point2F *) dptr)->y);
+   else if(value->getNumArrayElements() == 2)
+      *((Point2F *) dptr) = Point2F(value->getArrayElement(0)->getFloatValue(), value->getArrayElement(1)->getFloatValue());
    else
       Con::printf("Point2F must be set as { x, y } or \"x y\"");
 }
@@ -169,10 +169,10 @@ ConsoleGetType( TypePoint3F )
 
 ConsoleSetType( TypePoint3F )
 {
-   if(argc == 1)
-      dSscanf(argv[0]->getStringValue(), "%g %g %g", &((Point3F *) dptr)->x, &((Point3F *) dptr)->y, &((Point3F *) dptr)->z);
-   else if(argc == 3)
-      *((Point3F *) dptr) = Point3F(argv[0]->getFloatValue(), argv[1]->getFloatValue(), argv[2]->getFloatValue());
+   if(!value.isArray())
+      dSscanf(value.getStringValue(), "%g %g %g", &((Point3F *) dptr)->x, &((Point3F *) dptr)->y, &((Point3F *) dptr)->z);
+   else if(value->getNumArrayElements() == 3)
+      *((Point3F *) dptr) = Point3F(value->getArrayElement(0)->getFloatValue(), value->getArrayElement(1)->getFloatValue(), value->getArrayElement(2)->getFloatValue());
    else
       Con::printf("Point3F must be set as { x, y, z } or \"x y z\"");
 }
@@ -193,10 +193,10 @@ ConsoleGetType( TypePoint4F )
 
 ConsoleSetType( TypePoint4F )
 {
-   if(argc == 1)
-      dSscanf(argv[0]->getStringValue(), "%g %g %g %g", &((Point4F *) dptr)->x, &((Point4F *) dptr)->y, &((Point4F *) dptr)->z, &((Point4F *) dptr)->w);
-   else if(argc == 4)
-      *((Point4F *) dptr) = Point4F(argv[0]->getFloatValue(), argv[1]->getFloatValue(), argv[2]->getFloatValue(), argv[3]->getFloatValue());
+   if(!value.isArray())
+      dSscanf(value.getStringValue(), "%g %g %g %g", &((Point4F *) dptr)->x, &((Point4F *) dptr)->y, &((Point4F *) dptr)->z, &((Point4F *) dptr)->w);
+   else if(value->getNumArrayElements() == 4)
+      *((Point4F *) dptr) = Point4F(value->getArrayElement(0)->getFloatValue(), value->getArrayElement(1)->getFloatValue(), value->getArrayElement(2)->getFloatValue(), value->getArrayElement(3)->getFloatValue());
    else
       Con::printf("Point4F must be set as { x, y, z, w } or \"x y z w\"");
 }
@@ -218,11 +218,11 @@ ConsoleGetType( TypeRectI )
 
 ConsoleSetType( TypeRectI )
 {
-   if(argc == 1)
-      dSscanf(argv[0]->getStringValue(), "%d %d %d %d", &((RectI *) dptr)->point.x, &((RectI *) dptr)->point.y,
+   if(!value.isArray())
+      dSscanf(value.getStringValue(), "%d %d %d %d", &((RectI *) dptr)->point.x, &((RectI *) dptr)->point.y,
               &((RectI *) dptr)->extent.x, &((RectI *) dptr)->extent.y);
-   else if(argc == 4)
-      *((RectI *) dptr) = RectI(argv[0]->getIntValue(), argv[1]->getIntValue(), argv[2]->getIntValue(), argv[3]->getIntValue());
+   else if(value->getNumArrayElements() == 4)
+      *((RectI *) dptr) = RectI(value->getArrayElement(0)->getIntValue(), value->getArrayElement(1)->getIntValue(), value->getArrayElement(2)->getIntValue(), value->getArrayElement(3)->getIntValue());
    else
       Con::printf("RectI must be set as { x, y, w, h } or \"x y w h\"");
 }
@@ -244,11 +244,11 @@ ConsoleGetType( TypeRectF )
 
 ConsoleSetType( TypeRectF )
 {
-   if(argc == 1)
-      dSscanf(argv[0]->getStringValue(), "%g %g %g %g", &((RectF *) dptr)->point.x, &((RectF *) dptr)->point.y,
+   if(!value.isArray())
+      dSscanf(value.getStringValue(), "%g %g %g %g", &((RectF *) dptr)->point.x, &((RectF *) dptr)->point.y,
               &((RectF *) dptr)->extent.x, &((RectF *) dptr)->extent.y);
-   else if(argc == 4)
-      *((RectF *) dptr) = RectF(argv[0]->getFloatValue(), argv[1]->getFloatValue(), argv[2]->getFloatValue(), argv[3]->getFloatValue());
+   else if(value->getNumArrayElements() == 4)
+      *((RectF *) dptr) = RectF(value->getArrayElement(0)->getFloatValue(), value->getArrayElement(1)->getFloatValue(), value->getArrayElement(2)->getFloatValue(), value->getArrayElement(3)->getFloatValue());
    else
       Con::printf("RectF must be set as { x, y, w, h } or \"x y w h\"");
 }
@@ -278,14 +278,14 @@ ConsoleGetType( TypeMatrixF )
 
 ConsoleSetType( TypeMatrixF )
 {
-   if( argc != 1 )
+   if( value.isArray() )
    {
       Con::errorf( "MatrixF must be set as \"c0x c0y c0z c1x c1y c1z c2x c2y c2z\"" );
       return;
    }
    
    Point3F col0, col1, col2;
-   dSscanf( argv[ 0 ]->getStringValue(), "%g %g %g %g %g %g %g %g %g",
+   dSscanf( value.getStringValue(), "%g %g %g %g %g %g %g %g %g",
             &col0.x, &col0.y, &col0.z, &col1.x, &col1.y, &col1.z, &col2.x, &col2.y, &col2.z );
 
    MatrixF* mat = ( MatrixF* ) dptr;
@@ -314,16 +314,17 @@ ConsoleGetType( TypeMatrixPosition )
 ConsoleSetType( TypeMatrixPosition )
 {
    F32 *col = ((F32 *) dptr) + 3;
-   if (argc == 1)
+   if (!value.isArray())
    {
       col[0] = col[4] = col[8] = 0.f;
       col[12] = 1.f;
-      dSscanf(argv[0]->getStringValue(), "%g %g %g %g", &col[0], &col[4], &col[8], &col[12]);
+      dSscanf(value.getStringValue(), "%g %g %g %g", &col[0], &col[4], &col[8], &col[12]);
    }
-   else if (argc <= 4) 
+   else if (value->getNumArrayElements() <= 4) 
    {
+      int argc = value->getNumArrayElements();
       for (S32 i = 0; i < argc; i++)
-         col[i << 2] = argv[i]->getFloatValue();
+         col[i << 2] = value->getArrayElement(i)->getFloatValue();
    }
    else
       Con::printf("Matrix position must be set as { x, y, z, w } or \"x y z w\"");
@@ -348,16 +349,17 @@ ConsoleSetType( TypeMatrixRotation )
    // DMM: Note that this will ONLY SET the ULeft 3x3 submatrix.
    //
    AngAxisF aa(Point3F(0,0,0),0);
-   if (argc == 1)
+   if (!value.isArray())
    {
-      dSscanf(argv[0]->getStringValue(), "%g %g %g %g", &aa.axis.x, &aa.axis.y, &aa.axis.z, &aa.angle);
+      dSscanf(value.getStringValue(), "%g %g %g %g", &aa.axis.x, &aa.axis.y, &aa.axis.z, &aa.angle);
       aa.angle = mDegToRad(aa.angle);
    }
-   else if (argc == 4) 
+   else if (value->getNumArrayElements() == 4) 
    {
-         for (S32 i = 0; i < argc; i++)
-            ((F32*)&aa)[i] = argv[i]->getFloatValue();
-         aa.angle = mDegToRad(aa.angle);
+      int argc = value->getNumArrayElements();
+      for (S32 i = 0; i < argc; i++)
+         ((F32*)&aa)[i] = value->getArrayElement(i)->getFloatValue();
+      aa.angle = mDegToRad(aa.angle);
    }
    else
       Con::printf("Matrix rotation must be set as { x, y, z, angle } or \"x y z angle\"");
@@ -392,15 +394,16 @@ ConsoleSetType( TypeAngAxisF )
    // DMM: Note that this will ONLY SET the ULeft 3x3 submatrix.
    //
    AngAxisF* aa = ( AngAxisF* ) dptr;
-   if (argc == 1)
+   if (!value.isArray())
    {
-      dSscanf(argv[0]->getStringValue(), "%g %g %g %g", &aa->axis.x, &aa->axis.y, &aa->axis.z, &aa->angle);
+      dSscanf(value.getStringValue(), "%g %g %g %g", &aa->axis.x, &aa->axis.y, &aa->axis.z, &aa->angle);
       aa->angle = mDegToRad(aa->angle);
    }
-   else if (argc == 4) 
+   else if (value->getNumArrayElements() == 4) 
    {
+      int argc = value->getNumArrayElements();
       for (S32 i = 0; i < argc; i++)
-         ((F32*)&aa)[i] = argv[i]->getFloatValue();
+         ((F32*)&aa)[i] = value->getArrayElement(i)->getFloatValue();
       aa->angle = mDegToRad(aa->angle);
    }
    else
@@ -430,23 +433,23 @@ ConsoleGetType( TypeTransformF )
 ConsoleSetType( TypeTransformF )
 {
    TransformF* aa = ( TransformF* ) dptr;
-   if( argc == 1 )
+   if( !value.isArray() )
    {
-      U32 count = dSscanf( argv[ 0 ]->getStringValue(), "%g %g %g %g %g %g %g",
+      U32 count = dSscanf( value.getStringValue(), "%g %g %g %g %g %g %g",
                &aa->mPosition.x, &aa->mPosition.y, &aa->mPosition.z,
                &aa->mOrientation.axis.x, &aa->mOrientation.axis.y, &aa->mOrientation.axis.z, &aa->mOrientation.angle );
 
       aa->mHasRotation = ( count == 7 );
    }
-   else if( argc == 7 )
+   else if( value->getNumArrayElements() == 7 )
    {
-      aa->mPosition.x = argv[ 0 ]->getFloatValue();
-      aa->mPosition.y = argv[ 1 ]->getFloatValue();
-      aa->mPosition.z = argv[ 2 ]->getFloatValue();
-      aa->mOrientation.axis.x = argv[ 3 ]->getFloatValue();
-      aa->mOrientation.axis.y = argv[ 4 ]->getFloatValue();
-      aa->mOrientation.axis.z = argv[ 5 ]->getFloatValue();
-      aa->mOrientation.angle = argv[ 6 ]->getFloatValue();
+      aa->mPosition.x = value->getArrayElement(0)->getFloatValue();
+      aa->mPosition.y = value->getArrayElement(1)->getFloatValue();
+      aa->mPosition.z = value->getArrayElement(2)->getFloatValue();
+      aa->mOrientation.axis.x = value->getArrayElement(3)->getFloatValue();
+      aa->mOrientation.axis.y = value->getArrayElement(4)->getFloatValue();
+      aa->mOrientation.axis.z = value->getArrayElement(5)->getFloatValue();
+      aa->mOrientation.angle = value->getArrayElement(6)->getFloatValue();
    }
    else
       Con::errorf( "TransformF must be set as { px, py, pz, x, y, z, angle } or \"px py pz x y z angle\"");
@@ -476,9 +479,9 @@ ConsoleSetType( TypeBox3F )
 {
    Box3F* pDst = (Box3F*)dptr;
 
-   if (argc == 1) 
+   if (!value.isArray()) 
    {
-      U32 args = dSscanf(argv[0]->getStringValue(), "%g %g %g %g %g %g",
+      U32 args = dSscanf(value.getStringValue(), "%g %g %g %g %g %g",
                          &pDst->minExtents.x, &pDst->minExtents.y, &pDst->minExtents.z,
                          &pDst->maxExtents.x, &pDst->maxExtents.y, &pDst->maxExtents.z);
       AssertWarn(args == 6, "Warning, box probably not read properly");
@@ -514,8 +517,8 @@ ConsoleSetType( TypeEaseF )
    // defaults...
    pDst->param[0] = -1.0f;
    pDst->param[1] = -1.0f;
-   if (argc == 1) {
-      U32 args = dSscanf(argv[0]->getStringValue(), "%d %d %f %f", // the two params are optional and assumed -1 if not present...
+   if (!value.isArray()) {
+      U32 args = dSscanf(value.getStringValue(), "%d %d %f %f", // the two params are optional and assumed -1 if not present...
                          &pDst->dir, &pDst->type, &pDst->param[0],&pDst->param[1]);
       if( args < 2 )
          Con::warnf( "Warning, EaseF probably not read properly" );

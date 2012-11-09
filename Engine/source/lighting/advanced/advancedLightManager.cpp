@@ -201,9 +201,7 @@ void AdvancedLightManager::_initLightFields()
       ShadowMapParams *p = _getShadowMapParams( object );                     \
       if ( p )                                                                \
       {                                                                       \
-         ConsoleValueRef ref;                                                 \
-         ref.value = data;                                                    \
-         Con::setDataValue( type, &p->var, 0, 1, &ref, enum_ );               \
+         Con::setDataValue( type, &p->var, 0, data, enum_ );                  \
          p->_validate();                                                      \
       }                                                                       \
       return false;                                                           \
@@ -224,9 +222,7 @@ void AdvancedLightManager::_initLightFields()
       LightMapParams *p = _getLightMapParams( object );                       \
       if ( p )                                                                \
       {                                                                       \
-         ConsoleValueRef ref;                                                 \
-         ref.value = data;                                                    \
-         Con::setDataValue( type, &p->var, 0, 1, &ref, enum_ );               \
+         Con::setDataValue( type, &p->var, 0, data, enum_ );                  \
       }                                                                       \
       return false;                                                           \
    }

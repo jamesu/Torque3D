@@ -39,7 +39,8 @@ enum TypeReq
    TypeReqUInt,
    TypeReqFloat,
    TypeReqString,
-   TypeReqVar
+   TypeReqVar,
+   TypeReqArray
 };
 
 /// Representation of a node for the scripting language parser.
@@ -72,6 +73,7 @@ struct StmtNode
    S32 dbgLineNumber;            ///< Line number this node is associated with.
 #ifdef DEBUG_AST_NODES
    virtual String dbgStmtType() const = 0;
+   U32 expectedSize;
 #endif
    /// @}
 
@@ -93,7 +95,7 @@ struct StmtNode
 };
 
 /// Helper macro
-#ifndef DEBUG_AST_NODES
+#ifdef DEBUG_AST_NODES
 #  define DBG_STMT_TYPE(s) virtual String dbgStmtType() const { return String(#s); }
 #else
 #  define DBG_STMT_TYPE(s) 
@@ -194,6 +196,8 @@ struct IterStmtNode : StmtNode
    
    U32 precompileStmt( U32 loopCount );
    U32 compileStmt( U32* codeStream, U32 ip, U32 continuePoint, U32 breakPoint );
+
+   DBG_STMT_TYPE(IterStmtNode);
 };
 
 /// A binary mathematical expression (ie, left op right).
@@ -202,6 +206,8 @@ struct BinaryExprNode : ExprNode
    S32 op;
    ExprNode *left;
    ExprNode *right;
+
+   DBG_STMT_TYPE(BinaryExprNode);
 };
 
 struct FloatBinaryExprNode : BinaryExprNode
@@ -305,6 +311,18 @@ struct VarNode : ExprNode
    U32 compile(U32 *codeStream, U32 ip, TypeReq type);
    TypeReq getPreferredType();
    DBG_STMT_TYPE(VarNode);
+};
+
+struct ArrayNode : ExprNode
+{
+   U32 numElements;
+   ExprNode *arrayItems;
+
+   static ArrayNode *alloc( S32 lineNumber, ExprNode *arrayItems );
+   U32 precompile(TypeReq type);
+   U32 compile(U32 *codeStream, U32 ip, TypeReq type);
+   TypeReq getPreferredType();
+   DBG_STMT_TYPE(ArrayNode);
 };
 
 struct IntNode : ExprNode

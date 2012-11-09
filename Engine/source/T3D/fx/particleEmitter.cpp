@@ -288,9 +288,7 @@ bool ParticleEmitterData::_setAlignDirection( void *object, const char *index, C
 {
    ParticleEmitterData *p = static_cast<ParticleEmitterData*>( object );
 
-   ConsoleValueRef value;
-   value.value = data;
-   Con::setDataValue( TypePoint3F, &p->alignDirection, 0, 1, &value );
+   Con::setDataValue( TypePoint3F, &p->alignDirection, 0, data );
    p->alignDirection.normalizeSafe();
 
    // we already set the field

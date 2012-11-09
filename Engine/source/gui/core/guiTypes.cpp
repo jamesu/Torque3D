@@ -729,11 +729,11 @@ ConsoleGetType( TypeRectSpacingI )
 
 ConsoleSetType( TypeRectSpacingI )
 {
-   if(argc == 1)
-      dSscanf(argv[0]->getStringValue(), "%d %d %d %d", &((RectSpacingI *) dptr)->top, &((RectSpacingI *) dptr)->bottom,
+   if(!value.isArray())
+      dSscanf(value.getStringValue(), "%d %d %d %d", &((RectSpacingI *) dptr)->top, &((RectSpacingI *) dptr)->bottom,
       &((RectSpacingI *) dptr)->left, &((RectSpacingI *) dptr)->right);
-   else if(argc == 4)
-      *((RectSpacingI *) dptr) = RectSpacingI(argv[0]->getIntValue(), argv[1]->getIntValue(), argv[2]->getIntValue(), argv[3]->getIntValue());
+   else if (value->getNumArrayElements() == 4)
+      *((RectSpacingI *) dptr) = RectSpacingI(value->getArrayElement(0)->getIntValue(), value->getArrayElement(1)->getIntValue(), value->getArrayElement(2)->getIntValue(), value->getArrayElement(3)->getIntValue());
    else
       Con::printf("RectSpacingI must be set as { t, b, l, r } or \"t b l r\"");
 }

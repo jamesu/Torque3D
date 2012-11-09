@@ -494,6 +494,14 @@ const char *Dictionary::getVariable(StringTableEntry name, bool *entValid)
 
 void ConsoleValue::setStringValue(const char * value)
 {
+   // Destroy array if present
+   if (type == TypeInternalArray)
+   {
+      if (list) delete list;
+      type = TypeInternalString;
+      sval = typeValueEmpty;
+   }
+
    if (value == NULL) value = typeValueEmpty;
 
    if(type <= ConsoleValue::TypeInternalString)
@@ -541,7 +549,7 @@ void ConsoleValue::setStringValue(const char * value)
       // may as well pad to the next cache line
       U32 newLen = ((stringLen + 1) + 15) & ~15;
 	  
-      if(sval == typeValueEmpty || type == TypeInternalStackString)
+      if(sval == NULL || sval == typeValueEmpty || type == TypeInternalStackString)
          sval = (char *) dMalloc(newLen);
       else if(newLen > bufferLen)
          sval = (char *) dRealloc(sval, newLen);
@@ -656,7 +664,6 @@ Dictionary::Entry* Dictionary::addVariable(  const char *name,
 
    ent->value.type = type;
    ent->value.dataPtr = dataPtr;
-   ent->value.isAllocated = false;
    ent->mUsage = usage;
    
    // Fetch enum table, if any.
@@ -729,6 +736,7 @@ void ExprEvalState::pushFrame(StringTableEntry frameName, Namespace *ns)
 
    mStackDepth ++;
    currentVariable = NULL;
+   currentVariableIndex = -1;
    
    AssertFatal( !newFrame.getCount(), "ExprEvalState::pushFrame - Dictionary not empty!" );
    
@@ -751,6 +759,7 @@ void ExprEvalState::popFrame()
    mStackDepth --;
    stack[ mStackDepth ]->reset();
    currentVariable = NULL;
+   currentVariableIndex = -1;
 
    #ifdef DEBUG_SPEW
    validate();
@@ -782,6 +791,7 @@ void ExprEvalState::pushFrameRef(S32 stackIndex)
    
    mStackDepth ++;
    currentVariable = NULL;
+   currentVariableIndex = -1;
    
    #ifdef DEBUG_SPEW
    validate();
@@ -795,6 +805,7 @@ ExprEvalState::ExprEvalState()
    thisObject = NULL;
    traceOn = false;
    currentVariable = NULL;
+   currentVariableIndex = -1;
    mStackDepth = 0;
    stack.reserve( 64 );
 }

@@ -56,6 +56,8 @@ namespace Compiler
       OP_RETURN_VOID,
       OP_RETURN_FLT,
       OP_RETURN_UINT,
+      OP_RETURN_VAR,
+      OP_RETURN_ARRAY,
 
       OP_CMPEQ,
       OP_CMPGR,
@@ -86,18 +88,22 @@ namespace Compiler
       OP_SETCURVAR_CREATE,
       OP_SETCURVAR_ARRAY,
       OP_SETCURVAR_ARRAY_CREATE,
+      OP_SETCURVAR_TEMP,  // Temporary variable for copying fields
 
       OP_LOADVAR_UINT,
       OP_LOADVAR_FLT,
       OP_LOADVAR_STR,
       OP_LOADVAR_VAR,
-      OP_LOADVAR_ARRAY,
+      OP_LOADVAR_ARRAY,   // Loads current var to array (copies)
 
       OP_SAVEVAR_UINT,
       OP_SAVEVAR_FLT,
       OP_SAVEVAR_STR,
       OP_SAVEVAR_VAR,
-      OP_SAVEVAR_ARRAY,
+      OP_SAVEVAR_ARRAY,  // Saves current array to var
+
+      OP_BEGIN_ARRAY,    // Begins creating an array, push will then push elements
+      OP_LOAD_ARRAY,     // Push current stack elements to array
 
       OP_SETCUROBJECT,
       OP_SETCUROBJECT_NEW,
@@ -110,12 +116,14 @@ namespace Compiler
       OP_LOADFIELD_UINT,
       OP_LOADFIELD_FLT,
       OP_LOADFIELD_STR,
-      OP_LOADFIELD_ARRAY,
+      OP_LOADFIELD_VAR,
+      OP_LOADFIELD_ARRAY,   // loads current field to array
 
       OP_SAVEFIELD_UINT,
       OP_SAVEFIELD_FLT,
       OP_SAVEFIELD_STR,
-      OP_SAVEFIELD_ARRAY,
+      OP_SAVEFIELD_VAR,
+      OP_SAVEFIELD_ARRAY,   // saves current array to field
 
       OP_STR_TO_UINT,
       OP_STR_TO_FLT,
@@ -127,6 +135,12 @@ namespace Compiler
       OP_UINT_TO_STR,
       OP_UINT_TO_NONE,
       OP_COPYVAR_TO_NONE,
+
+      // Array -> basic type funcs
+      OP_ARRAY_TO_UINT,
+      OP_ARRAY_TO_FLT,
+      OP_ARRAY_TO_STR,
+      OP_ARRAY_TO_NONE,
 
       OP_LOADIMMED_UINT,
       OP_LOADIMMED_FLT,
@@ -150,6 +164,7 @@ namespace Compiler
       OP_PUSH_UINT,     // Integer
       OP_PUSH_FLT,      // Float
       OP_PUSH_VAR,      // Variable
+      OP_PUSH_ARRAY,    // Current array
       OP_PUSH_FRAME,    // Frame
 
       OP_ASSERT,

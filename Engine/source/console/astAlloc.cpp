@@ -202,6 +202,15 @@ VarNode *VarNode::alloc( S32 lineNumber, StringTableEntry varName, ExprNode *arr
    return ret;
 }
 
+ArrayNode *ArrayNode::alloc( S32 lineNumber, ExprNode *arrayItems )
+{
+   ArrayNode *ret = (ArrayNode *) consoleAlloc(sizeof(ArrayNode));
+   constructInPlace(ret);
+   ret->dbgLineNumber = lineNumber;
+   ret->arrayItems = arrayItems;
+   return ret;
+}
+
 IntNode *IntNode::alloc( S32 lineNumber, S32 value )
 {
    IntNode *ret = (IntNode *) consoleAlloc(sizeof(IntNode));
