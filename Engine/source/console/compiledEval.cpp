@@ -1587,6 +1587,7 @@ breakContinue:
             gEvalState.currentVariable = gEvalState.lookupVariable(StringTable->insert(STR.getPreviousStringValue()));
             if (gEvalState.currentVariable && gEvalState.currentVariable->value.isArray()) {
                gEvalState.currentVariableIndex = dAtoi(curVarArray);
+               STR.rewind();
             } else {
                STR.setStringValue(curVarArray);
                STR.rewind();
@@ -1612,6 +1613,7 @@ breakContinue:
             gEvalState.currentVariable = gEvalState.lookupVariable(StringTable->insert(STR.getPreviousStringValue()));
             if (gEvalState.currentVariable && gEvalState.currentVariable->value.isArray()) {
                gEvalState.currentVariableIndex = dAtoi(curVarArray);
+               STR.rewind();
             } else {
                STR.setStringValue(curVarArray);
                STR.rewind();
