@@ -387,18 +387,13 @@ U32 IfStmtNode::compileStmt(U32 *codeStream, U32 ip, U32 continuePoint, U32 brea
    U32 start = ip;
    addBreakLine(ip);
 
-//   codeList << "if (";
-
    ip = testExpr->compile(codeStream, ip, integer ? TypeReqUInt : TypeReqFloat);
    codeStream[ip++] = integer ? OP_JMPIFNOT : OP_JMPIFFNOT;
-
-//   codeList << ") {"
 
    if(elseBlock)
    {
       codeStream[ip++] = start + elseOffset;
       ip = compileBlock(ifBlock, codeStream, ip, continuePoint, breakPoint);
-//      codeList << "} else {";
       codeStream[ip++] = OP_JMP;
       codeStream[ip++] = start + endifOffset;
       ip = compileBlock(elseBlock, codeStream, ip, continuePoint, breakPoint);
@@ -408,8 +403,6 @@ U32 IfStmtNode::compileStmt(U32 *codeStream, U32 ip, U32 continuePoint, U32 brea
       codeStream[ip++] = start + endifOffset;
       ip = compileBlock(ifBlock, codeStream, ip, continuePoint, breakPoint);
    }
-
-//   codeList << "}";
 
    return ip;
 }

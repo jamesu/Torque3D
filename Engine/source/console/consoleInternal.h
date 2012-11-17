@@ -91,7 +91,8 @@ class Namespace
             IntCallbackType,
             FloatCallbackType,
             VoidCallbackType,
-            BoolCallbackType
+            BoolCallbackType,
+            ValueCallbackType
          };
 
          /// Link back to the namespace to which the entry belongs.
@@ -141,6 +142,7 @@ class Namespace
             VoidCallback mVoidCallbackFunc;
             FloatCallback mFloatCallbackFunc;
             BoolCallback mBoolCallbackFunc;
+            ValueCallback mValueCallbackFunc;
             const char *mGroupName;
             const char *mCallbackName;
          } cb;
@@ -184,6 +186,7 @@ class Namespace
       void addCommand( StringTableEntry name, FloatCallback, const char *usage, S32 minArgs, S32 maxArgs, bool toolOnly = false, ConsoleFunctionHeader* header = NULL );
       void addCommand( StringTableEntry name, VoidCallback, const char *usage, S32 minArgs, S32 maxArgs, bool toolOnly = false, ConsoleFunctionHeader* header = NULL );
       void addCommand( StringTableEntry name, BoolCallback, const char *usage, S32 minArgs, S32 maxArgs, bool toolOnly = false, ConsoleFunctionHeader* header = NULL );
+      void addCommand( StringTableEntry name, ValueCallback, const char *usage, S32 minArgs, S32 maxArgs, bool toolOnly = false, ConsoleFunctionHeader* header = NULL );
 
       void addScriptCallback( const char *funcName, const char *usage, ConsoleFunctionHeader* header = NULL );
 
@@ -507,7 +510,8 @@ public:
    ///
    SimObject *thisObject;
    Dictionary::Entry *currentVariable;
-   Dictionary::Entry *copyVariable;
+   ConsoleValue *copyValue;
+
    int currentVariableIndex;
    bool traceOn;
 

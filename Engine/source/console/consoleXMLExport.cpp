@@ -69,13 +69,13 @@ namespace Con {
       const char *typeNames [] = { 
          "ScriptCallbackType", "GroupMarker", "OverloadMarker", "InvalidFunctionType",
          "ConsoleFunctionType", "StringCallbackType", "IntCallbackType", "FloatCallbackType",
-         "VoidCallbackType", "BoolCallbackType"
+         "VoidCallbackType", "BoolCallbackType", "ValueCallbackType"
       };
 
       S32 typeIds [] =  {
          Namespace::Entry::ScriptCallbackType, Namespace::Entry::GroupMarker, Namespace::Entry::InvalidFunctionType,
          Namespace::Entry::ConsoleFunctionType, Namespace::Entry::StringCallbackType, Namespace::Entry::IntCallbackType, Namespace::Entry::FloatCallbackType,
-         Namespace::Entry::VoidCallbackType, Namespace::Entry::BoolCallbackType
+         Namespace::Entry::VoidCallbackType, Namespace::Entry::BoolCallbackType, Namespace::Entry::ValueCallbackType
       };
 
       mXML->pushNewElement("EntryTypes");

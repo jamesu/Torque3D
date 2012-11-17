@@ -313,6 +313,17 @@ extern "C" {
 		return entry->cb.mBoolCallbackFunc(NULL, args.count(), args);
 	}
 
+	const char * torque_callvaluefunction(const char* nameSpace, const char* name, S32 argc, const char ** argv)
+	{
+		Namespace::Entry* entry = GetEntry(nameSpace, name);
+
+		if (!entry)
+			return "";
+
+		StringStackConsoleWrapper args(argc, argv);
+		return entry->cb.mValueCallbackFunc(NULL, args.count(), args);
+	}
+
 
 	const char * torque_callscriptfunction(const char* nameSpace, const char* name, S32 argc, const char ** argv)
 	{
@@ -389,6 +400,10 @@ extern "C" {
 
 					case Namespace::Entry::BoolCallbackType:
 						dSprintf(returnBuffer, sizeof(returnBuffer), "%d", (U32) torque_callboolfunction(nameSpace, name, argc, argv));
+						return returnBuffer;
+
+					case Namespace::Entry::ValueCallbackType:
+						dSprintf(returnBuffer, sizeof(returnBuffer), "%d", (U32) torque_callvaluefunction(nameSpace, name, argc, argv));
 						return returnBuffer;
 					};
 

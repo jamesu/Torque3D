@@ -2575,3 +2575,62 @@ DefineEngineFunction( isToolBuild, bool, (),,
    return false;
 #endif
 }
+
+
+//-----------------------------------------------------------------------------
+
+ConsoleFunction(makeArray, ConsoleValueRef, 2, 2, "(int size)"
+	"@brief Creates an array of size length\n\n"
+	"@param size desired length\n"
+	"@return A blank array\n")
+{
+   Vector<ConsoleValue> items;
+   items.setSize(argv[1]);
+   return items;
+}
+
+ConsoleFunction(appendArrayElement, ConsoleValueRef, 3, 3, "(array, value)"
+	"@brief Appends value to array\n\n"
+	"@param array an Array\n"
+	"@param value desired value to append\n"
+	"@return new array with value appended\n")
+{
+   ConsoleValueRef value = argv[1];
+   if (value.isArray())
+   {
+      value->setArrayElement(value->getNumArrayElements(), argv[2]);
+      return value;
+   }
+
+   return 0;
+}
+
+ConsoleFunction(removeArrayElement, ConsoleValueRef, 3, 3, "(array, int idx)"
+	"@brief Removes item at idx from array\n\n"
+	"@param array an Array\n"
+	"@param idx index of value in array to remove\n"
+	"@return new array with value removed\n")
+{
+   ConsoleValueRef value = argv[1];
+   if (value.isArray())
+   {
+      value->eraseArrayElement(dAtoi(argv[2]));
+   }
+   return value;
+}
+
+ConsoleFunction(len, S32, 2, 2, "(value)"
+	"@brief Returns the size of value\n\n"
+	"@param value\n"
+	"@return The length of the value array/string\n")
+{
+   ConsoleValueRef value = argv[1];
+   if (value.isArray())
+   {
+      return value->getNumArrayElements();
+   }
+   else
+   {
+      return dStrlen(value.getStringValue());
+   }
+}

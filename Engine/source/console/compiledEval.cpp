@@ -457,13 +457,13 @@ inline void ExprEvalState::setArrayValue(Vector<ConsoleValue> &val)
 
 inline void ExprEvalState::setCopyVariable()
 {
-   if (copyVariable)
+   if (copyValue)
    {
       if (currentVariableIndex < 0)
       {
          if (currentVariable->checkCanChange())
          {
-            copyVariable->value.copyInto(currentVariable->value);
+            copyValue->copyInto(currentVariable->value);
             currentVariable->notifyChanged();
          }
       }
@@ -472,11 +472,22 @@ inline void ExprEvalState::setCopyVariable()
          ConsoleValue *arrayValue = currentVariable->value.getArrayElement(currentVariableIndex);
          if (arrayValue)
          {
-            copyVariable->value.copyInto(*arrayValue);
+            copyValue->copyInto(*arrayValue);
             currentVariable->notifyChanged();
          }
       }
    }
+}
+
+//------------------------------------------------------------
+
+// Checks if we can shortcut variable assigning
+inline bool EvalDoesAssignVar(U32 *code, U32 ip)
+{
+   if (code[ip] != OP_SETCURVAR_CREATE)
+      return false;
+
+   return (code[ip+2] >= OP_SAVEVAR_UINT && code[ip+2] < OP_SAVEVAR_ARRAY);
 }
 
 //------------------------------------------------------------
@@ -1381,8 +1392,8 @@ breakContinue:
                }
             }
 
-            if (gEvalState.copyVariable)
-              returnValue.value = CSTK.pushValue(gEvalState.copyVariable->value);
+            if (gEvalState.copyValue)
+              returnValue.value = CSTK.pushValue(*gEvalState.copyValue);
                
             goto execFinished;
 
@@ -1621,7 +1632,7 @@ breakContinue:
             //curObject = NULL;
 
             gEvalState.setCurVarNameCreate(tempVarName);
-            gEvalState.copyVariable = gEvalState.currentVariable;
+            gEvalState.copyValue = gEvalState.currentVariable->getValue();
 
             // See OP_SETCURVAR for why we do this.
             curFNDocBlock = NULL;
@@ -1645,7 +1656,7 @@ breakContinue:
 
          case OP_LOADVAR_VAR:
             // Sets current source of OP_SAVEVAR_VAR
-            gEvalState.copyVariable = gEvalState.currentVariable;
+            gEvalState.copyValue = gEvalState.currentVariable ? gEvalState.currentVariable->getValue() : NULL;
             break;
 
          case OP_LOADVAR_ARRAY:
@@ -1803,14 +1814,14 @@ breakContinue:
             {
                tempReturnValue = curObject->getDataFieldValue(curField, curFieldArray);
                if (tempReturnValue.value)
-                  tempReturnValue.value->copyInto(*gEvalState.copyVariable->getValue());
+                  tempReturnValue.value->copyInto(*gEvalState.copyValue);
             }
             else
             {
                // The field is not being retrieved from an object. Maybe it's
                // a special accessor?
                getFieldComponent( prevObject, prevField, prevFieldArray, curField, valBuffer, &tempFieldValue );
-               gEvalState.copyVariable->setStringValue( valBuffer );
+               gEvalState.copyValue->setStringValue( valBuffer );
             }
             prevField = NULL;
             break;
@@ -1885,7 +1896,7 @@ breakContinue:
          case OP_SAVEFIELD_VAR:
             if(curObject)
             {
-               if (gEvalState.copyVariable == NULL)
+               if (gEvalState.copyValue == NULL)
                {
                   tempValue.cleanup();
                   tempValue.type = ConsoleValue::TypeInternalString;
@@ -1894,14 +1905,14 @@ breakContinue:
                } 
                else
                {
-                  curObject->setDataFieldValue(curField, curFieldArray, *gEvalState.copyVariable->getValue());
+                  curObject->setDataFieldValue(curField, curFieldArray, *gEvalState.copyValue);
                }
             }
             else
             {
                // The field is not being set on an object. Maybe it's
                // a special accessor?
-               setFieldComponent( prevObject, prevField, prevFieldArray, curField, gEvalState.copyVariable->getValue() );
+               setFieldComponent( prevObject, prevField, prevFieldArray, curField, gEvalState.copyValue );
                prevObject = NULL;
             }
 
@@ -1994,7 +2005,7 @@ breakContinue:
             break;
 
          case OP_COPYVAR_TO_NONE:
-            gEvalState.copyVariable = NULL;
+            gEvalState.copyValue = NULL;
             break;
 
          case OP_LOADIMMED_UINT:
@@ -2207,6 +2218,27 @@ breakContinue:
                }
                else if(code[ip] == OP_STR_TO_NONE)
                   ip++;
+               else if (ret.value && EvalDoesAssignVar(code, ip)) {
+                  var = U32toSTE(code[ip+1]);
+                  ip++;
+
+                  // See OP_SETCURVAR
+                  //prevField = NULL;
+                  if (!prevField)
+                  {
+                     curObject = NULL;
+                     prevObject = NULL;
+                  }
+
+                  gEvalState.setCurVarNameCreate(var);
+
+                  // See OP_SETCURVAR for why we do this.
+                  curFNDocBlock = NULL;
+                  curNSDocBlock = NULL;
+
+                  ret->copyInto(*gEvalState.currentVariable->getValue());
+                  ip += 3;
+               }
                else
                   STR.setStringValue((const char*)ret);
 			   
@@ -2328,6 +2360,52 @@ breakContinue:
                            STR.setIntValue(result);
                         break;
                      }
+                     case Namespace::Entry::ValueCallbackType:
+                     {
+                        ConsoleValueRef ret = nsEntry->cb.mValueCallbackFunc(gEvalState.thisObject, callArgc, callArgv);
+                        if(code[ip] == OP_STR_TO_UINT)
+                        {
+                           ip++;
+                           intStack[++_UINT] = ret.getFloatValue();
+                           break;
+                        }
+                        else if(code[ip] == OP_STR_TO_FLT)
+                        {
+                           ip++;
+                           floatStack[++_FLT] = ret.getFloatValue();
+                           break;
+                        }
+                        else if(code[ip] == OP_STR_TO_NONE)
+                           ip++;
+                        else if (ret.value && EvalDoesAssignVar(code, ip)) {
+                           var = U32toSTE(code[ip+1]);
+                           ip++;
+
+                           // See OP_SETCURVAR
+                           //prevField = NULL;
+                           if (!prevField)
+                           {
+                              curObject = NULL;
+                              prevObject = NULL;
+                           }
+
+                           gEvalState.setCurVarNameCreate(var);
+
+                           // See OP_SETCURVAR for why we do this.
+                           curFNDocBlock = NULL;
+                           curNSDocBlock = NULL;
+
+                           ret->copyInto(*gEvalState.currentVariable->getValue());
+                           ip += 3;
+                        }
+                        else
+                           STR.setStringValue(ret.getStringValue());
+                        
+                        STR.popFrame();
+                        CSTK.popFrame();
+
+                        break;
+                     }
                   }
                }
             }
@@ -2364,7 +2442,7 @@ breakContinue:
             break;
          case OP_PUSH:
             STR.push();
-            CSTK.pushString(STR.getPreviousStringValue());
+            CSTK.pushStackString(STR.getPreviousStringValue());
             break;
          case OP_PUSH_UINT:
             CSTK.pushUINT(intStack[_UINT]);

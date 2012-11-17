@@ -256,6 +256,7 @@ public:
    ~ConsoleValueRef() { ; }
 
    ConsoleValueRef(const ConsoleValueRef &ref);
+   ConsoleValueRef(Vector<ConsoleValue> &value);
    ConsoleValueRef(const char *value);
    ConsoleValueRef(const String &ref);
    ConsoleValueRef(S32 value);
@@ -363,6 +364,7 @@ typedef S32             (*IntCallback)(SimObject *obj, S32 argc, ConsoleValueRef
 typedef F32           (*FloatCallback)(SimObject *obj, S32 argc, ConsoleValueRef argv[]);
 typedef void           (*VoidCallback)(SimObject *obj, S32 argc, ConsoleValueRef argv[]); // We have it return a value so things don't break..
 typedef bool           (*BoolCallback)(SimObject *obj, S32 argc, ConsoleValueRef argv[]);
+typedef ConsoleValueRef (*ValueCallback)(SimObject *obj, S32 argc, ConsoleValueRef argv[]);
 
 typedef void (*ConsumerCallback)(U32 level, const char *consoleLine);
 /// @}
@@ -721,6 +723,7 @@ namespace Con
    void addCommand(const char *nameSpace, const char *name,FloatCallback cb,  const char *usage, S32 minArgs, S32 maxArgs, bool toolOnly = false, ConsoleFunctionHeader* header = NULL ); ///< @copydoc addCommand( const char*, const char *, StringCallback, const char *, S32, S32, bool, ConsoleFunctionHeader* )
    void addCommand(const char *nameSpace, const char *name,VoidCallback cb,   const char *usage, S32 minArgs, S32 maxArgs, bool toolOnly = false, ConsoleFunctionHeader* header = NULL ); ///< @copydoc addCommand( const char*, const char *, StringCallback, const char *, S32, S32, bool, ConsoleFunctionHeader* )
    void addCommand(const char *nameSpace, const char *name,BoolCallback cb,   const char *usage, S32 minArgs, S32 maxArgs, bool toolOnly = false, ConsoleFunctionHeader* header = NULL ); ///< @copydoc addCommand( const char*, const char *, StringCallback, const char *, S32, S32, bool, ConsoleFunctionHeader* )
+   void addCommand(const char *nameSpace, const char *name,ValueCallback rb,  const char *usage, S32 minArgs, S32 maxArgs, bool toolOnly = false, ConsoleFunctionHeader* header = NULL ); ///< @copydoc addCommand( const char*, const char *, StringCallback, const char *, S32, S32, bool, ConsoleFunctionHeader* )
 
    /// @}
 
@@ -1001,6 +1004,7 @@ public:
    FloatCallback fc;    ///< A function/method that returns a float.
    VoidCallback vc;     ///< A function/method that returns nothing.
    BoolCallback bc;     ///< A function/method that returns a bool.
+   ValueCallback rc;     ///< A function/method that returns a bool.
    bool group;          ///< Indicates that this is a group marker.
    bool ns;             ///< Indicates that this is a namespace marker.
                         ///  @deprecated Unused.
@@ -1110,6 +1114,7 @@ public:
    ConsoleConstructor( const char* className, const char* funcName, FloatCallback  ffunc, const char* usage,  S32 minArgs, S32 maxArgs, bool toolOnly = false, ConsoleFunctionHeader* header = NULL );
    ConsoleConstructor( const char* className, const char* funcName, VoidCallback   vfunc, const char* usage,  S32 minArgs, S32 maxArgs, bool toolOnly = false, ConsoleFunctionHeader* header = NULL );
    ConsoleConstructor( const char* className, const char* funcName, BoolCallback   bfunc, const char* usage,  S32 minArgs, S32 maxArgs, bool toolOnly = false, ConsoleFunctionHeader* header = NULL );
+   ConsoleConstructor( const char* className, const char* funcName, ValueCallback  rfunc, const char* usage,  S32 minArgs, S32 maxArgs, bool toolOnly = false, ConsoleFunctionHeader* header = NULL );
    
    /// @}
 

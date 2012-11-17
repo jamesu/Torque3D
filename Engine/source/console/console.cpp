@@ -88,7 +88,7 @@ void ConsoleConstructor::init( const char *cName, const char *fName, const char 
    funcName = fName;
    usage = usg;
    className = cName;
-   sc = 0; fc = 0; vc = 0; bc = 0; ic = 0;
+   sc = 0; fc = 0; vc = 0; bc = 0; ic = 0; rc = 0;
    callback = group = false;
    next = first;
    ns = false;
@@ -115,6 +115,8 @@ void ConsoleConstructor::setup()
          Con::addCommand( walk->className, walk->funcName, walk->vc, walk->usage, walk->mina, walk->maxa, walk->toolOnly, walk->header );
       else if( walk->bc )
          Con::addCommand( walk->className, walk->funcName, walk->bc, walk->usage, walk->mina, walk->maxa, walk->toolOnly, walk->header );
+      else if( walk->rc )
+         Con::addCommand( walk->className, walk->funcName, walk->rc, walk->usage, walk->mina, walk->maxa, walk->toolOnly, walk->header );
       else if( walk->group )
          Con::markCommandGroup( walk->className, walk->funcName, walk->usage );
       else if( walk->callback )
@@ -160,6 +162,12 @@ ConsoleConstructor::ConsoleConstructor(const char *className, const char *funcNa
 {
    init( className, funcName, usage, minArgs, maxArgs, isToolOnly, header );
    bc = bfunc;
+}
+
+ConsoleConstructor::ConsoleConstructor(const char *className, const char *funcName, ValueCallback rfunc, const char *usage, S32 minArgs, S32 maxArgs, bool isToolOnly, ConsoleFunctionHeader* header )
+{
+   init( className, funcName, usage, minArgs, maxArgs, isToolOnly, header );
+   rc = rfunc;
 }
 
 ConsoleConstructor::ConsoleConstructor(const char* className, const char* groupName, const char* aUsage)
@@ -1089,6 +1097,13 @@ void addCommand( const char *nsName, const char *name,BoolCallback cb, const cha
    ns->addCommand( StringTable->insert(name), cb, usage, minArgs, maxArgs, isToolOnly, header );
 }
 
+void addCommand( const char *nsName, const char *name,ValueCallback rb, const char *usage, S32 minArgs, S32 maxArgs, bool isToolOnly, ConsoleFunctionHeader* header )
+{
+   Namespace *ns = lookupNamespace(nsName);
+   ns->addCommand( StringTable->insert(name), rb, usage, minArgs, maxArgs, isToolOnly, header );
+}
+
+
 void noteScriptCallback( const char *className, const char *funcName, const char *usage, ConsoleFunctionHeader* header )
 {
    Namespace *ns = lookupNamespace(className);
@@ -1619,6 +1634,11 @@ ConsoleValueRef::ConsoleValueRef(const ConsoleValueRef &ref)
 	stringStackValue = ref.stringStackValue;
 }
 
+ConsoleValueRef::ConsoleValueRef(Vector<ConsoleValue> &newValue)
+{
+   value = CSTK.pushArray(newValue);
+}
+
 ConsoleValueRef::ConsoleValueRef(const char *newValue) : value(NULL)
 {
    value = CSTK.pushStackString(newValue);
@@ -1952,8 +1972,8 @@ void ConsoleValue::setArrayElement(S32 idx, ConsoleValue *value)
    if (idx < 0)
       return;
 
-   if (idx < list->size())
-      list->setSize(idx);
+   if (idx <= list->size())
+      list->setSize(idx+1);
 
    value->copyInto((*list)[idx]);
 }

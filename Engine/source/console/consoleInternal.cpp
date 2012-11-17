@@ -502,7 +502,7 @@ void ConsoleValue::setStringValue(const char * value)
       sval = typeValueEmpty;
    }
 
-   if (value == NULL) value = typeValueEmpty;
+   if (value == NULL || value[0] == '\0') value = typeValueEmpty;
 
    if(type <= ConsoleValue::TypeInternalString)
    {
@@ -1286,6 +1286,21 @@ void Namespace::addCommand( StringTableEntry name, FloatCallback cb, const char 
    ent->cb.mFloatCallbackFunc = cb;
 }
 
+void Namespace::addCommand( StringTableEntry name, ValueCallback rb, const char *usage, S32 minArgs, S32 maxArgs, bool isToolOnly, ConsoleFunctionHeader* header )
+{
+   Entry *ent = createLocalEntry(name);
+   trashCache();
+
+   ent->mUsage = usage;
+   ent->mHeader = header;
+   ent->mMinArgs = minArgs;
+   ent->mMaxArgs = maxArgs;
+   ent->mToolOnly = isToolOnly;
+
+   ent->mType = Entry::ValueCallbackType;
+   ent->cb.mValueCallbackFunc = rb;
+}
+
 void Namespace::addCommand( StringTableEntry name, BoolCallback cb, const char *usage, S32 minArgs, S32 maxArgs, bool isToolOnly, ConsoleFunctionHeader* header )
 {
    Entry *ent = createLocalEntry(name);
@@ -1395,6 +1410,9 @@ const char *Namespace::Entry::execute(S32 argc, ConsoleValueRef *argv, ExprEvalS
          dSprintf(returnBuffer, sizeof(returnBuffer), "%d",
             (U32)cb.mBoolCallbackFunc(state->thisObject, argc, argv));
          return returnBuffer;
+      case ValueCallbackType:
+         cb.mValueCallbackFunc(state->thisObject, argc, argv);
+         return "";
    }
 
    return "";
@@ -1732,6 +1750,10 @@ String Namespace::Entry::getPrototypeString() const
 
          case BoolCallbackType:
             str.append( "bool " );
+            break;
+
+         case ValueCallbackType:
+            str.append( "value " );
             break;
             
          case ScriptCallbackType:
