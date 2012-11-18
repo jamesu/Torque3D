@@ -189,7 +189,10 @@ struct StringStack
 
    inline const char *getPreviousStringValue()
    {
-      return mBuffer + mStartOffsets[mStartStackSize-1];
+      if (mStartStackSize == 0)
+         return "";
+      else
+         return mBuffer + mStartOffsets[mStartStackSize-1];
    }
 
    /// Advance the start stack, placing a zero length string on the top.

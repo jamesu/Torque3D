@@ -477,6 +477,10 @@ inline void ExprEvalState::setCopyVariable()
          }
       }
    }
+   else if (currentVariable)
+   {
+      currentVariable->setStringValue("");
+   }
 }
 
 //------------------------------------------------------------
@@ -657,10 +661,10 @@ ConsoleValueRef CodeBlock::exec(U32 ip, const char *functionName, Namespace *thi
             dSprintf(traceBuffer + dStrlen(traceBuffer), sizeof(traceBuffer) - dStrlen(traceBuffer),
                "%s(", thisFunctionName);
          }
-         for(i = 0; i < argc; i++)
+         for(i = 0; i < argc-1; i++)
          {
             dStrcat(traceBuffer, argv[i+1]);
-            if(i != argc - 1)
+            if(i != argc - 2)
                dStrcat(traceBuffer, ", ");
          }
          dStrcat(traceBuffer, ")");
@@ -1626,7 +1630,7 @@ breakContinue:
             break;
 
          case OP_SETCURVAR_TEMP:
-            var = STR.getSTValue();
+            //var = STR.getSTValue();
 
             // See OP_SETCURVAR
             //prevField = NULL;
@@ -1817,6 +1821,8 @@ breakContinue:
                tempReturnValue = curObject->getDataFieldValue(curField, curFieldArray);
                if (tempReturnValue.value)
                   tempReturnValue.value->copyInto(*gEvalState.copyValue);
+               else if (gEvalState.copyValue)
+                  gEvalState.copyValue->setStackStringValue("");
             }
             else
             {
@@ -1832,9 +1838,10 @@ breakContinue:
             if(curObject)
             {
                tempReturnValue = curObject->getDataFieldValue(curField, curFieldArray);
-               if (tempReturnValue.value) {
+               if (tempReturnValue.value)
                   tempReturnValue.value->copyIntoArray(currentArray);
-               }
+               else
+                  currentArray.setSize(0);
             }
             else
             {
@@ -2459,7 +2466,7 @@ breakContinue:
             if (gEvalState.currentVariable && tempReturnValue.value)
                CSTK.pushVar(tempReturnValue.value);
             else
-               CSTK.pushString("");
+               CSTK.pushStackString("");
             break;
          case OP_PUSH_ARRAY:
             CSTK.pushArray(currentArray);

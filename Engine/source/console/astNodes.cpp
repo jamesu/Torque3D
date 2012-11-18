@@ -1816,6 +1816,11 @@ U32 SlotAssignNode::precompile(TypeReq type)
 
 U32 SlotAssignNode::compile(U32 *codeStream, U32 ip, TypeReq type)
 {
+   ip = valueExpr->compile(codeStream, ip, valueExpr->getPreferredType());
+   if (valueExpr->getPreferredType() == TypeReqString) {
+      codeStream[ip++] = OP_ADVANCE_STR;
+   }
+
    if(arrayExpr)
    {
       ip = arrayExpr->compile(codeStream, ip, TypeReqString);
@@ -1837,8 +1842,6 @@ U32 SlotAssignNode::compile(U32 *codeStream, U32 ip, TypeReq type)
       codeStream[ip++] = OP_SETCURFIELD_ARRAY;
    }
 
-   ip = valueExpr->compile(codeStream, ip, valueExpr->getPreferredType());
-
    switch (valueExpr->getPreferredType()) {
    case TypeReqUInt:
       codeStream[ip++] = OP_SAVEFIELD_UINT;
@@ -1847,7 +1850,6 @@ U32 SlotAssignNode::compile(U32 *codeStream, U32 ip, TypeReq type)
       codeStream[ip++] = OP_SAVEFIELD_FLT;
       break;
    case TypeReqString:
-      codeStream[ip++] = OP_ADVANCE_STR;
       codeStream[ip++] = OP_TERMINATE_REWIND_STR;
       codeStream[ip++] = OP_SAVEFIELD_STR;
       break;
