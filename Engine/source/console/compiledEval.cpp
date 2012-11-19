@@ -621,6 +621,7 @@ ConsoleValueRef CodeBlock::exec(U32 ip, const char *functionName, Namespace *thi
 #ifdef TORQUE_DEBUG
    U32 stackStart = STR.mStartStackSize;
    U32 consoleStackStart = CSTK.mStackPos;
+   U32 startFLTStack = _FLT;
 #endif
 
    static char traceBuffer[1024];
@@ -1359,7 +1360,8 @@ breakContinue:
                   iterStack[ -- _ITER ].mIsStringIter = false;
                   -- iterDepth;
                }
-               
+
+               STR.rewind(); // usually done in ITER_END
             }
 
             returnValue.value = CSTK.pushFLT(floatStack[_FLT]);
@@ -1377,6 +1379,8 @@ breakContinue:
                   iterStack[ -- _ITER ].mIsStringIter = false;
                   -- iterDepth;
                }
+
+               STR.rewind(); // usually done in ITER_END
             }
 
             returnValue.value = CSTK.pushUINT(intStack[_UINT]);
@@ -1394,10 +1398,14 @@ breakContinue:
                   iterStack[ -- _ITER ].mIsStringIter = false;
                   -- iterDepth;
                }
+
+               STR.rewind(); // usually done in ITER_END
             }
 
             if (gEvalState.copyValue)
               returnValue.value = CSTK.pushValue(*gEvalState.copyValue);
+            else
+              returnValue.value = CSTK.pushStackString("");
                
             goto execFinished;
 
@@ -1411,6 +1419,8 @@ breakContinue:
                   iterStack[ -- _ITER ].mIsStringIter = false;
                   -- iterDepth;
                }
+
+               STR.rewind(); // usually done in ITER_END
             }
 
             returnValue.value = CSTK.pushArray(currentArray);
@@ -1671,10 +1681,12 @@ breakContinue:
 
          case OP_SAVEVAR_UINT:
             gEvalState.setIntVariable(intStack[_UINT]);
+            //_UINT--;
             break;
 
          case OP_SAVEVAR_FLT:
             gEvalState.setFloatVariable(floatStack[_FLT]);
+            //_FLT--;
             break;
 
          case OP_SAVEVAR_STR:
@@ -2246,7 +2258,26 @@ breakContinue:
                   curNSDocBlock = NULL;
 
                   ret->copyInto(*gEvalState.currentVariable->getValue());
-                  ip += 3;
+                  ip += 2;
+
+                  // Need to check if we use str
+                  if(code[ip] == OP_STR_TO_UINT)
+                  {
+                     ip++;
+                     intStack[++_UINT] = gEvalState.currentVariable->getIntValue();
+                  }
+                  else if(code[ip] == OP_STR_TO_FLT)
+                  {
+                     ip++;
+                     floatStack[++_FLT] = gEvalState.currentVariable->getFloatValue();
+                  }
+                  else if(code[ip] == OP_STR_TO_NONE)
+                    ip++;
+                  else
+                  {
+                     ip++;
+                     STR.setStringValue(gEvalState.currentVariable->getStringValue());
+                  }
                }
                else
                   STR.setStringValue((const char*)ret);
@@ -2405,7 +2436,26 @@ breakContinue:
                            curNSDocBlock = NULL;
 
                            ret->copyInto(*gEvalState.currentVariable->getValue());
-                           ip += 3;
+                           ip += 2;
+
+                           // Need to check if we use str
+                           if(code[ip] == OP_STR_TO_UINT)
+                           {
+                              ip++;
+                              intStack[++_UINT] = gEvalState.currentVariable->getIntValue();
+                           }
+                           else if(code[ip] == OP_STR_TO_FLT)
+                           {
+                              ip++;
+                              floatStack[++_FLT] = gEvalState.currentVariable->getFloatValue();
+                           }
+                           else if(code[ip] == OP_STR_TO_NONE)
+                             ip++;
+                           else
+                           {
+                              ip++;
+                              STR.setStringValue(gEvalState.currentVariable->getStringValue());
+                           }
                         }
                         else
                            STR.setStringValue(ret.getStringValue());
@@ -2703,6 +2753,8 @@ execFinished:
 #ifdef TORQUE_DEBUG
    AssertFatal(!(STR.mStartStackSize > stackStart), "String stack not popped enough in script exec");
    AssertFatal(!(STR.mStartStackSize < stackStart), "String stack popped too much in script exec");
+   AssertFatal(!(_FLT > startFLTStack), "_FLT not popped enough in script exec");
+   AssertFatal(!(_FLT < startFLTStack), "_FLT not popped enough in script exec");
 #endif
 
    return returnValue;
