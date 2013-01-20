@@ -1133,19 +1133,17 @@ ConsoleValueRef SimObject::getDataFieldValue(StringTableEntry slotName, const ch
    {
       if(!mFieldDictionary)
          ref.value = Con::getReturnValue("");
-
+      else
       if(!array)
       {
-         if (const char* val = mFieldDictionary->getFieldValue(slotName))
-            ref.value = Con::getReturnValue(val);
+         ref.value = mFieldDictionary->getFieldConsoleValue(slotName);
       }
       else
       {
          static char buf[256];
          dStrcpy(buf, slotName);
          dStrcat(buf, array);
-         if (const char* val = mFieldDictionary->getFieldValue(StringTable->insert(buf)))
-            ref.value = Con::getReturnValue(val);
+         ref.value = mFieldDictionary->getFieldConsoleValue(StringTable->insert(buf));
       }
    }
 
@@ -2911,7 +2909,7 @@ DefineConsoleMethod( SimObject, getDynamicField, const char*, ( int index ),,
    if (*itr)
    {
       SimFieldDictionary::Entry* entry = *itr;
-      dSprintf(buffer, 256, "%s\t%s", entry->slotName, entry->value);
+      dSprintf(buffer, 256, "%s\t%s", entry->slotName, entry->value.getStringValue());
       return buffer;
    }
 

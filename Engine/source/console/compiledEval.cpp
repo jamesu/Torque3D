@@ -2237,9 +2237,11 @@ breakContinue:
                   ip++;
                   floatStack[++_FLT] = (F32)ret;
                }
-               else if(code[ip] == OP_STR_TO_NONE)
+               else if(code[ip] == OP_STR_TO_NONE) {
+                  // NOTE: considering the way "eval" works, we need to set the string value of ret here
+                  STR.setStringValue(ret);
                   ip++;
-               else if (ret.value && EvalDoesAssignVar(code, ip)) {
+               } else if (ret.value && EvalDoesAssignVar(code, ip)) {
                   var = U32toSTE(code[ip+1]);
                   ip++;
 
@@ -2272,7 +2274,10 @@ breakContinue:
                      floatStack[++_FLT] = gEvalState.currentVariable->getFloatValue();
                   }
                   else if(code[ip] == OP_STR_TO_NONE)
-                    ip++;
+                  {
+                    ip++; // NOTE: considering the way "eval" works, we need to set the string value of ret here
+                    STR.setStringValue(ret);
+                  }
                   else
                   {
                      ip++;
