@@ -23,20 +23,20 @@
 //-----------------------------------------------------------------------------
 // Data
 //-----------------------------------------------------------------------------
-in vec4 vPosition;
-in vec3 vNormal;
-in vec4 vColor;
-in vec2 vTexCoord0;
-in vec2 vTexCoord1;
-in vec2 vTexCoord2;
+attribute vec4 vPosition;
+attribute vec3 vNormal;
+attribute vec4 vColor;
+attribute vec2 vTexCoord0;
+attribute vec2 vTexCoord1;
+attribute vec2 vTexCoord2;
 
 uniform mat4 projection, world;
 uniform vec3 CameraPos;
 uniform float GlobalSwayPhase, SwayMagnitudeSide, SwayMagnitudeFront,
               GlobalLightPhase, LuminanceMagnitude, LuminanceMidpoint, DistanceRange;
               
-out vec4 color, groundAlphaCoeff;
-out vec2 outTexCoord, alphaLookup;
+varying vec4 color, groundAlphaCoeff;
+varying vec2 outTexCoord, alphaLookup;
 
 //-----------------------------------------------------------------------------
 // Main                                                                        
@@ -67,6 +67,15 @@ void main()
 	o[1][1] = 1.0;
 	o[1][2] = 0.0;
 	o[1][3] = 0.0;
+
+#ifdef TRUE_BILLBOARD
+
+   o[0][2] = 0;
+   o[1][2] = 0;
+   o[2][2] = 1;
+   o[3][2] = 0;
+   
+#endif
 	
 	// Handle sway. Sway is stored in a texture coord. The x coordinate is the sway phase multiplier, 
 	// the y coordinate determines if this vertex actually sways or not.
@@ -92,8 +101,7 @@ void main()
 
 	alphaLookup = vec2(alpha, 0.0);
 	bool alphaCoeff = bool(vNormal.z);
-   groundAlphaCoeff = vec4(float(alphaCoeff));
+	groundAlphaCoeff = vec4(float(alphaCoeff));
 	outTexCoord = vTexCoord0.st;	
 	color = vec4(Luminance, Luminance, Luminance, 1.0);
-   gl_Position.y *= -1;
 }

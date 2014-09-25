@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -30,7 +31,6 @@
 #include "core/util/safeDelete.h"
 #include "shaderGen/featureMgr.h"
 #include "shaderGen/HLSL/depthHLSL.h"
-#include "shaderGen/GLSL/depthGLSL.h"
 #include "shaderGen/conditionerFeature.h"
 #include "shaderGen/shaderGenVars.h"
 #include "scene/sceneRenderState.h"
@@ -505,6 +505,8 @@ void ProcessedPrePassMaterial::_determineFeatures( U32 stageNum,
    AdvancedLightBinManager *lightBin;
    if ( Sim::findObject( "AL_LightBinMgr", lightBin ) )
       bEnableMRTLightmap = lightBin->MRTLightmapsDuringPrePass();
+   
+   bool hasDiffuse = fd.features.hasFeature( MFT_DiffuseMap );
 
    // If this material has a lightmap or tonemap (texture or baked vertex color),
    // it must be static. Otherwise it is dynamic.
@@ -530,15 +532,17 @@ void ProcessedPrePassMaterial::_determineFeatures( U32 stageNum,
    {
       const FeatureType &type = fd.features.getAt( i );
 
+
       // Turn on the diffuse texture only if we
       // have alpha test.
-      if ( type == MFT_AlphaTest )
+      if ( type == MFT_AlphaTest && hasDiffuse )
       {
          newFeatures.addFeature( MFT_AlphaTest );
          newFeatures.addFeature( MFT_DiffuseMap );
       }
 
-      else if ( type == MFT_IsTranslucentZWrite )
+
+      else if ( type == MFT_IsTranslucentZWrite && hasDiffuse )
       {
          newFeatures.addFeature( MFT_IsTranslucentZWrite );
          newFeatures.addFeature( MFT_DiffuseMap );
@@ -727,17 +731,17 @@ Var *LinearEyeDepthConditioner::_conditionOutput( Var *unconditionedOutput, Mult
 {
    Var *retVar = NULL;
 
-   String fracMethodName = (GFX->getAdapterType() == OpenGL) ? "fract" : "frac";
+   const char* fracMethodName = (GFX->getAdapterType() == OpenGL) ? "fract" : "frac";
 
    switch(getBufferFormat())
    {
    case GFXFormatR8G8B8A8:
       retVar = new Var;
-      retVar->setType("float4");
+      retVar->setType(ShaderFeatureCommon::getVector4Name());
       retVar->setName("_ppDepth");
       meta->addStatement( new GenOp( "   // depth conditioner: packing to rgba\r\n" ) );
       meta->addStatement( new GenOp(
-         avar( "   @ = %s(@ * (255.0/256) * float4(1, 255, 255 * 255, 255 * 255 * 255));\r\n", fracMethodName.c_str() ),
+         avar( "   @ = %s(@ * (255.0/256) * %s(1, 255, 255 * 255, 255 * 255 * 255));\r\n", fracMethodName, ShaderFeatureCommon::getVector4Name() ),
          new DecOp(retVar), unconditionedOutput ) );
       break;
    default:
@@ -752,15 +756,13 @@ Var *LinearEyeDepthConditioner::_conditionOutput( Var *unconditionedOutput, Mult
 
 Var *LinearEyeDepthConditioner::_unconditionInput( Var *conditionedInput, MultiLine *meta )
 {
-   String float4Typename = (GFX->getAdapterType() == OpenGL) ? "vec4" : "float4";
-
    Var *retVar = conditionedInput;
    if(getBufferFormat() != GFXFormat_COUNT)
    {
       retVar = new Var;
-      retVar->setType(float4Typename.c_str());
+      retVar->setType(ShaderFeatureCommon::getVector4Name());
       retVar->setName("_ppDepth");
-      meta->addStatement( new GenOp( avar( "   @ = %s(0, 0, 1, 1);\r\n", float4Typename.c_str() ), new DecOp(retVar) ) );
+      meta->addStatement( new GenOp( avar( "   @ = %s(0, 0, 1, 1);\r\n", ShaderFeatureCommon::getVector4Name() ), new DecOp(retVar) ) );
 
       switch(getBufferFormat())
       {
@@ -773,7 +775,7 @@ Var *LinearEyeDepthConditioner::_unconditionInput( Var *conditionedInput, MultiL
       case GFXFormatR8G8B8A8:
          meta->addStatement( new GenOp( "   // depth conditioner: unpacking from rgba\r\n" ) );
          meta->addStatement( new GenOp(
-            avar( "   @.w = dot(@ * (256.0/255), %s(1, 1 / 255, 1 / (255 * 255), 1 / (255 * 255 * 255)));\r\n", float4Typename.c_str() )
+            avar( "   @.w = dot(@ * (256.0/255), %s(1, 1 / 255, 1 / (255 * 255), 1 / (255 * 255 * 255)));\r\n", ShaderFeatureCommon::getVector4Name() )
             , retVar, conditionedInput ) );
          break;
       default:
@@ -795,33 +797,16 @@ Var* LinearEyeDepthConditioner::printMethodHeader( MethodType methodType, const 
       retVal = Parent::printMethodHeader( methodType, methodName, stream, meta );
    else
    {
-      Var *methodVar = new Var;
-      methodVar->setName(methodName);
-      if (GFX->getAdapterType() == OpenGL)
-         methodVar->setType("vec4");
-      else
-         methodVar->setType("inline float4");
+      Var *methodVar = new Var(methodName, ShaderFeatureCommon::getVector4Name());
       DecOp *methodDecl = new DecOp(methodVar);
 
-      Var *prepassSampler = new Var;
-      prepassSampler->setName("prepassSamplerVar");
-      prepassSampler->setType("sampler2D");
+      Var *prepassSampler = new Var("prepassSamplerVar", "sampler2D");
       DecOp *prepassSamplerDecl = new DecOp(prepassSampler);
 
-      Var *screenUV = new Var;
-      screenUV->setName("screenUVVar");
-      if (GFX->getAdapterType() == OpenGL)
-         screenUV->setType("vec2");
-      else
-         screenUV->setType("float2");
+      Var *screenUV = new Var("screenUVVar", ShaderFeatureCommon::getVector2Name());
       DecOp *screenUVDecl = new DecOp(screenUV);
 
-      Var *bufferSample = new Var;
-      bufferSample->setName("bufferSample");
-      if (GFX->getAdapterType() == OpenGL)
-         bufferSample->setType("vec4");
-      else
-         bufferSample->setType("float4");
+      Var *bufferSample = new Var("bufferSample", ShaderFeatureCommon::getVector4Name());
       DecOp *bufferSampleDecl = new DecOp(bufferSample);
 
       meta->addStatement( new GenOp( "@(@, @)\r\n", methodDecl, prepassSamplerDecl, screenUVDecl ) );
@@ -838,10 +823,8 @@ Var* LinearEyeDepthConditioner::printMethodHeader( MethodType methodType, const 
       else
          meta->addStatement( new GenOp( "      @ = tex2Dlod(@, float4(@,0,0));\r\n", bufferSampleDecl, prepassSampler, screenUV ) );
       meta->addStatement( new GenOp( "   #else\r\n" ) );
-      if (GFX->getAdapterType() == OpenGL)
-         meta->addStatement( new GenOp( "    @ = texture2D(@, @);\r\n", bufferSampleDecl, prepassSampler, screenUV) );
-      else
-         meta->addStatement( new GenOp( "      @ = tex2D(@, @);\r\n", bufferSampleDecl, prepassSampler, screenUV ) );
+
+      meta->addStatement( new GenOp( avar("    @ = %s(@, @);\r\n", ShaderFeatureCommon::getTexture2DFunction()), bufferSampleDecl, prepassSampler, screenUV) );
       meta->addStatement( new GenOp( "   #endif\r\n\r\n" ) );
 
       // We don't use this way of passing var's around, so this should cause a crash

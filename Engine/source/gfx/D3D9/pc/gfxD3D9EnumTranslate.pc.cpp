@@ -319,7 +319,6 @@ void GFXD3D9EnumTranslate::init()
    GFXD3D9TextureStageState[GFXTSSTexCoordIndex] = D3DTSS_TEXCOORDINDEX;
    GFXD3D9TextureStageState[GFXTSSBumpEnvlScale] = D3DTSS_BUMPENVLSCALE;
    GFXD3D9TextureStageState[GFXTSSBumpEnvlOffset] = D3DTSS_BUMPENVLOFFSET;
-   GFXD3D9TextureStageState[GFXTSSTextureTransformFlags] = D3DTSS_TEXTURETRANSFORMFLAGS;
    GFXD3D9TextureStageState[GFXTSSColorArg0] = D3DTSS_COLORARG0;
    GFXD3D9TextureStageState[GFXTSSAlphaArg0] = D3DTSS_ALPHAARG0;
    GFXD3D9TextureStageState[GFXTSSResultArg] = D3DTSS_RESULTARG;
@@ -371,6 +370,7 @@ void GFXD3D9EnumTranslate::init()
    GFXD3D9DeclType[GFXDeclType_Float3] = D3DDECLTYPE_FLOAT3;
    GFXD3D9DeclType[GFXDeclType_Float4] = D3DDECLTYPE_FLOAT4;
    GFXD3D9DeclType[GFXDeclType_Color] = D3DDECLTYPE_D3DCOLOR;
+   GFXD3D9DeclType[GFXDeclType_UByte4] = D3DDECLTYPE_UBYTE4;
    VALIDATE_LOOKUPTABLE( GFXD3D9DeclType, GFXDeclType );
 }
 

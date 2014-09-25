@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -36,6 +37,8 @@
 
 #include "math/mPolyhedron.impl.h"
 
+// martinJ
+#include "materials/matTextureTarget.h"
 
 MODULE_BEGIN( DebugDrawer )
 
@@ -117,7 +120,7 @@ void DebugDrawer::init()
 {
 #ifdef ENABLE_DEBUGDRAW
    sgDebugDrawer = new DebugDrawer();
-   sgDebugDrawer->registerObject("DebugDraw");
+   sgDebugDrawer->registerObject("DebugDrawer");
    Sim::getRootGroup()->addObject( sgDebugDrawer );
    Con::warnf( "DebugDrawer Enabled!" );
 #endif
@@ -151,7 +154,7 @@ void DebugDrawer::render()
 
    SimTime curTime = Sim::getCurrentTime();
   
-   GFX->disableShaders();   
+   GFX->setupGenericShaders(GFXDevice::GSModColorTexture);   
    
    for(DebugPrim **walk = &mHead; *walk; )
    {
@@ -183,7 +186,7 @@ void DebugDrawer::render()
          break;
       case DebugPrim::Box:
          d = p->a - p->b;
-         GFX->getDrawUtil()->drawCube(currSB->getDesc(), d * 0.5, (p->a + p->b) * 0.5, p->color);
+         GFX->getDrawUtil()->drawCube(currSB->getDesc(), d, (p->a + p->b) * 0.5, p->color);
          break;
       case DebugPrim::Line:
          PrimBuild::begin( GFXLineStrip, 2);
@@ -195,6 +198,40 @@ void DebugDrawer::render()
 
          PrimBuild::end();
          break;
+      case DebugPrim::ScreenAlignedTexture:
+         {
+            NamedTexTarget* texTarget = NamedTexTarget::find(p->mTexture);
+            GFXTextureObject* texObject = texTarget ? texTarget->getTexture() : 0;
+            if (texObject)
+            {
+              // Adjust the matrices so that the rect position is defined in screen space pixels
+              MatrixF scaleMat = MatrixF::Identity;
+              scaleMat.scale(Point3F(1.0f / (float)GFX->getViewport().extent.x, -1.0f / (float)GFX->getViewport().extent.y, 0.0f));
+              MatrixF transMat = MatrixF::Identity;
+              transMat.setPosition(Point3F(-1.0f, 1.0f, 0.0f));
+
+              MatrixF wm = GFX->getWorldMatrix();
+              MatrixF vm = GFX->getViewMatrix();
+              MatrixF pm = GFX->getProjectionMatrix();
+              GFX->setWorldMatrix( scaleMat );
+              GFX->setViewMatrix( transMat );
+              GFX->setProjectionMatrix( MatrixF::Identity );
+
+              GFX->getDrawUtil()->drawBitmapStretch(texObject, RectI(p->a.x, p->a.y, p->b.x, p->b.y));
+
+              // Restore the original matrices
+              GFX->setWorldMatrix( wm );
+              GFX->setViewMatrix( vm );
+              GFX->setProjectionMatrix( pm );
+            }
+
+            break;
+         }
+      case DebugPrim::Frustum:
+         {
+            GFX->getDrawUtil()->drawFrustum(*p->m, *(Frustum*)(p->f), p->color);
+            break;
+         }
       case DebugPrim::Text:
          {
             GFXTransformSaver saver;            
@@ -219,12 +256,48 @@ void DebugDrawer::render()
       if(p->dieTime <= curTime && !isFrozen && p->dieTime != U32_MAX)
       {
          *walk = p->next;
+         if (p->type == DebugPrim::Frustum)
+         {
+            mFrustumChunker.free((Frustum*)p->f);
+            mTransformChunker.free(p->m);
+         }
          mPrimChunker.free(p);
       }
       else
          walk = &((*walk)->next);
    }
 #endif
+}
+
+void DebugDrawer::drawBoxOutline(const Point3F &a, const Point3F &b, const ColorF &color)
+{
+  Point3F point0(a.x, a.y, a.z);
+  Point3F point1(a.x, b.y, a.z);
+  Point3F point2(b.x, b.y, a.z);
+  Point3F point3(b.x, a.y, a.z);
+
+  Point3F point4(a.x, a.y, b.z);
+  Point3F point5(a.x, b.y, b.z);
+  Point3F point6(b.x, b.y, b.z);
+  Point3F point7(b.x, a.y, b.z);
+
+  // Draw one plane
+  drawLine(point0, point1, color);
+  drawLine(point1, point2, color);
+  drawLine(point2, point3, color);
+  drawLine(point3, point0, color);
+
+  // Draw the other plane
+  drawLine(point4, point5, color);
+  drawLine(point5, point6, color);
+  drawLine(point6, point7, color);
+  drawLine(point7, point4, color);
+
+  // Draw the connecting corners
+  drawLine(point0, point4, color);
+  drawLine(point1, point5, color);
+  drawLine(point2, point6, color);
+  drawLine(point3, point7, color);
 }
 
 void DebugDrawer::drawBox(const Point3F &a, const Point3F &b, const ColorF &color)
@@ -380,6 +453,46 @@ void DebugDrawer::drawText(const Point3F& pos, const String& text, const ColorF 
    mHead = n;
 }
 
+void DebugDrawer::drawScreenAlignedTexture(const Point2F& pos, const Point2F& size, const String& textureName)
+{
+  if(isFrozen || !isDrawing)
+    return;
+
+  DebugPrim *n = mPrimChunker.alloc();
+
+  n->useZ = false;
+  n->dieTime = 0;
+  n->a = Point3F(pos.x, pos.y, 0.0f);
+  n->b = Point3F(size.x, size.y, 0.0f);
+  dStrncpy(n->mTexture, textureName.c_str(), 256);   
+  n->type = DebugPrim::ScreenAlignedTexture;
+
+  n->next = mHead;
+  mHead = n;
+}
+
+void DebugDrawer::drawFrustum( const MatrixF &transform, const Frustum& f, const ColorI &color )
+{
+   if(isFrozen || !isDrawing)
+      return;
+   
+   DebugPrim *n = mPrimChunker.alloc();
+   
+   Frustum *fm = mFrustumChunker.alloc();
+   dMemcpy(fm, &f, sizeof(Frustum));
+   
+   MatrixF *mat = mTransformChunker.alloc();
+   dMemcpy(mat, &f, sizeof(MatrixF));
+   
+   n->f = fm;
+   n->color = color;
+   n->type = DebugPrim::Frustum;
+   n->m = mat;
+   
+   n->next = mHead;
+   mHead = n;
+}
+
 void DebugDrawer::setLastTTL(U32 ms)
 {
    AssertFatal(mHead, "Tried to set last with nothing in the list!");
@@ -405,6 +518,12 @@ DefineEngineMethod( DebugDrawer, drawBox, void, ( Point3F a, Point3F b, ColorF c
    "Draws an axis aligned box primitive within the two 3d points." )
 {
    object->drawBox( a, b, color );
+}
+
+DefineEngineMethod( DebugDrawer, drawScreenAlignedTexture, void, ( RectF rect, String textureName ),,
+  "Draws a screen aligned texture." )
+{
+  object->drawScreenAlignedTexture( Point2F(rect.point.x, rect.point.y), Point2F(rect.extent.x, rect.extent.y), textureName );
 }
 
 DefineEngineMethod( DebugDrawer, setLastTTL, void, ( U32 ms ),,

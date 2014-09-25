@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -27,7 +28,7 @@
 #include "gfx/gl/gfxGLCubemap.h"
 #include "gfx/gfxTextureManager.h"
 #include "gfx/gfxCardProfile.h"
-#include "gfx/bitmap/DDSFile.h"
+#include "gfx/bitmap/ddsFile.h"
 
 
 GLenum GFXGLCubemap::faceList[6] = 
@@ -56,7 +57,6 @@ GFXGLCubemap::~GFXGLCubemap()
 
 void GFXGLCubemap::fillCubeTextures(GFXTexHandle* faces)
 {
-   glActiveTexture(GL_TEXTURE0);
    glBindTexture(GL_TEXTURE_CUBE_MAP, mCubemap);
    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_GENERATE_MIPMAP, GL_TRUE);
    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -128,7 +128,6 @@ void GFXGLCubemap::initStatic( DDSFile *dds )
 
    glGenTextures(1, &mCubemap);
 
-   glActiveTexture(GL_TEXTURE0);
    glBindTexture(GL_TEXTURE_CUBE_MAP, mCubemap);
    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_GENERATE_MIPMAP, GL_TRUE);
    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -221,7 +220,7 @@ void GFXGLCubemap::setToTexUnit(U32 tuNum)
 
 void GFXGLCubemap::bind(U32 textureUnit) const
 {
-   glActiveTexture(GL_TEXTURE0 + textureUnit);
+   static_cast<GFXGLDevice*>(getOwningDevice())->_setActiveTexture(GL_TEXTURE0 + textureUnit);
    glBindTexture(GL_TEXTURE_CUBE_MAP, mCubemap);
    
    GFXGLStateBlockRef sb = static_cast<GFXGLDevice*>(GFX)->getCurrentStateBlock();
@@ -235,8 +234,6 @@ void GFXGLCubemap::bind(U32 textureUnit) const
    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GFXGLTextureAddress[ssd.addressModeU]);
    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GFXGLTextureAddress[ssd.addressModeV]);
    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GFXGLTextureAddress[ssd.addressModeW]);
-
-   glTexEnvf(GL_TEXTURE_FILTER_CONTROL, GL_TEXTURE_LOD_BIAS, ssd.mipLODBias);
 }
 
 void GFXGLCubemap::_onTextureEvent( GFXTexCallbackCode code )

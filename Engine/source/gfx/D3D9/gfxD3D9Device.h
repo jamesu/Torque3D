@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -28,7 +29,7 @@
 #ifdef TORQUE_OS_XENON
 #  include "platformXbox/platformXbox.h"
 #else
-#  include <d3dx9.h>
+#  include <d3d9.h>
 #  include "platformWin32/platformWin32.h"
 #endif
 #ifndef _GFXD3D9STATEBLOCK_H_
@@ -72,28 +73,6 @@ inline void D3D9Assert( HRESULT hr, const char *info )
    }
 #endif
 }
-
-
-// Typedefs
-#define D3DX_FUNCTION(fn_name, fn_return, fn_args) \
-   typedef fn_return (WINAPI *D3DXFNPTR##fn_name##)##fn_args##;
-#include "gfx/D3D9/d3dx9Functions.h"
-#undef D3DX_FUNCTION
-
-// Function table
-struct D3DXFNTable
-{
-   D3DXFNTable() : isLoaded( false ){};
-   bool isLoaded;
-   DLibraryRef dllRef;
-   DLibraryRef compilerDllRef;
-#define D3DX_FUNCTION(fn_name, fn_return, fn_args) \
-   D3DXFNPTR##fn_name fn_name;
-#include "gfx/D3D9/d3dx9Functions.h"
-#undef D3DX_FUNCTION
-};
-
-#define GFXD3DX static_cast<GFXD3D9Device *>(GFX)->smD3DX 
 
 class GFXResource;
 class GFXD3D9ShaderConstBuffer;
@@ -142,7 +121,6 @@ protected:
    /// The stream 0 vertex buffer used for volatile VB offseting.
    GFXD3D9VertexBuffer *mVolatileVB;
 
-   static void initD3DXFnTable();
    //-----------------------------------------------------------------------
    StrongRefPtr<GFXD3D9PrimitiveBuffer> mDynamicPB;                       ///< Dynamic index buffer
    GFXD3D9PrimitiveBuffer *mCurrentPB;
@@ -160,6 +138,8 @@ protected:
    LPDIRECT3DDEVICE9EX mD3DDeviceEx; ///< Handle for D3DDevice9Ex
 #endif
 
+   U32 mCurrentShaderId;
+
    U32  mAdapterIndex;            ///< Adapter index because D3D supports multiple adapters
 
    F32 mPixVersion;
@@ -173,6 +153,12 @@ protected:
 
    /// The current adapter display mode.
    D3DDISPLAYMODE mDisplayMode;
+
+#ifdef ENABLE_GPU_TIMERS
+   /// martinJ - True if hardware supports gpu timers
+   bool mTimersSupported;
+   U64 mTimerFrequency;
+#endif// ENABLE_GPU_TIMERS
 
    /// To manage creating and re-creating of these when device is aquired
    void reacquireDefaultPoolResources();
@@ -243,7 +229,6 @@ protected:
    virtual D3DPRESENT_PARAMETERS setupPresentParams( const GFXVideoMode &mode, const HWND &hwnd ) const = 0;
    
 public:
-   static D3DXFNTable smD3DX;
 
    static GFXDevice *createInstance( U32 adapterIndex );
 
@@ -325,6 +310,8 @@ public:
    virtual void reset( D3DPRESENT_PARAMETERS &d3dpp ) = 0;
 
    GFXShaderRef mGenericShader[GS_COUNT];
+   GFXShaderConstBufferRef mGenericShaderBuffer[GS_COUNT];
+   GFXShaderConstHandle *mModelViewProjSC[GS_COUNT];
 
    virtual void setupGenericShaders( GenericShaderType type  = GSColor );
 
@@ -337,18 +324,22 @@ public:
 
    GFXFence *createFence();
 
-   GFXOcclusionQuery* createOcclusionQuery();   
+   GFXOcclusionQuery* createOcclusionQuery();
+
+#ifdef ENABLE_GPU_TIMERS
+   // martinJ - GPU timer functions
+   GFXTimer* createTimer();
+   U64 getTimerFrequency();
+   bool supportsTimers();
+#endif//ENABLE_GPU_TIMERS
+
+   virtual void onDrawStateChanged();
+
+   virtual void updateModelView();
 
    // Default multisample parameters
    D3DMULTISAMPLE_TYPE getMultisampleType() const { return mMultisampleType; }
    DWORD getMultisampleLevel() const { return mMultisampleLevel; } 
-
-   // Whether or not the Direct3D device was created with Direct3D9Ex support
-#if !defined(TORQUE_OS_XENON)
-   virtual bool isD3D9Ex() { return mD3DEx != NULL; }
-#else
-   virtual bool isD3D9Ex() { return false; }
-#endif
 
    // Get the backbuffer, currently only access for WPF support
    virtual IDirect3DSurface9* getBackBuffer() { return mDeviceBackbuffer; }

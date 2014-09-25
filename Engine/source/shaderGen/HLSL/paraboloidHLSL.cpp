@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -22,6 +23,7 @@
 
 #include "platform/platform.h"
 #include "shaderGen/HLSL/paraboloidHLSL.h"
+#include "shaderGen/shaderGen.h"
 
 #include "lighting/lightInfo.h"
 #include "materials/sceneData.h"
@@ -30,132 +32,158 @@
 #include "gfx/gfxShader.h"
 
 
-void ParaboloidVertTransformHLSL::processVert(  Vector<ShaderComponent*> &componentList, 
+void ParaboloidVertTransform::processVert(  Vector<ShaderComponent*> &componentList, 
                                                 const MaterialFeatureData &fd )
 {
-   MultiLine *meta = new MultiLine;
+  MultiLine *meta = new MultiLine;
 
-   // First check for an input position from a previous feature
-   // then look for the default vertex position.
-   Var *inPosition = (Var*)LangElement::find( "inPosition" );
-   if ( !inPosition )
-      inPosition = (Var*)LangElement::find( "position" );
+  // First check for an input position from a previous feature
+  // then look for the default vertex position.
+  Var *inPosition = (Var*)LangElement::find( "inPosition" );
+  if ( !inPosition )
+    inPosition = (Var*)LangElement::find( "position" );
 
-   const bool isSinglePass = fd.features[ MFT_IsSinglePassParaboloid ];
+  const bool isSinglePass = fd.features[ MFT_IsSinglePassParaboloid ];
 
-   ShaderConnector *connectComp = dynamic_cast<ShaderConnector *>( componentList[C_CONNECTOR] );
+  ShaderConnector *connectComp = dynamic_cast<ShaderConnector *>( componentList[C_CONNECTOR] );
 
-   // Grab connector out position.
-   Var *outPosition = connectComp->getElement( RT_POSITION );
-   outPosition->setName( "hpos" );
-   outPosition->setStructName( "OUT" );
+  // Grab connector out position.
+  Var *outPosition = NULL;
+  
+  UsedForDirect3D({
+	  outPosition = (Var*) LangElement::find( "hpos" );
+	  if (!outPosition)
+	  {
+		  outPosition = connectComp->getElement( RT_POSITION );
+		  outPosition->setName( "hpos" );
+		  outPosition->setStructName( "OUT" );
+	  }
+  });
 
-   // Get the atlas scale.
-   Var *atlasScale = new Var;
-   atlasScale->setType( "float2" );
-   atlasScale->setName( "atlasScale" );
-   atlasScale->uniform = true;
-   atlasScale->constSortPos = cspPass;  
+  UsedForOpenGL({
+	  outPosition = (Var*) LangElement::find( "gl_Position" );
+	  if (!outPosition)
+	  {
+		  outPosition = new Var;
+		  outPosition->setName( "gl_Position" );
+		  outPosition->setType( getVector4Name() );
+	  }
+  });
 
-   // Transform into camera space
-   Var *worldViewOnly = getWorldView( componentList, fd.features[MFT_UseInstancing], meta );
+  // Get the atlas scale.
+  Var *atlasScale = new Var;
+  atlasScale->setType( getVector2Name() );
+  atlasScale->setName( "atlasScale" );
+  atlasScale->uniform = true;
+  atlasScale->constSortPos = cspPass;  
 
-   // So what we're doing here is transforming into camera space, and
-   // then directly manipulate into shadowmap space.
-   //
-   // http://www.gamedev.net/reference/articles/article2308.asp
+  // Transform into camera space
+  Var *worldViewOnly = getWorldView( componentList, fd.features[MFT_UseInstancing], meta );
 
-   // Swizzle z and y post-transform
-   meta->addStatement( new GenOp( "   @ = mul(@, float4(@.xyz,1)).xzyw;\r\n", outPosition, worldViewOnly, inPosition ) );
-   meta->addStatement( new GenOp( "   float L = length(@.xyz);\r\n", outPosition ) ); 
+  // So what we're doing here is transforming into camera space, and
+  // then directly manipulate into shadowmap space.
+  //
+  // http://www.gamedev.net/reference/articles/article2308.asp
 
-   if ( isSinglePass )
-   {
-      // Flip the z in the back case
-      Var *outIsBack = connectComp->getElement( RT_TEXCOORD );
-      outIsBack->setType( "float" );
-      outIsBack->setName( "isBack" );
-      outIsBack->setStructName( "OUT" );
+  // Swizzle z and y post-transform
+  UsedForDirect3D(meta->addStatement( new GenOp( avar("   @ = mul(@, %s(@.xyz,1)).xzyw;\r\n", getVector4Name()), outPosition, worldViewOnly, inPosition ) ));
+  UsedForOpenGL(meta->addStatement( new GenOp( "   @ = (@ * vec4(@.xyz,1)).xzyw;\r\n", outPosition, worldViewOnly, inPosition ) ));
+  meta->addStatement( new GenOp( "   float L = length(@.xyz);\r\n", outPosition ) ); 
 
-      meta->addStatement( new GenOp( "   bool isBack = @.z < 0.0;\r\n", outPosition ) ); 
-      meta->addStatement( new GenOp( "   @ = isBack ? -1.0 : 1.0;\r\n", outIsBack ) ); 
-      meta->addStatement( new GenOp( "   if ( isBack ) @.z = -@.z;\r\n", outPosition, outPosition ) );
-   }
+  if ( isSinglePass )
+  {
+    // Flip the z in the back case
+    LangElement* outIsBackVar;
+    Var *outIsBack = connectComp->getElement( RT_TEXCOORD );
+    outIsBackVar = outIsBack;
+    outIsBack->setType( "float" );
+    outIsBack->setName( "isBack" );
+    outIsBack->setStructName( "OUT" );
 
-   meta->addStatement( new GenOp( "   @ /= L;\r\n", outPosition ) ); 
-   meta->addStatement( new GenOp( "   @.z = @.z + 1.0;\r\n", outPosition, outPosition ) ); 
-   meta->addStatement( new GenOp( "   @.xy /= @.z;\r\n", outPosition, outPosition ) ); 
+    meta->addStatement( new GenOp( "   bool isBackB = @.z < 0.0;\r\n", outPosition ) ); 
+    meta->addStatement( new GenOp( "   @ = isBackB ? -1.0 : 1.0;\r\n", outIsBackVar ) ); 
+    meta->addStatement( new GenOp( "   if ( isBackB ) @.z = -@.z;\r\n", outPosition, outPosition ) );
+  }
 
-   // Get the light parameters.
-   Var *lightParams = new Var;
-   lightParams->setType( "float4" );
-   lightParams->setName( "lightParams" );
-   lightParams->uniform = true;
-   lightParams->constSortPos = cspPass;  
+  meta->addStatement( new GenOp( "   @ /= L;\r\n", outPosition ) ); 
+  meta->addStatement( new GenOp( "   @.z = @.z + 1.0;\r\n", outPosition, outPosition ) ); 
+  meta->addStatement( new GenOp( "   @.xy /= @.z;\r\n", outPosition, outPosition ) ); 
 
-   // TODO: If we change other shadow shaders to write out
-   // linear depth, than fix this as well!
-   //
-   // (L - zNear)/(lightParams.x - zNear);
-   //
-   meta->addStatement( new GenOp( "   @.z = L / @.x;\r\n", outPosition, lightParams ) ); 
-   meta->addStatement( new GenOp( "   @.w = 1.0;\r\n", outPosition ) ); 
+  // Get the light parameters.
+  Var *lightParams = new Var;
+  lightParams->setType( getVector4Name());
+  lightParams->setName( "lightParams" );
+  lightParams->uniform = true;
+  lightParams->constSortPos = cspPass;  
 
-   // Pass unmodified to pixel shader to allow it to clip properly.
-   Var *outPosXY = connectComp->getElement( RT_TEXCOORD );
-   outPosXY->setType( "float2" );
-   outPosXY->setName( "posXY" );
-   outPosXY->setStructName( "OUT" );
-   meta->addStatement( new GenOp( "   @ = @.xy;\r\n", outPosXY, outPosition ) ); 
+  // TODO: If we change other shadow shaders to write out
+  // linear depth, than fix this as well!
+  //
+  // (L - zNear)/(lightParams.x - zNear);
+  //
+  meta->addStatement( new GenOp( "   @.z = L / @.x;\r\n", outPosition, lightParams ) ); 
+  meta->addStatement( new GenOp( "   @.w = 1.0;\r\n", outPosition ) ); 
 
-   // Scale and offset so it shows up in the atlas properly.
-   meta->addStatement( new GenOp( "   @.xy *= @.xy;\r\n", outPosition, atlasScale ) ); 
+  // Pass unmodified to pixel shader to allow it to clip properly.
+  Var *outPosXY = connectComp->getElement( RT_TEXCOORD );
+  outPosXY->setType( getVector2Name() );
+  outPosXY->setName( "posXY" );
+  outPosXY->setStructName( "OUT" );
+  meta->addStatement( new GenOp( "   @ = @.xy;\r\n", outPosXY, outPosition ) ); 
 
-   if ( isSinglePass )
-      meta->addStatement( new GenOp( "   @.x += isBack ? 0.5 : -0.5;\r\n", outPosition ) );
-   else
-   {
-      Var *atlasOffset = new Var;
-      atlasOffset->setType( "float2" );
-      atlasOffset->setName( "atlasXOffset" );
-      atlasOffset->uniform = true;
-      atlasOffset->constSortPos = cspPass;  
+  // Scale and offset so it shows up in the atlas properly.
+  meta->addStatement( new GenOp( "   @.xy *= @.xy;\r\n", outPosition, atlasScale ) ); 
 
-      meta->addStatement( new GenOp( "   @.xy += @;\r\n", outPosition, atlasOffset ) );
-   }
+  if ( isSinglePass )
+    meta->addStatement( new GenOp( "   @.x += isBackB ? 0.5 : -0.5;\r\n", outPosition ) );
+  else
+  {
+    Var *atlasOffset = new Var;
+    atlasOffset->setType( getVector2Name() );
+    atlasOffset->setName( "atlasXOffset" );
+    atlasOffset->uniform = true;
+    atlasOffset->constSortPos = cspPass;  
 
-   output = meta;
+    meta->addStatement( new GenOp( "   @.xy += @;\r\n", outPosition, atlasOffset ) );
+  }
+
+  output = meta;
 }
 
-void ParaboloidVertTransformHLSL::processPix(   Vector<ShaderComponent*> &componentList, 
+void ParaboloidVertTransform::processPix(   Vector<ShaderComponent*> &componentList, 
                                                 const MaterialFeatureData &fd )
 {      
-   ShaderConnector *connectComp = dynamic_cast<ShaderConnector *>( componentList[C_CONNECTOR] );
+  ShaderConnector *connectComp = dynamic_cast<ShaderConnector *>( componentList[C_CONNECTOR] );
 
-   MultiLine *meta = new MultiLine;
+  MultiLine *meta = new MultiLine;
 
-   const bool isSinglePass = fd.features[ MFT_IsSinglePassParaboloid ];
-   if ( isSinglePass )
-   {
-      // Cull things on the back side of the map.
-      Var *isBack = connectComp->getElement( RT_TEXCOORD );
-      isBack->setName( "isBack" );
-      isBack->setStructName( "IN" );
-      isBack->setType( "float" );
-      meta->addStatement( new GenOp( "   clip( abs( @ ) - 0.999 );\r\n", isBack ) );
-   }
+  const bool isSinglePass = fd.features[ MFT_IsSinglePassParaboloid ];
+  if ( isSinglePass )
+  {
+    // Cull things on the back side of the map.
+    Var *isBack = connectComp->getElement( RT_TEXCOORD );
+    isBack->setName( "isBack" );
+    isBack->setStructName( "IN" );
+    isBack->setType( "float" );
 
-   // Cull pixels outside of the valid paraboloid.
-   Var *posXY = connectComp->getElement( RT_TEXCOORD );
-   posXY->setName( "posXY" );
-   posXY->setStructName( "IN" );
-   posXY->setType( "float2" );
-   meta->addStatement( new GenOp( "   clip( 1.0 - abs(@.x) );\r\n", posXY ) );
+    UsedForOpenGL(meta->addStatement( new GenOp( "   if (abs(@) < 0.999)\r\n   {\r\n     discard;\r\n   }\r\n", isBack)));
+    UsedForDirect3D(meta->addStatement( new GenOp( "   clip( abs( @ ) - 0.999 );\r\n", isBack ) ));
+  }
 
-   output = meta;
+  // Cull pixels outside of the valid paraboloid.
+  Var *posXY = connectComp->getElement( RT_TEXCOORD );
+  posXY->setName( "posXY" );
+  posXY->setStructName( "IN" );
+  posXY->setType( "float2" );
+
+  
+  UsedForOpenGL(output = new GenOp( "   if (1.0 - abs(@.x) < 0.0f)\r\n   {\r\n     discard;\r\n   }\r\n", posXY));
+  UsedForDirect3D(meta->addStatement( new GenOp( "   clip( 1.0 - abs(@.x) );\r\n", posXY ) ));
+
+  output = meta;
 }
 
-ShaderFeature::Resources ParaboloidVertTransformHLSL::getResources( const MaterialFeatureData &fd )
+ShaderFeature::Resources ParaboloidVertTransform::getResources( const MaterialFeatureData &fd )
 {
    Resources temp;
    temp.numTexReg = 2;

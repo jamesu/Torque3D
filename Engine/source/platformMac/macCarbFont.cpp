@@ -33,13 +33,13 @@
 // New Unicode capable font class.
 PlatformFont *createPlatformFont(const char *name, U32 size, U32 charset /* = TGE_ANSI_CHARSET */)
 {
-    PlatformFont *retFont = new MacCarbFont;
-
-    if(retFont->create(name, size, charset))
-        return retFont;
-
-    delete retFont;
-    return NULL;
+   PlatformFont *retFont = new MacCarbFont;
+   
+   if(retFont->create(name, size, charset))
+      return retFont;
+   
+   delete retFont;
+   return NULL;
 }
 
 //------------------------------------------------------------------------------
@@ -66,10 +66,10 @@ bool MacCarbFont::create( const char* name, U32 size, U32 charset)
    
    // create and cache the style and layout.
    // based on apple sample code at http://developer.apple.com/qa/qa2001/qa1027.html
-
+   
    // note: charset is ignored on mac. -- we don't need it to get the right chars.
    // But do we need it to translate encodings? hmm...
-
+   
    CFStringRef       cfsName;
    ATSUFontID        atsuFontID;
    ATSFontRef        atsFontRef;
@@ -99,22 +99,22 @@ bool MacCarbFont::create( const char* name, U32 size, U32 charset)
       }
    }
    while( haveModifier );
-      
+   
    // Look up the font. We need it in 2 differnt formats, for differnt Apple APIs.
    cfsName = CFStringCreateWithCString( kCFAllocatorDefault, nameStr.c_str(), kCFStringEncodingUTF8);
    if(!cfsName)
       Con::errorf("Error: could not make a cfstring out of \"%s\" ",nameStr.c_str());
-      
+   
    atsFontRef =  ATSFontFindFromName( cfsName, kATSOptionFlagsDefault);
-   atsuFontID = FMGetFontFromATSFontRef( atsFontRef);
-
+   atsuFontID = atsFontRef;//FMGetFontFromATSFontRef( atsFontRef);   // DWB 8-1-11: FMGetFontFromATSFontRef() was a no-op, now deprecated
+   
    // make sure we found it. ATSFontFindFromName() appears to return 0 if it cant find anything. Apple docs contain no info on error returns.
    if( !atsFontRef || !atsuFontID )
    {
       Con::errorf("MacCarbFont::create - could not load font -%s-",name);
       return false;
    }
-
+   
    // adjust the size. win dpi = 96, mac dpi = 72. 72/96 = .75
    // Interestingly enough, 0.75 is not what makes things the right size.
    scaledSize = size - 2 - (int)((float)size * 0.1);
@@ -123,7 +123,7 @@ bool MacCarbFont::create( const char* name, U32 size, U32 charset)
    // Set up the size and color. We send these to ATSUSetAttributes().
    atsuSize = IntToFixed(scaledSize);
    black.red = black.green = black.blue = black.alpha = 1.0;
-
+   
    // Three parrallel arrays for setting up font, size, and color attributes.
    ATSUAttributeTag theTags[] = { kATSUFontTag, kATSUSizeTag, kATSURGBAlphaColorTag};
    ByteCount theSizes[] = { sizeof(ATSUFontID), sizeof(Fixed), sizeof(ATSURGBAlphaColor) };
@@ -151,8 +151,8 @@ bool MacCarbFont::create( const char* name, U32 size, U32 charset)
       ATSUSetAttributes( mStyle, 1, &tag, &size, &valuePtr );
    }
    
-   // create the layout object, 
-   ATSUCreateTextLayout(&mLayout);  
+   // create the layout object,
+   ATSUCreateTextLayout(&mLayout);
    // we'll bind the layout to a bitmap context when we actually draw.
    // ATSUSetTextPointerLocation()  - will set the text buffer
    // ATSUSetLayoutControls()       - will set the cg context.
@@ -169,14 +169,14 @@ bool MacCarbFont::create( const char* name, U32 size, U32 charset)
    mName = StringTable->insert(name);
    
    return true;
-}    
+}
 
 //------------------------------------------------------------------------------
 bool MacCarbFont::isValidChar(const UTF8 *str) const
 {
    // since only low order characters are invalid, and since those characters
    // are single codeunits in UTF8, we can safely cast here.
-   return isValidChar((UTF16)*str);  
+   return isValidChar((UTF16)*str);
 }
 
 bool MacCarbFont::isValidChar( const UTF16 ch) const
@@ -185,7 +185,7 @@ bool MacCarbFont::isValidChar( const UTF16 ch) const
    // 0x20 == 32 == space
    if( ch < 0x20 )
       return false;
-
+   
    return true;
 }
 
@@ -203,13 +203,13 @@ PlatformFont::CharInfo& MacCarbFont::getCharInfo(const UTF16 ch) const
    U32                  bitmapDataSize;
    ATSUTextMeasurement  tbefore, tafter, tascent, tdescent;
    OSStatus             err;
-
+   
    // 16 bit character buffer for the ATUSI calls.
-   // -- hey... could we cache this at the class level, set style and loc *once*, 
+   // -- hey... could we cache this at the class level, set style and loc *once*,
    //    then just write to this buffer and clear the layout cache, to speed up drawing?
    static UniChar chUniChar[1];
    chUniChar[0] = ch;
-
+   
    // Declare and clear out the CharInfo that will be returned.
    static PlatformFont::CharInfo c;
    dMemset(&c, 0, sizeof(c));
@@ -218,7 +218,7 @@ PlatformFont::CharInfo& MacCarbFont::getCharInfo(const UTF16 ch) const
    c.bitmapIndex = 0;
    c.xOffset = 0;
    c.yOffset = 0;
-
+   
    // put the text in the layout.
    // we've hardcoded a string length of 1 here, but this could work for longer strings... (hint hint)
    // note: ATSUSetTextPointerLocation() also clears the previous cached layout information.
@@ -256,11 +256,11 @@ PlatformFont::CharInfo& MacCarbFont::getCharInfo(const UTF16 ch) const
       dMemset(c.bitmapData,0x0F,bitmapDataSize);
       return c;
    }
-
+   
    // Turn off antialiasing for monospaced console fonts. yes, this is cheating.
    if(mSize < 12  && ( dStrstr(mName,"Monaco")!=NULL || dStrstr(mName,"Courier")!=NULL ))
       CGContextSetShouldAntialias(imageCtx, false);
-
+   
    // Set up drawing options for the context.
    // Since we're not going straight to the screen, we need to adjust accordingly
    CGContextSetShouldSmoothFonts(imageCtx, false);
@@ -270,9 +270,9 @@ PlatformFont::CharInfo& MacCarbFont::getCharInfo(const UTF16 ch) const
    CGContextSetTextDrawingMode( imageCtx,  kCGTextFill);
    
    // tell ATSUI to substitute fonts as needed for missing glyphs
-   ATSUSetTransientFontMatching(mLayout, true); 
-
-   // set up three parrallel arrays for setting up attributes. 
+   ATSUSetTransientFontMatching(mLayout, true);
+   
+   // set up three parrallel arrays for setting up attributes.
    // this is how most options in ATSUI are set, by passing arrays of options.
    ATSUAttributeTag theTags[] = { kATSUCGContextTag };
    ByteCount theSizes[] = { sizeof(CGContextRef) };
@@ -280,7 +280,7 @@ PlatformFont::CharInfo& MacCarbFont::getCharInfo(const UTF16 ch) const
    
    // bind the layout to the context.
    ATSUSetLayoutControls( mLayout, 1, theTags, theSizes, theValues );
-
+   
    // Draw the character!
    int yoff = c.height < 3 ? 1 : 0; // kludge for 1 pixel high characters, such as '-' and '_'
    int xoff = 1;
@@ -291,13 +291,13 @@ PlatformFont::CharInfo& MacCarbFont::getCharInfo(const UTF16 ch) const
       Con::errorf("Error: could not draw the character! Drawing a blank box.");
       dMemset(c.bitmapData,0x0F,bitmapDataSize);
    }
-
-
+   
+   
 #if TORQUE_DEBUG
-//   Con::printf("Font Metrics: Rect = %2i %2i %2i %2i  Char= %C, 0x%x  Size= %i, Baseline= %i, Height= %i",imageRect.top, imageRect.bottom, imageRect.left, imageRect.right,ch,ch, mSize,mBaseline, mHeight);
-//   Con::printf("Font Bounds:  left= %2i right= %2i  Char= %C, 0x%x  Size= %i",FixedToInt(tbefore), FixedToInt(tafter), ch,ch, mSize);
+   //   Con::printf("Font Metrics: Rect = %2i %2i %2i %2i  Char= %C, 0x%x  Size= %i, Baseline= %i, Height= %i",imageRect.top, imageRect.bottom, imageRect.left, imageRect.right,ch,ch, mSize,mBaseline, mHeight);
+   //   Con::printf("Font Bounds:  left= %2i right= %2i  Char= %C, 0x%x  Size= %i",FixedToInt(tbefore), FixedToInt(tafter), ch,ch, mSize);
 #endif
-      
+   
    return c;
 }
 
@@ -309,12 +309,12 @@ void PlatformFont::enumeratePlatformFonts( Vector< StringTableEntry >& fonts, UT
       
       ATSUFontID fontID;
       if( ATSUFindFontFromName(
-            fontFamily,
-            dStrlen( fontFamily ) * 2,
-            kFontFamilyName,
-            kFontMicrosoftPlatform,
-            kFontNoScriptCode,
-            kFontNoLanguageCode, &fontID ) != kATSUInvalidFontErr )
+                               fontFamily,
+                               dStrlen( fontFamily ) * 2,
+                               kFontFamilyName,
+                               kFontMicrosoftPlatform,
+                               kFontNoScriptCode,
+                               kFontNoLanguageCode, &fontID ) != kATSUInvalidFontErr )
       {
          // Get the number of fonts in the family.
          
@@ -337,15 +337,15 @@ void PlatformFont::enumeratePlatformFonts( Vector< StringTableEntry >& fonts, UT
                FontLanguageCode fontLanguageCode;
                
                if( ATSUGetIndFontName(
-                     fontID,
-                     i,
-                     bufferSize - 2,
-                     buffer,
-                     &actualNameLength,
-                     &fontNameCode,
-                     &fontPlatformCode,
-                     &fontScriptCode,
-                     &fontLanguageCode ) == noErr )
+                                      fontID,
+                                      i,
+                                      bufferSize - 2,
+                                      buffer,
+                                      &actualNameLength,
+                                      &fontNameCode,
+                                      &fontPlatformCode,
+                                      &fontScriptCode,
+                                      &fontLanguageCode ) == noErr )
                {
                   *( ( UTF16* ) &buffer[ actualNameLength ] ) = '\0';
                   char* utf8 = convertUTF16toUTF8( ( UTF16* ) buffer );
@@ -389,15 +389,15 @@ void PlatformFont::enumeratePlatformFonts( Vector< StringTableEntry >& fonts, UT
                ItemCount fontIndex;
                
                OSStatus result = ATSUFindFontName(
-                     fontIDs[ i ],
-                     kFontFamilyName,
-                     kFontMicrosoftPlatform,
-                     kFontNoScriptCode,
-                     kFontNoLanguageCode,
-                     bufferSize - 2,
-                     buffer,
-                     &actualNameLength,
-                     &fontIndex );
+                                                  fontIDs[ i ],
+                                                  kFontFamilyName,
+                                                  kFontMicrosoftPlatform,
+                                                  kFontNoScriptCode,
+                                                  kFontNoLanguageCode,
+                                                  bufferSize - 2,
+                                                  buffer,
+                                                  &actualNameLength,
+                                                  &fontIndex );
                
                if( result == kATSUNoFontNameErr )
                   break;
@@ -417,10 +417,10 @@ void PlatformFont::enumeratePlatformFonts( Vector< StringTableEntry >& fonts, UT
                         duplicate = true;
                         break;
                      }
-                     
+                  
                   if( !duplicate )
                      fonts.push_back( name );
-                     
+                  
                   break;
                }
                

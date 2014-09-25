@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -35,7 +36,6 @@
 #include "console/consoleTypes.h"
 #include "console/engineAPI.h"
 
-using namespace Torque;
 
 //#define DEBUG_SPEW
 
@@ -49,6 +49,8 @@ String GFXTextureManager::smWarningTexturePath("core/art/warnmat");
 GFXTextureManager::EventSignal GFXTextureManager::smEventSignal;
 
 static const String  sDDSExt( "dds" );
+
+using namespace Torque;
 
 void GFXTextureManager::init()
 {
@@ -237,7 +239,9 @@ void GFXTextureManager::cleanupCache( U32 secondsToLive )
       // If its time has expired delete it for real.
       if ( tex->mDeleteTime <= killTime )
       {
-         //Con::errorf( "Killed texture: %s", tex->mTextureLookupName.c_str() );
+#ifdef TORQUE_DEBUG_GUARD
+         Con::errorf( "Killed texture: %s", tex->mTextureLookupName.c_str() );
+#endif//TORQUE_DEBUG
          delete tex;
          mToDelete.erase_fast( i );
          continue;
@@ -688,6 +692,7 @@ GFXTextureObject *GFXTextureManager::createTexture( const Torque::Path &path, GF
    Path realPath;
    if( Torque::FS::IsFile( correctPath ) )
    {
+      PROFILE_SCOPE(GFXTextureManager_createTexture_INNNER1)
       // Check for DDS
       if( sDDSExt.equal(correctPath.getExtension(), String::NoCase ) )
       {
@@ -710,6 +715,7 @@ GFXTextureObject *GFXTextureManager::createTexture( const Torque::Path &path, GF
    }
    else
    {
+      PROFILE_SCOPE(GFXTextureManager_createTexture_INNNER2)
       // NOTE -- We should probably remove the code from GBitmap that tries different
       // extensions for things GBitmap loads, and move it here. I think it should
       // be a bit more involved than just a list of extensions. Some kind of 
@@ -739,6 +745,7 @@ GFXTextureObject *GFXTextureManager::createTexture( const Torque::Path &path, GF
    // it will try a bunch of extensions
    if( retTexObj == NULL )
    {
+      PROFILE_SCOPE(GFXTextureManager_createTexture_INNNER3)
       // Find and load the texture.
       bitmap = GBitmap::load( correctPath );
 
@@ -751,6 +758,7 @@ GFXTextureObject *GFXTextureManager::createTexture( const Torque::Path &path, GF
 
    if ( retTexObj )
    {
+      PROFILE_SCOPE(GFXTextureManager_createTexture_INNNER4)
       // Store the path for later use.
       retTexObj->mPath = realPath;
 
@@ -768,7 +776,7 @@ GFXTextureObject *GFXTextureManager::createTexture(  U32 width, U32 height, void
    // For now, stuff everything into a GBitmap and pass it off... This may need to be revisited -- BJG
    GBitmap *bmp = new GBitmap(width, height, 0, format);
    dMemcpy(bmp->getWritableBits(), pixels, width * height * bmp->getBytesPerPixel());
-
+   
    return createTexture( bmp, String::EmptyString, profile, true );
 }
 
@@ -777,7 +785,7 @@ GFXTextureObject *GFXTextureManager::createTexture( U32 width, U32 height, GFXFo
    // Deal with sizing issues...
    U32 localWidth = width;
    U32 localHeight = height;
-
+   
    // TODO: Format check HERE! -patw
 
    validateTextureQuality(profile, localWidth, localHeight);
@@ -866,6 +874,171 @@ GFXTextureObject *GFXTextureManager::createTexture(   U32 width,
 
    // Return the new texture!
    return ret;
+}
+
+GBitmap *GFXTextureManager::loadUncompressedTexture( const Torque::Path &path, GFXTextureProfile *profile )
+{
+    PROFILE_SCOPE( GFXTextureManager_loadUncompressedTexture );
+    
+    GBitmap *retBitmap = NULL;
+    
+    // Resource handles used for loading.  Hold on to them
+    // throughout this function so that change notifications
+    // don't get added, then removed, and then re-added.
+    
+    Resource< DDSFile > dds;
+    Resource< GBitmap > bitmap;
+    
+    // We need to handle path's that have had "incorrect"
+    // extensions parsed out of the file name
+    Torque::Path correctPath = path;
+    
+    bool textureExt = false;
+    
+    // Easiest case to handle is when there isn't an extension
+    if (path.getExtension().isEmpty())
+        textureExt = true;
+    
+    // Since "dds" isn't registered with GBitmap currently we
+    // have to test it separately
+    if (sDDSExt.equal( path.getExtension(), String::NoCase ) )
+        textureExt = true;
+    
+    // Now loop through the rest of the GBitmap extensions
+    // to see if we have any matches
+    for ( U32 i = 0; i < GBitmap::sRegistrations.size(); i++ )
+    {
+        // If we have gotten a match (either in this loop or before)
+        // then we can exit
+        if (textureExt)
+            break;
+        
+        const GBitmap::Registration   &reg = GBitmap::sRegistrations[i];
+        const Vector<String>          &extensions = reg.extensions;
+        
+        for ( U32 j = 0; j < extensions.size(); ++j )
+        {
+            if ( extensions[j].equal( path.getExtension(), String::NoCase ) )
+            {
+                // Found a valid texture extension
+                textureExt = true;
+                break;
+            }
+        }
+    }
+    
+    // If we didn't find a valid texture extension then assume that
+    // the parsed out "extension" was actually intended to be part of
+    // the texture name so add it back
+    if (!textureExt)
+    {
+        correctPath.setFileName( Torque::Path::Join( path.getFileName(), '.', path.getExtension() ) );
+        correctPath.setExtension( String::EmptyString );
+    }
+   
+    U32 scalePower = profile ? getTextureDownscalePower( profile ) : 0;
+    
+    // Check the cache first...
+    String pathNoExt = Torque::Path::Join( correctPath.getRoot(), ':', correctPath.getPath() );
+    pathNoExt = Torque::Path::Join( pathNoExt, '/', correctPath.getFileName() );
+    
+    // If this is a valid file (has an extension) than load it
+    Path realPath;
+    if( Torque::FS::IsFile( correctPath ) )
+    {
+        PROFILE_SCOPE(GFXTextureManager_loadUncompressedTexture_INNNER1)
+        // Check for DDS
+        if( sDDSExt.equal(correctPath.getExtension(), String::NoCase ) )
+        {
+            dds = DDSFile::load( correctPath, scalePower );
+            if( dds != NULL )
+            {
+               realPath = dds.getPath();
+               retBitmap = new GBitmap();
+               if (!dds->decompressToGBitmap(retBitmap))
+               {
+                  delete retBitmap;
+                  retBitmap = NULL;
+               }
+            }
+        }
+        else // Let GBitmap take care of it
+        {
+            bitmap = GBitmap::load( correctPath );
+            if( bitmap != NULL )
+            {
+               realPath = bitmap.getPath();
+               retBitmap = new GBitmap(*bitmap);
+               
+               if (  scalePower &&
+                   isPow2(retBitmap->getWidth()) &&
+                   isPow2(retBitmap->getHeight()) &&
+                   profile->canDownscale() )
+               {
+                  retBitmap->extrudeMipLevels();
+                  retBitmap->chopTopMips(scalePower);
+               }
+            }
+        }
+    }
+    else
+    {
+        PROFILE_SCOPE(GFXTextureManager_loadUncompressedTexture_INNNER2)
+        // NOTE -- We should probably remove the code from GBitmap that tries different
+        // extensions for things GBitmap loads, and move it here. I think it should
+        // be a bit more involved than just a list of extensions. Some kind of
+        // extension registration thing, maybe.
+        
+        // Check to see if there is a .DDS file with this name (if no extension is provided)
+        Torque::Path tryDDSPath = pathNoExt;
+        if( tryDDSPath.getExtension().isNotEmpty() )
+            tryDDSPath.setFileName( tryDDSPath.getFullFileName() );
+        tryDDSPath.setExtension( sDDSExt );
+        
+        if( Torque::FS::IsFile( tryDDSPath ) )
+        {
+            dds = DDSFile::load( tryDDSPath, scalePower );
+            if( dds != NULL )
+            {
+                realPath = dds.getPath();
+                // Decompress dds into the GBitmap
+                retBitmap = new GBitmap();
+                if (!dds->decompressToGBitmap(retBitmap))
+                {
+                    delete retBitmap;
+                    retBitmap = NULL;
+                }
+            }
+        }
+        
+        // Otherwise, retTexObj stays NULL, and fall through to the generic GBitmap
+        // load.
+    }
+    
+    // If we still don't have a texture object yet, feed the correctPath to GBitmap and
+    // it will try a bunch of extensions
+    if( retBitmap == NULL )
+    {
+        PROFILE_SCOPE(GFXTextureManager_loadUncompressedTexture_INNNER3)
+        // Find and load the texture.
+        bitmap = GBitmap::load( correctPath );
+        
+        if ( bitmap != NULL )
+        {
+           retBitmap = new GBitmap(*bitmap);
+           
+           if (  scalePower &&
+               isPow2(retBitmap->getWidth()) &&
+               isPow2(retBitmap->getHeight()) &&
+               profile->canDownscale() )
+           {
+              retBitmap->extrudeMipLevels();
+              retBitmap->chopTopMips(scalePower);
+           }
+        }
+    }
+    
+    return retBitmap;
 }
 
 GFXTextureObject* GFXTextureManager::_findPooledTexure(  U32 width, 
@@ -1031,7 +1204,7 @@ void GFXTextureManager::_validateTexParams( const U32 width, const U32 height,
    // If the format is non-compressed, and the profile requests a compressed format
    // than change the format.
    GFXFormat testingFormat = inOutFormat;
-   if( profile->getCompression() != GFXTextureProfile::NONE )
+   if( profile->getCompression() != GFXTextureProfile::None )
    {
       const S32 offset = profile->getCompression() - GFXTextureProfile::DXT1;
       testingFormat = GFXFormat( GFXFormatDXT1 + offset );

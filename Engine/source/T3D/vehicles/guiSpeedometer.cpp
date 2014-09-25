@@ -188,7 +188,6 @@ void GuiSpeedometerHud::onRender(Point2I offset, const RectI &updateRect)
       GFXStateBlockDesc desc;
       desc.setBlend(true, GFXBlendSrcAlpha, GFXBlendInvSrcAlpha);
       desc.samplersDefined = true;
-      desc.samplers[0].textureColorOp = GFXTOPDisable;
       mBlendSB = GFX->createStateBlock(desc);
    }
 

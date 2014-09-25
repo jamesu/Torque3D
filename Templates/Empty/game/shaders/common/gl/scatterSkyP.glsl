@@ -25,15 +25,13 @@
 
 
 // Conn
-in vec4  rayleighColor;
+varying vec4  rayleighColor;
 #define IN_rayleighColor rayleighColor
-in vec4  mieColor;
+varying vec4  mieColor;
 #define IN_mieColor mieColor
-in vec3  v3Direction;
+varying vec3  v3Direction;
 #define IN_v3Direction v3Direction
-in float zPosition;
-#define IN_zPosition zPosition
-in vec3  pos;
+varying vec3  pos;
 #define IN_pos pos
 
 uniform samplerCube nightSky ;
@@ -57,19 +55,13 @@ void main()
    vec4 color = IN_rayleighColor + fMiePhase * IN_mieColor;
    color.a = color.b;
    
-   vec4 nightSkyColor = texture(nightSky, -v3Direction);
+   vec4 nightSkyColor = textureCube(nightSky, -v3Direction);
    nightSkyColor = mix(nightColor, nightSkyColor, useCubemap);
 
    float fac = dot( normalize( pos ), sunDir );
    fac = max( nightInterpAndExposure.y, pow( clamp( fac, 0.0, 1.0 ), 2 ) );
-   OUT_FragColor0 = mix( color, nightSkyColor, nightInterpAndExposure.y );
+   gl_FragColor = mix( color, nightSkyColor, nightInterpAndExposure.y );
    
-   // Clip based on the camera-relative
-   // z position of the vertex, passed through
-   // from the vertex position.
-   if(zPosition < 0.0)
-      discard;
-
-   OUT_FragColor0.a = 1;
-   OUT_FragColor0 = hdrEncode( OUT_FragColor0 );
+   gl_FragColor.a = 1;
+   gl_FragColor = hdrEncode( gl_FragColor );
 }

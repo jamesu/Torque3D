@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -67,7 +68,12 @@ class AdvancedLightManager : public LightManager
 {
    typedef LightManager Parent;
 
+   // For access to protected constructor.
+   friend class ManagedSingleton<AdvancedLightManager>;
+
 public:
+
+   static const char* getSingletonName() { return "AdvancedLightManager"; }
 
    /// Return the lightBinManager for this light manager.
    AdvancedLightBinManager* getLightBinManager() { return mLightBinManager; }
@@ -102,11 +108,6 @@ protected:
    // LightManager
    virtual void _addLightInfoEx( LightInfo *lightInfo );
    virtual void _initLightFields();
-
-   /// A simple protected singleton.  Use LightManager::findByName()
-   /// to access this light manager.
-   /// @see LightManager::findByName()
-   static AdvancedLightManager smSingleton;
 
    // These are protected because we're a singleton and
    // no one else should be creating us!

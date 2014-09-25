@@ -25,12 +25,13 @@
    
 // With advanced lighting we get soft particles.
 #ifdef TORQUE_LINEAR_DEPTH
-   #define SOFTPARTICLES  
+   #define SOFTPARTICLESx
 #endif
 
-#ifdef SOFTPARTICLES
+// TODO: generate autogenConditioners.h so that soft particles can be used
+#if 0
    
-   #include "shadergen:/autogenConditioners.h"
+   include "shadergen:/autogenConditioners.h"
    
    uniform float oneOverSoftness;
    uniform float oneOverFar;
@@ -41,9 +42,11 @@
 
 #define CLIP_Z // TODO: Make this a proper macro
 
-in vec4 color;
-in vec2 uv0;
-in vec4 pos;
+varying vec4 color;
+varying vec2 uv0;
+#ifdef SOFTPARTICLES
+varying vec4 pos;
+#endif
 
 #define IN_color color
 #define IN_uv0 uv0
@@ -71,7 +74,7 @@ vec4 lmSample( vec3 nrm )
    // Atlasing front and back maps, so scale
    lmCoord.x *= 0.5;
 
-   return texture(paraboloidLightMap, lmCoord);
+   return texture2D(paraboloidLightMap, lmCoord);
 }
 
 
@@ -86,26 +89,26 @@ void main()
       vec2 tc = IN_pos.xy * vec2(1.0, -1.0) / IN_pos.w;
       tc = viewportCoordToRenderTarget(saturate( ( tc + 1.0 ) * 0.5 ), prePassTargetParams); 
    
-   	float sceneDepth = prepassUncondition( prepassTex, tc ).w;   	   	   			
-   	float depth = IN_pos.w * oneOverFar;   	
-	float diff = sceneDepth - depth;
-	#ifdef CLIP_Z
-	   // If drawing offscreen, this acts as the depth test, since we don't line up with the z-buffer
-	   // When drawing high-res, though, we want to be able to take advantage of hi-z
-	   // so this is #ifdef'd out
-	   //clip(diff);
-	#endif
+      float sceneDepth = prepassUncondition( prepassTex, tc ).w;                       
+      float depth = IN_pos.w * oneOverFar;      
+   float diff = sceneDepth - depth;
+   #ifdef CLIP_Z
+      // If drawing offscreen, this acts as the depth test, since we don't line up with the z-buffer
+      // When drawing high-res, though, we want to be able to take advantage of hi-z
+      // so this is #ifdef'd out
+      //clip(diff);
+   #endif
       softBlend = saturate( diff * oneOverSoftness );
    #endif
-	   
-   vec4 diffuse = texture( diffuseMap, IN_uv0 );
+      
+   vec4 diffuse = texture2D( diffuseMap, IN_uv0 );
    
-   //OUT_FragColor0 = vec4( lmSample(vec3(0, 0, -1)).rgb, IN_color.a * diffuse.a * softBlend * alphaScale);
+   //gl_FragColor = vec4( lmSample(vec3(0, 0, -1)).rgb, IN_color.a * diffuse.a * softBlend * alphaScale);
    
    // Scale output color by the alpha factor (turn LerpAlpha into pre-multiplied alpha)
    vec3 colorScale = ( alphaFactor < 0.0 ? IN_color.rgb * diffuse.rgb : vec3( alphaFactor > 0.0 ? IN_color.a * diffuse.a * alphaFactor * softBlend : softBlend ) );
    
-   OUT_FragColor0 = hdrEncode( vec4( IN_color.rgb * diffuse.rgb * colorScale,
+   gl_FragColor = hdrEncode( vec4( IN_color.rgb * diffuse.rgb * colorScale,
                   IN_color.a * diffuse.a * softBlend * alphaScale ) );
 }
 

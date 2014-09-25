@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -124,6 +125,8 @@ public:
       GFXTextureProfile *profile,
       U32 numMipLevels,
       S32 antialiasLevel);
+    
+   GBitmap *loadUncompressedTexture( const Torque::Path &path, GFXTextureProfile *profile  = NULL );
 
    void deleteTexture( GFXTextureObject *texture );
    void reloadTexture( GFXTextureObject *texture );

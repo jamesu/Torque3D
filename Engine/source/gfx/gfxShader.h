@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -238,6 +239,7 @@ protected:
    Vector<GFXShaderMacro> mMacros;
 
    /// Ordered SamplerNames
+   
    /// We need to store a list of sampler for allow OpenGL to
    /// assign correct location for each sampler.
    /// GLSL 150 not allow explicit uniform location.
@@ -266,9 +268,14 @@ protected:
    GFXShader();
 
 public:
-
+	
+   GFXVertexFormat mVertexFormat;
+	
    // TODO: Add this into init().
    GFXVertexFormat mInstancingFormat;
+   
+   U32 mId;
+   inline U32 getId() { return mId; }
 
    /// Adds a global shader macro which will be merged with
    /// the script defined macros on every shader reload.
@@ -300,19 +307,11 @@ public:
 
    ///
    /// Deprecated. Remove on T3D 4.0
-#ifndef TORQUE_OPENGL
-   bool init(  const Torque::Path &vertFile, 
-               const Torque::Path &pixFile, 
-               F32 pixVersion, 
-               const Vector<GFXShaderMacro> &macros );
-#endif
-
-   ///
    bool init(  const Torque::Path &vertFile, 
                const Torque::Path &pixFile, 
                F32 pixVersion, 
                const Vector<GFXShaderMacro> &macros,
-               const Vector<String> &samplerNames);
+               const Vector<String> &samplerNames );
 
    /// Reloads the shader from disk.
    bool reload();

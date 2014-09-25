@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -19,12 +20,11 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 //-----------------------------------------------------------------------------
-#ifndef _PARABOLOID_HLSL_H_
-#define _PARABOLOID_HLSL_H_
 
-#ifndef _SHADERGEN_HLSL_SHADERFEATUREHLSL_H_
+#ifndef _PARABOLOID_GLSL_H_
+#define _PARABOLOID_GLSL_H_
+
 #include "shaderGen/HLSL/shaderFeatureHLSL.h"
-#endif
 #ifndef _SHADEROP_H_
 #include "shaderGen/shaderOp.h"
 #endif
@@ -32,7 +32,7 @@
 class GFXShaderConstHandle;
 
 
-class ParaboloidVertTransformHLSL : public ShaderFeatureHLSL
+class ParaboloidVertTransform : public ShaderFeatureCommon
 {
 public:
 
@@ -45,4 +45,4 @@ public:
 
 };
 
-#endif // _PARABOLOID_HLSL_H_
+#endif // _PARABOLOID_GLSL_H_

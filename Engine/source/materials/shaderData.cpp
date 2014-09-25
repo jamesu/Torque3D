@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -99,7 +100,7 @@ void ShaderData::initPersistFields()
 	   "The shader will not run properly if the hardware does not support the "
 	   "level of shader compiled.");
    
-   addField("defines",              TypeRealString,      Offset(mDefines,   ShaderData), 
+   addField("definesDX",              TypeRealString,      Offset(mDefinesDX,   ShaderData), 
 	   "@brief String of case-sensitive defines passed to the shader compiler.\n\n"
       "The string should be delimited by a semicolon, tab, or newline character."
       
@@ -114,6 +115,13 @@ void ShaderData::initPersistFields()
           "}\n"
       "@endtsexample\n\n"
       );
+
+   addField("definesOGL",              TypeRealString,      Offset(mDefinesOGL,   ShaderData), 
+     "@brief String of case-sensitive defines passed to the shader compiler.\n\n"
+     "The string should be delimited by a semicolon, tab, or newline character.");
+
+   addField("samplerNames",              TypeRealString,      Offset(mSamplerNames,   ShaderData), TEXTURE_STAGE_COUNT, ""); // TODO OPENGL ADD DOCUMENTATION
+
 
    Parent::initPersistFields();
 
@@ -146,17 +154,19 @@ void ShaderData::onRemove()
 
 const Vector<GFXShaderMacro>& ShaderData::_getMacros()
 {
+   const String& defines = GFX->getAdapterType() == OpenGL ? mDefinesOGL : mDefinesDX;
+
    // If they have already been processed then 
    // return the cached result.
-   if ( mShaderMacros.size() != 0 || mDefines.isEmpty() )
+   if ( mShaderMacros.size() != 0 || defines.isEmpty() )
       return mShaderMacros;
 
    mShaderMacros.clear();  
    GFXShaderMacro macro;
-   const U32 defineCount = StringUnit::getUnitCount( mDefines, ";\n\t" );
+   const U32 defineCount = StringUnit::getUnitCount( defines, ";\n\t" );
    for ( U32 i=0; i < defineCount; i++ )
    {
-      String define = StringUnit::getUnit( mDefines, i, ";\n\t" );
+      String define = StringUnit::getUnit( defines, i, ";\n\t" );
 
       macro.name   = StringUnit::getUnit( define, 0, "=" );
       macro.value  = StringUnit::getUnit( define, 1, "=" );
@@ -207,6 +217,14 @@ GFXShader* ShaderData::_createShader( const Vector<GFXShaderMacro> &macros )
    GFXShader *shader = GFX->createShader();
    bool success = false;
 
+   Vector<String> samplers;
+   samplers.setSize(Material::MAX_TEX_PER_PASS);
+   for(int i = 0; i < Material::MAX_TEX_PER_PASS; ++i) {
+      samplers[i] = mSamplerNames[i][0] == '$' ? mSamplerNames[i] : "$"+mSamplerNames[i];
+	  samplers[i].intern();
+   }
+
+
    // Initialize the right shader type.
    switch( GFX->getAdapterType() )
    {
@@ -216,7 +234,8 @@ GFXShader* ShaderData::_createShader( const Vector<GFXShaderMacro> &macros )
          success = shader->init( mDXVertexShaderName, 
                                  mDXPixelShaderName, 
                                  pixver,
-                                 macros );
+                                 macros,
+								 samplers );
          break;
       }
 
@@ -225,7 +244,8 @@ GFXShader* ShaderData::_createShader( const Vector<GFXShaderMacro> &macros )
          success = shader->init( mOGLVertexShaderName,
                                  mOGLPixelShaderName,
                                  pixver,
-                                 macros );
+								 macros,
+								 samplers );
          break;
       }
          

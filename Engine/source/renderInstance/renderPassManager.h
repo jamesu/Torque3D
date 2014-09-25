@@ -367,6 +367,10 @@ struct MeshRenderInst : public RenderInst
    GFXTextureObject *reflectTex;
    GFXTextureObject *miscTex;
    GFXCubemap   *cubemap;
+	
+#ifdef TORQUE_ENABLE_GFXDEBUGEVENTS
+   const char* meshName;
+#endif
 
    void clear();
 };

@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -41,36 +42,13 @@
 #include "scene/sceneObject.h"
 #include "renderInstance/renderPrePassMgr.h"
 #include "shaderGen/featureMgr.h"
-#include "shaderGen/HLSL/shaderFeatureHLSL.h"
-#include "shaderGen/HLSL/bumpHLSL.h"
-#include "shaderGen/HLSL/pixSpecularHLSL.h"
 #include "lighting/basic/blTerrainSystem.h"
 #include "lighting/common/projectedShadow.h"
 
 
-#if defined( TORQUE_OS_MAC ) || defined( TORQUE_OS_LINUX )
-#include "shaderGen/GLSL/shaderFeatureGLSL.h"
-#include "shaderGen/GLSL/bumpGLSL.h"
-#include "shaderGen/GLSL/pixSpecularGLSL.h"
-#endif
-
-
-MODULE_BEGIN( BasicLightManager )
-
-   MODULE_SHUTDOWN_AFTER( Scene )
-
-   MODULE_INIT
-   {
-      ManagedSingleton< BasicLightManager >::createSingleton();
-   }
-   
-   MODULE_SHUTDOWN
-   {
-      ManagedSingleton< BasicLightManager >::deleteSingleton();
-   }
-
-MODULE_END;
-
+#include "shaderGen/HLSL/shaderFeatureHLSL.h"
+#include "shaderGen/HLSL/bumpHLSL.h"
+#include "shaderGen/HLSL/pixSpecularHLSL.h"
 
 U32 BasicLightManager::smActiveShadowPlugins = 0;
 U32 BasicLightManager::smShadowsUpdated = 0;
@@ -97,40 +75,6 @@ BasicLightManager::BasicLightManager()
    mTerrainSystem = new blTerrainSystem;
    
    getSceneLightingInterface()->registerSystem( mTerrainSystem );
-
-   Con::addVariable( "$BasicLightManagerStats::activePlugins", 
-      TypeS32, &smActiveShadowPlugins,
-      "The number of active Basic Lighting SceneObjectLightingPlugin objects this frame.\n"
-      "@ingroup BasicLighting\n" );
-
-   Con::addVariable( "$BasicLightManagerStats::shadowsUpdated", 
-      TypeS32, &smShadowsUpdated,
-      "The number of Basic Lighting shadows updated this frame.\n"
-      "@ingroup BasicLighting\n" );
-
-   Con::addVariable( "$BasicLightManagerStats::elapsedUpdateMs", 
-      TypeS32, &smElapsedUpdateMs,
-      "The number of milliseconds spent this frame updating Basic Lighting shadows.\n"
-      "@ingroup BasicLighting\n" );
-
-   Con::addVariable( "$BasicLightManager::shadowFilterDistance", 
-      TypeF32, &smProjectedShadowFilterDistance,
-      "The maximum distance in meters that projected shadows will get soft filtering.\n"
-      "@ingroup BasicLighting\n" );
-
-   Con::addVariable( "$pref::ProjectedShadow::fadeStartPixelSize", 
-      TypeF32, &ProjectedShadow::smFadeStartPixelSize,
-      "A size in pixels at which BL shadows begin to fade out. "
-      "This should be a larger value than fadeEndPixelSize.\n"
-      "@see DecalData\n"
-      "@ingroup BasicLighting\n" );
-
-   Con::addVariable( "$pref::ProjectedShadow::fadeEndPixelSize", 
-      TypeF32, &ProjectedShadow::smFadeEndPixelSize,
-      "A size in pixels at which BL shadows are fully faded out. "
-      "This should be a smaller value than fadeStartPixelSize.\n"
-      "@see DecalData\n"
-      "@ingroup BasicLighting\n" );
 }
 
 BasicLightManager::~BasicLightManager()
@@ -161,26 +105,11 @@ void BasicLightManager::activate( SceneManager *sceneManager )
 {
    Parent::activate( sceneManager );
 
-   if( GFX->getAdapterType() == OpenGL )
-   {
-      #if defined( TORQUE_OS_MAC ) || defined( TORQUE_OS_LINUX )
-         FEATUREMGR->registerFeature( MFT_LightMap, new LightmapFeatGLSL );
-         FEATUREMGR->registerFeature( MFT_ToneMap, new TonemapFeatGLSL );
-         FEATUREMGR->registerFeature( MFT_NormalMap, new BumpFeatGLSL );
-         FEATUREMGR->registerFeature( MFT_RTLighting, new RTLightingFeatGLSL );
-         FEATUREMGR->registerFeature( MFT_PixSpecular, new PixelSpecularGLSL );
-      #endif
-   }
-   else
-   {
-      #if !defined( TORQUE_OS_MAC ) && !defined( TORQUE_OS_LINUX )
-         FEATUREMGR->registerFeature( MFT_LightMap, new LightmapFeatHLSL );
-         FEATUREMGR->registerFeature( MFT_ToneMap, new TonemapFeatHLSL );
-         FEATUREMGR->registerFeature( MFT_NormalMap, new BumpFeatHLSL );
-         FEATUREMGR->registerFeature( MFT_RTLighting, new RTLightingFeatHLSL );
-         FEATUREMGR->registerFeature( MFT_PixSpecular, new PixelSpecularHLSL );
-      #endif
-   }
+   FEATUREMGR->registerFeature( MFT_LightMap, new LightmapFeat );
+   FEATUREMGR->registerFeature( MFT_ToneMap, new TonemapFeat );
+   FEATUREMGR->registerFeature( MFT_NormalMap, new BumpFeat );
+   FEATUREMGR->registerFeature( MFT_RTLighting, new RTLightingFeat );
+   FEATUREMGR->registerFeature( MFT_PixSpecular, new PixelSpecular );
 
    FEATUREMGR->unregisterFeature( MFT_MinnaertShading );
    FEATUREMGR->unregisterFeature( MFT_SubSurface );
@@ -405,4 +334,48 @@ void BasicLightManager::setLightInfo(  ProcessedMaterial* pmat,
                         mLastConstants->mLightSpotAngle,
 						mLastConstants->mLightSpotFalloff,
                         shaderConsts );
+}
+
+void BasicLightManager::_initLightFields()
+{
+   static bool initConsoleFields = false;
+
+   if (!initConsoleFields)
+   {
+      Con::addVariable( "$BasicLightManagerStats::activePlugins", 
+         TypeS32, &smActiveShadowPlugins,
+         "The number of active Basic Lighting SceneObjectLightingPlugin objects this frame.\n"
+         "@ingroup BasicLighting\n" );
+
+      Con::addVariable( "$BasicLightManagerStats::shadowsUpdated", 
+         TypeS32, &smShadowsUpdated,
+         "The number of Basic Lighting shadows updated this frame.\n"
+         "@ingroup BasicLighting\n" );
+
+      Con::addVariable( "$BasicLightManagerStats::elapsedUpdateMs", 
+         TypeS32, &smElapsedUpdateMs,
+         "The number of milliseconds spent this frame updating Basic Lighting shadows.\n"
+         "@ingroup BasicLighting\n" );
+
+      Con::addVariable( "$BasicLightManager::shadowFilterDistance", 
+         TypeF32, &smProjectedShadowFilterDistance,
+         "The maximum distance in meters that projected shadows will get soft filtering.\n"
+         "@ingroup BasicLighting\n" );
+
+      Con::addVariable( "$pref::ProjectedShadow::fadeStartPixelSize", 
+         TypeF32, &ProjectedShadow::smFadeStartPixelSize,
+         "A size in pixels at which BL shadows begin to fade out. "
+         "This should be a larger value than fadeEndPixelSize.\n"
+         "@see DecalData\n"
+         "@ingroup BasicLighting\n" );
+
+      Con::addVariable( "$pref::ProjectedShadow::fadeEndPixelSize", 
+         TypeF32, &ProjectedShadow::smFadeEndPixelSize,
+         "A size in pixels at which BL shadows are fully faded out. "
+         "This should be a smaller value than fadeStartPixelSize.\n"
+         "@see DecalData\n"
+         "@ingroup BasicLighting\n" );
+
+      initConsoleFields = true;
+   }
 }

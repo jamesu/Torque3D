@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -134,7 +135,7 @@ GFX_ImplementTextureProfile(  PostFxTargetProfile,
                               GFXTextureProfile::PreserveSize |
                               GFXTextureProfile::RenderTarget |
                               GFXTextureProfile::Pooled,
-                              GFXTextureProfile::NONE );
+                              GFXTextureProfile::None );
 
 IMPLEMENT_CONOBJECT(PostEffect);
 
@@ -142,8 +143,10 @@ IMPLEMENT_CONOBJECT(PostEffect);
 GFX_ImplementTextureProfile( PostFxTextureProfile,
                             GFXTextureProfile::DiffuseMap,
                             GFXTextureProfile::Static | GFXTextureProfile::PreserveSize | GFXTextureProfile::NoMipmap,
-                            GFXTextureProfile::NONE );
+                            GFXTextureProfile::None );
 
+F32 smPFXNearDist = 0.0f;
+F32 smPFXFarDist = 0.0f;
 
 void PostEffect::EffectConst::set( const String &newVal )
 {
@@ -181,20 +184,73 @@ void PostEffect::EffectConst::setToBuffer( GFXShaderConstBufferRef buff )
    if ( type == GFXSCT_Float )
    {
       F32 val;
-      Con::setData( TypeF32, &val, 0, 1, &strVal );
+      if (mSetFromString)
+      {
+        Con::setData( TypeF32, &val, 0, 1, &strVal );
+      }
+      else
+      {
+        val = mFloat;
+      }
+      
       buff->set( mHandle, val );
    }
    else if ( type == GFXSCT_Float2 )
    {
       Point2F val;
-      Con::setData( TypePoint2F, &val, 0, 1, &strVal );
+      if (mSetFromString)
+      {
+        Con::setData( TypePoint2F, &val, 0, 1, &strVal );
+      }
+      else
+      {
+        val = mPoint2F;
+      }
+
       buff->set( mHandle, val );
    }
    else if ( type == GFXSCT_Float3 )
    {
       Point3F val;
-      Con::setData( TypePoint3F, &val, 0, 1, &strVal );
+      if (mSetFromString)
+      {
+        Con::setData( TypePoint3F, &val, 0, 1, &strVal );
+      }
+      else
+      {
+        val = mPoint3F;
+      }
+
       buff->set( mHandle, val );
+   }
+   else if ( type == GFXSCT_Float4 )
+   {
+      Point4F val;
+      if (mSetFromString)
+      {
+        Con::setData( TypePoint4F, &val, 0, 1, &strVal );
+      }
+      else
+      {
+        val = mPoint4F;
+      }
+
+      buff->set( mHandle, val );
+   }
+   else if ( type == GFXSCT_Float4x4 )
+   {
+     MatrixF val;
+     if (mSetFromString)
+     {
+       AssertFatal(0, "Unsupported");
+       val = MatrixF::Identity;
+     }
+     else
+     {
+       val = mMatrixF;
+     }
+
+     buff->set( mHandle, val );
    }
    else
    {
@@ -277,7 +333,8 @@ PostEffect::PostEffect()
       mCameraForwardSC( NULL ),
       mAccumTimeSC( NULL ),
       mDeltaTimeSC( NULL ),
-      mInvCameraMatSC( NULL )
+      mCalculatedTargetSize( Point2I(500, 500) ), // martinJ
+      mTextureChanged(false)
 {
    dMemset( mActiveTextures, 0, sizeof( GFXTextureObject* ) * NumTextures );
    dMemset( mActiveNamedTarget, 0, sizeof( NamedTexTarget* ) * NumTextures );
@@ -357,8 +414,21 @@ void PostEffect::initPersistFields()
       "Skip processing of this PostEffect and its children even if its parent "
       "is enabled. Parent and sibling PostEffects in the chain are still processed." );
 
+   addField( "computedTargetSize", TypePoint2I, Offset( mCalculatedTargetSize, PostEffect ), 
+     "The size of the output target. This value should only be read from script "
+     "as it is updated ever frame." );
+
    Parent::initPersistFields();
 }
+
+void PostEffect::consoleInit()
+{
+   Parent::consoleInit();
+	
+   Con::addVariable("$Param::NearDist", TypeF32, &smPFXNearDist);
+   Con::addVariable("$Param::FarDist", TypeF32, &smPFXFarDist);
+}
+
 
 bool PostEffect::onAdd()
 {
@@ -372,6 +442,8 @@ bool PostEffect::onAdd()
    Torque::Path scriptPath( Con::getVariable( "$Con::File" ) );
    scriptPath.setFileName( String::EmptyString );
    scriptPath.setExtension( String::EmptyString );
+
+   const char *correctVar = Con::getVariable("$HDRPostFX::colorCorrectionRamp");
 
    // Find additional textures
    for( S32 i = 0; i < NumTextures; i++ )
@@ -480,25 +552,48 @@ void PostEffect::_updateScreenGeometry(   const Frustum &frustum,
 
    PFXVertex *vert = outVB->lock();
 
-   vert->point.set( -1.0, -1.0, 0.0 );
-   vert->texCoord.set( 0.0f, 1.0f );
-   vert->wsEyeRay = frustumPoints[Frustum::FarBottomLeft] - cameraOffsetPos;
-   vert++;
+   if (GFX->getAdapterType() == OpenGL)
+   {
+	   vert->point.set( 1.0, -1.0, 0.0 );
+	   vert->texCoord.set( 1.0f, 0.0f );
+	   vert->wsEyeRay = frustumPoints[Frustum::FarBottomRight] - cameraPos;
+	   vert++;
+      
+	   vert->point.set( -1.0, -1.0, 0.0 );
+	   vert->texCoord.set( 0.0f, 0.0f );
+	   vert->wsEyeRay = frustumPoints[Frustum::FarBottomLeft] - cameraPos;
+	   vert++;
+      
+	   vert->point.set( 1.0, 1.0, 0.0 );
+	   vert->texCoord.set( 1.0f, 1.0f );
+	   vert->wsEyeRay = frustumPoints[Frustum::FarTopRight] - cameraPos;
+	   vert++;
 
-   vert->point.set( -1.0, 1.0, 0.0 );
-   vert->texCoord.set( 0.0f, 0.0f );
-   vert->wsEyeRay = frustumPoints[Frustum::FarTopLeft] - cameraOffsetPos;
-   vert++;
+	   vert->point.set( -1.0, 1.0, 0.0 );
+	   vert->texCoord.set( 0.0f, 1.0f );
+	   vert->wsEyeRay = frustumPoints[Frustum::FarTopLeft] - cameraPos;
+	   vert++;
+   } else {
+	   vert->point.set( 1.0, -1.0, 0.0 );
+	   vert->texCoord.set( 1.0f, 1.0f );
+	   vert->wsEyeRay = frustumPoints[Frustum::FarBottomRight] - cameraPos;
+	   vert++;
+      
+	   vert->point.set( -1.0, -1.0, 0.0 );
+	   vert->texCoord.set( 0.0f, 1.0f );
+	   vert->wsEyeRay = frustumPoints[Frustum::FarBottomLeft] - cameraPos;
+	   vert++;
+      
+	   vert->point.set( 1.0, 1.0, 0.0 );
+	   vert->texCoord.set( 1.0f, 0.0f );
+	   vert->wsEyeRay = frustumPoints[Frustum::FarTopRight] - cameraPos;
+	   vert++;
 
-   vert->point.set( 1.0, 1.0, 0.0 );
-   vert->texCoord.set( 1.0f, 0.0f );
-   vert->wsEyeRay = frustumPoints[Frustum::FarTopRight] - cameraOffsetPos;
-   vert++;
-
-   vert->point.set( 1.0, -1.0, 0.0 );
-   vert->texCoord.set( 1.0f, 1.0f );
-   vert->wsEyeRay = frustumPoints[Frustum::FarBottomRight] - cameraOffsetPos;
-   vert++;
+	   vert->point.set( -1.0, 1.0, 0.0 );
+	   vert->texCoord.set( 0.0f, 0.0f );
+	   vert->wsEyeRay = frustumPoints[Frustum::FarTopLeft] - cameraPos;
+	   vert++;
+   }
 
    outVB->unlock();
 }
@@ -523,6 +618,8 @@ void PostEffect::_setupConstants( const SceneRenderState *state )
    if ( mShaderConsts.isNull() )
    {
       mShaderConsts = mShader->allocConstBuffer();
+
+      AssertFatal(mShaderConsts->getShader()->getId() == mShader->getId(), "Shader invalid");
 
       mRTSizeSC = mShader->getShaderConstHandle( "$targetSize" );
       mOneOverRTSizeSC = mShader->getShaderConstHandle( "$oneOverTargetSize" );
@@ -599,27 +696,36 @@ void PostEffect::_setupConstants( const SceneRenderState *state )
    Point2F texSizeConst;
    for( U32 i = 0; i < NumTextures; i++ )
    {
-      if( !mActiveTextures[i] )
-         continue;
-
-      if ( mTexSizeSC[i]->isValid() )
-      {
+     if ( mTexSizeSC[i] && mTexSizeSC[i]->isValid() )
+     {
+       if( mActiveTextures[i] )
+       {
          texSizeConst.x = (F32)mActiveTextures[i]->getWidth();
          texSizeConst.y = (F32)mActiveTextures[i]->getHeight();
-         mShaderConsts->set( mTexSizeSC[i], texSizeConst );
-      }
+       }
+       else
+       {
+         // This value won't be correct but is better than leaving the value un-assigned
+         texSizeConst.x = 512.0f;
+         texSizeConst.y = 512.0f;
+       }
+
+       mShaderConsts->set( mTexSizeSC[i], texSizeConst );
+     }
    }
 
    for ( U32 i = 0; i < NumTextures; i++ )
    {
-      if ( !mRenderTargetParamsSC[i]->isValid() )
+      if ( !mRenderTargetParamsSC[i] || !mRenderTargetParamsSC[i]->isValid() )
          continue;
 
       Point4F rtParams( Point4F::One );
 
-      if ( mActiveTextures[i] )
+      GFXTextureObject* texObject = mActiveTextures[i];
+
+      if (texObject)
       {
-         const Point3I &targetSz = mActiveTextures[i]->getSize();
+         const Point3I &targetSz = texObject->getSize();
          RectI targetVp = mActiveTextureViewport[i];
          ScreenSpace::RenderTargetParameters(targetSz, targetVp, rtParams);
       }
@@ -672,7 +778,7 @@ void PostEffect::_setupConstants( const SceneRenderState *state )
       // Screen space->world space
       MatrixF tempMat = thisFrame.cameraToScreen;
       tempMat.mul( thisFrame.worldToCamera );
-      tempMat.fullInverse();
+      //tempMat.fullInverse();
       tempMat.transpose();
 
       // Support using these matrices as float3x3 or float4x4...
@@ -853,8 +959,8 @@ void PostEffect::_setupConstants( const SceneRenderState *state )
       //
       if ( state )
       {
-         Con::setFloatVariable( "$Param::NearDist", state->getNearPlane() );
-         Con::setFloatVariable( "$Param::FarDist", state->getFarPlane() );   
+         smPFXNearDist = state->getNearPlane();
+         smPFXFarDist = state->getFarPlane();
       }
 
       setShaderConsts_callback();
@@ -915,6 +1021,8 @@ void PostEffect::_setupTexture( U32 stage, GFXTexHandle &inputTex, const RectI *
 
    if ( theTex.isValid() )
       GFX->setTexture( stage, theTex );
+   else
+      GFX->setTexture( stage, 0 );
 }
 
 void PostEffect::_setupTransforms()
@@ -958,6 +1066,9 @@ void PostEffect::_setupTarget( const SceneRenderState *state, bool *outClearTarg
       // Make sure its at least 1x1.
       targetSize.setMax( Point2I::One );
 
+      // martinJ - Make sure the target size is available to script
+      mCalculatedTargetSize = targetSize;
+
       if (  mNamedTarget.isRegistered() ||
             !mTargetTex ||
             mTargetTex.getWidthHeight() != targetSize )
@@ -993,9 +1104,9 @@ void PostEffect::_setupTarget( const SceneRenderState *state, bool *outClearTarg
          else
          {
             // PFXTargetViewport_TargetSize
-            mNamedTarget.setViewport( RectI( 0, 0, targetSize.x, targetSize.y ) );
-         }
+         mNamedTarget.setViewport( RectI( 0, 0, targetSize.x, targetSize.y ) );
       }
+   }
    }
    else
       mTargetTex = NULL;
@@ -1065,9 +1176,9 @@ void PostEffect::_setupTarget( const SceneRenderState *state, bool *outClearTarg
          else
          {
             // PFXTargetViewport_TargetSize
-            mNamedTargetDepthStencil.setViewport( RectI( 0, 0, targetSize.x, targetSize.y ) );
-         }
+         mNamedTargetDepthStencil.setViewport( RectI( 0, 0, targetSize.x, targetSize.y ) );
       }
+   }
    }
    else
       mTargetDepthStencil = NULL;
@@ -1096,10 +1207,52 @@ void PostEffect::_cleanTargets( bool recurse )
    }
 }
 
+void PostEffect::preSetupTarget()
+{
+   if (  mNamedTarget.isRegistered() || 
+         mTargetName.compare( "$outTex", 0, String::NoCase ) == 0 )
+   {
+      // Size it relative to the texture of the first stage or
+      // if NULL then use the current target.
+
+      Point2I targetSize;
+
+      // If we have an absolute target size then use that.
+      if ( !mTargetSize.isZero() )
+         targetSize = mTargetSize;
+
+      // Else generate a relative size using the target scale.
+      else if ( mActiveTextures[ 0 ] )
+      {
+         const Point3I &texSize = mActiveTextures[ 0 ]->getSize();
+
+         targetSize.set(   texSize.x * mTargetScale.x,
+                           texSize.y * mTargetScale.y );
+      }
+      else
+      {
+         GFXTarget *oldTarget = GFX->getActiveRenderTarget();
+         const Point2I &oldTargetSize = oldTarget->getSize();
+
+         targetSize.set(   oldTargetSize.x * mTargetScale.x,
+                           oldTargetSize.y * mTargetScale.y );
+      }
+
+      // Make sure its at least 1x1.
+      targetSize.setMax( Point2I::One );
+
+      // martinJ - Make sure the target size is available to script
+      mCalculatedTargetSize = targetSize;
+   }
+   else
+      mTargetTex = NULL;
+}
+
 void PostEffect::process(  const SceneRenderState *state,
                            GFXTexHandle &inOutTex,
                            const RectI *inTexViewport )
 {
+	bool didUpdateShader = false;
    // If the shader is forced to be skipped... then skip.
    if ( mSkip )
       return;
@@ -1111,9 +1264,31 @@ void PostEffect::process(  const SceneRenderState *state,
    if ( mOneFrameOnly && !mOnThisFrame )
       return;
 
+	// jamesu - Set targets and stuff to start off with so we can calc target size correctly
+	GFXDEBUGEVENT_SCOPE_EX( PostEffect_Process, ColorI::GREEN, avar("PostEffect: %s", getName()) );
+
+   SCOPED_GFX_TIMER(getName());
+
+   GFXTransformSaver saver;
+
+   // Set the textures.
+   for ( U32 i = 0; i < NumTextures; i++ )
+      _setupTexture( i, inOutTex, inTexViewport );
+
+   // Set the texture changed flag to false so we know if preSetupTarget or preProcess_callback() changes
+   // any texture.
+   mTextureChanged = false;
+	
+	// jamesu - we need to calculate the target size here so the script can set the shader macro correctly
+	preSetupTarget();
+
+	// jamesu - this needs to be called BEFORE since it may update macros
+   preProcess_callback();  
+
    // Check requirements if the shader needs updating.
    if ( mUpdateShader )
    {
+      didUpdateShader = true;
       _checkRequirements();
 
       // Clear the targets if we failed passing
@@ -1124,20 +1299,23 @@ void PostEffect::process(  const SceneRenderState *state,
 
    // If we're not valid then we cannot render.
    if ( !mIsValid )
+	{
       return;
+	}
 
-   GFXDEBUGEVENT_SCOPE_EX( PostEffect_Process, ColorI::GREEN, avar("PostEffect: %s", getName()) );
+	if (didUpdateShader || mTextureChanged)
+	{
+    mTextureChanged = false;
 
-   preProcess_callback();   
-
-   GFXTransformSaver saver;
-
-   // Set the textures.
-   for ( U32 i = 0; i < NumTextures; i++ )
-      _setupTexture( i, inOutTex, inTexViewport );
+		// Set the textures.
+		for ( U32 i = 0; i < NumTextures; i++ )
+			_setupTexture( i, inOutTex, inTexViewport );
+	}
 
    _setupStateBlock( state ) ;
    _setupTransforms();
+
+	// jamesu - NOW setup target
 
    bool clearTarget = false;
    _setupTarget( state, &clearTarget );
@@ -1176,7 +1354,7 @@ void PostEffect::process(  const SceneRenderState *state,
       {
          // Always use the name target's viewport, if available.  It was set up in _setupTarget().
          GFX->setViewport(mNamedTarget.getViewport());
-      }
+   }
       else if(mTargetViewport == PFXTargetViewport_GFXViewport)
       {
          // Go with the current viewport as scaled against our render target.
@@ -1215,7 +1393,7 @@ void PostEffect::process(  const SceneRenderState *state,
       GFX->setShaderConstBuffer( mShaderConsts );
    }
    else
-      GFX->disableShaders();
+      GFX->setupGenericShaders(GFXDevice::GSModColorTexture);
 
    Frustum frustum;
    if ( state )
@@ -1234,7 +1412,7 @@ void PostEffect::process(  const SceneRenderState *state,
 
    // Draw it.
    GFX->setVertexBuffer( vb );
-   GFX->drawPrimitive( GFXTriangleFan, 0, 2 );
+   GFX->drawPrimitive( GFXTriangleStrip, 0, 2 );
 
    // Allow PostEffecVis to hook in.
    PFXVIS->onPFXProcessed( this );
@@ -1352,6 +1530,8 @@ void PostEffect::reload()
 
 void PostEffect::setTexture( U32 index, const String &texFilePath )
 {
+	mTextureChanged = true;
+
 	// Set the new texture name.
 	mTexFilename[index] = texFilePath;
 	mTextures[index].free();
@@ -1368,7 +1548,7 @@ void PostEffect::setTexture( U32 index, const String &texFilePath )
 
 void PostEffect::setShaderConst( const String &name, const String &val )
 {
-   PROFILE_SCOPE( PostEffect_SetShaderConst );
+   PROFILE_SCOPE( PostEffect_SetShaderConst_String );
 
    EffectConstTable::Iterator iter = mEffectConsts.find( name );
    if ( iter == mEffectConsts.end() )
@@ -1377,7 +1557,88 @@ void PostEffect::setShaderConst( const String &name, const String &val )
       iter = mEffectConsts.insertUnique( name, newConst );
    }
 
+   iter->value->mSetFromString = true;
    iter->value->set( val );
+}
+
+void PostEffect::setShaderConst( const String &name, float val)
+{
+  PROFILE_SCOPE( PostEffect_SetShaderConst_Float );
+
+  EffectConstTable::Iterator iter = mEffectConsts.find( name );
+  if ( iter == mEffectConsts.end() )
+  {
+    EffectConst *newConst = new EffectConst( name, String::EmptyString );
+    iter = mEffectConsts.insertUnique( name, newConst );
+  }
+
+  iter->value->mSetFromString = false;
+  iter->value->mFloat = val;
+  iter->value->mDirty = true;
+}
+
+void PostEffect::setShaderConst( const String &name, const Point2F &val)
+{
+  PROFILE_SCOPE( PostEffect_SetShaderConst_Point2F );
+
+  EffectConstTable::Iterator iter = mEffectConsts.find( name );
+  if ( iter == mEffectConsts.end() )
+  {
+    EffectConst *newConst = new EffectConst( name, String::EmptyString );
+    iter = mEffectConsts.insertUnique( name, newConst );
+  }
+
+  iter->value->mSetFromString = false;
+  iter->value->mPoint2F = val;
+  iter->value->mDirty = true;
+}
+
+void PostEffect::setShaderConst( const String &name, const Point3F &val)
+{
+  PROFILE_SCOPE( PostEffect_SetShaderConst_Point3F );
+
+  EffectConstTable::Iterator iter = mEffectConsts.find( name );
+  if ( iter == mEffectConsts.end() )
+  {
+    EffectConst *newConst = new EffectConst( name, String::EmptyString );
+    iter = mEffectConsts.insertUnique( name, newConst );
+  }
+
+  iter->value->mSetFromString = false;
+  iter->value->mPoint3F = val;
+  iter->value->mDirty = true;
+}
+
+void PostEffect::setShaderConst( const String &name, const Point4F &val)
+{
+  PROFILE_SCOPE( PostEffect_SetShaderConst_Point4F );
+
+  EffectConstTable::Iterator iter = mEffectConsts.find( name );
+  if ( iter == mEffectConsts.end() )
+  {
+    EffectConst *newConst = new EffectConst( name, String::EmptyString );
+    iter = mEffectConsts.insertUnique( name, newConst );
+  }
+
+  iter->value->mSetFromString = false;
+  iter->value->mPoint4F = val;
+  iter->value->mDirty = true;
+}
+
+void PostEffect::setShaderConst( const String &name, const MatrixF &val)
+{
+  PROFILE_SCOPE( PostEffect_SetShaderConst_MatrixF );
+
+  EffectConstTable::Iterator iter = mEffectConsts.find( name );
+  if ( iter == mEffectConsts.end() )
+  {
+    EffectConst *newConst = new EffectConst( name, String::EmptyString );
+    iter = mEffectConsts.insertUnique( name, newConst );
+  }
+
+  iter->value->mSetFromString = false;
+  iter->value->mMatrixF = val;
+  iter->value->mDirty = true;
 }
 
 F32 PostEffect::getAspectRatio() const
@@ -1395,6 +1656,12 @@ void PostEffect::_checkRequirements()
    mIsValid = false;
    mUpdateShader = false;
    mShader = NULL;
+   mShaderConsts = NULL;
+
+   // Clear constant handles
+   EffectConstTable::Iterator iter = mEffectConsts.begin();
+   for ( ; iter != mEffectConsts.end(); iter++ )
+      iter->value->mHandle = NULL;
 
    // First make sure the target format is supported.
    if ( mNamedTarget.isRegistered() )

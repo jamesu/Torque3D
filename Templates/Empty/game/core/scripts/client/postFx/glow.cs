@@ -29,7 +29,8 @@ singleton ShaderData( PFX_GlowBlurVertShader )
 //   OGLVertexShaderFile  = "shaders/common/postFx/glowBlurV.glsl";
 //   OGLPixelShaderFile   = "shaders/common/postFx/glowBlurP.glsl";
       
-   defines = "BLUR_DIR=float2(0.0,1.0)";
+   definesDX = "BLUR_DIR=float2(0.0,1.0)";
+   definesOGL = "BLUR_DIR=float2(0.0,1.0)";
 
    samplerNames[0] = "$diffuseMap";
          
@@ -39,7 +40,8 @@ singleton ShaderData( PFX_GlowBlurVertShader )
 
 singleton ShaderData( PFX_GlowBlurHorzShader : PFX_GlowBlurVertShader )
 {
-   defines = "BLUR_DIR=float2(1.0,0.0)";
+   definesDX = "BLUR_DIR=float2(1.0,0.0)";
+   definesOGL = "BLUR_DIR=float2(1.0,0.0)";
 };
 
 

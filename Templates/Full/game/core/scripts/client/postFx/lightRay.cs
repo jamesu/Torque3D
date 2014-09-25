@@ -21,6 +21,7 @@
 //-----------------------------------------------------------------------------
 
 
+
 $LightRayPostFX::brightScalar = 0.75;
 $LightRayPostFX::numSamples = 40;
 $LightRayPostFX::density = 0.94;
@@ -32,16 +33,22 @@ $LightRayPostFX::resolutionScale = 1.0;
 
 singleton ShaderData( LightRayOccludeShader )
 {
-   DXVertexShaderFile 	= "shaders/common/postFx/postFxV.hlsl";
-   DXPixelShaderFile 	= "shaders/common/postFx/lightRay/lightRayOccludeP.hlsl";
+   DXVertexShaderFile   = "shaders/common/postFx/postFxV.hlsl";
+   DXPixelShaderFile    = "shaders/common/postFx/lightRay/lightRayOccludeP.hlsl";
 
+   samplerNames[0] = "$backBuffer";
+   samplerNames[1] = "$prepassTex";
+   
    pixVersion = 3.0;   
 };
 
 singleton ShaderData( LightRayShader )
 {
-   DXVertexShaderFile 	= "shaders/common/postFx/postFxV.hlsl";
-   DXPixelShaderFile 	= "shaders/common/postFx/lightRay/lightRayP.hlsl";
+   DXVertexShaderFile   = "shaders/common/postFx/postFxV.hlsl";
+   DXPixelShaderFile    = "shaders/common/postFx/lightRay/lightRayP.hlsl";
+   
+   samplerNames[0] = "$frameSampler";
+   samplerNames[1] = "$backBuffer";
 
    pixVersion = 3.0;   
 };
@@ -58,9 +65,8 @@ singleton PostEffect( LightRayPostFX )
    isEnabled = false;
    allowReflectPass = false;
         
-   renderTime = "PFXBeforeBin";
-   renderBin = "EditorBin";
-   renderPriority = 10;
+   renderTime = "PFXAfterDiffuse";
+   renderPriority = 0.1;
       
    shader = LightRayOccludeShader;
    stateBlock = LightRayStateBlock;

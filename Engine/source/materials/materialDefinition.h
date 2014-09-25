@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -19,6 +20,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 //-----------------------------------------------------------------------------
+
 #ifndef _MATERIALDEFINITION_H_
 #define _MATERIALDEFINITION_H_
 
@@ -288,6 +290,7 @@ public:
    bool mTranslucent;   
    BlendOp mTranslucentBlendOp;
    bool mTranslucentZWrite;
+   bool mTranslucentZTest;
 
    /// A generic setting which tells the system to skip 
    /// generation of shadows from this material.
@@ -330,6 +333,16 @@ public:
    F32 mDirectSoundOcclusion;       ///< Amount of volume occlusion on direct sounds.
    F32 mReverbSoundOcclusion;       ///< Amount of volume occlusion on reverb sounds.
 
+   // Stencil properties
+   bool mStencilTestEnabled[MAX_STAGES];
+   GFXStencilOp mStencilFail[MAX_STAGES];
+   GFXStencilOp mStencilZFail[MAX_STAGES];
+   GFXStencilOp mStencilPass[MAX_STAGES];
+   GFXCmpFunc mStencilFunc[MAX_STAGES];
+   U32 mStencilRef[MAX_STAGES];
+   U32 mStencilMask[MAX_STAGES];
+   U32 mStencilWriteMask[MAX_STAGES];
+
    ///@}
    
    String mMapTo; // map Material to this texture name
@@ -359,6 +372,8 @@ public:
    /// Called to update time based parameters for a material.  Ensures 
    /// that it only happens once per tick.
    void updateTimeBasedParams();
+
+   void resetTimeBasedParams();
 
    // SimObject
    virtual bool onAdd();

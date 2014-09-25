@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -36,6 +37,43 @@
 class FontRenderBatcher;
 class Frustum;
 
+class GFXDrawBitmapInfo
+{
+public:
+   Point2I mPos;
+   RectF mSrcRect;
+   RectF mDestRect;
+   GFXBitmapFlip mFlip;
+   GFXTextureObject *mTexture;
+
+   static GFXDrawBitmapInfo& drawSR(GFXTextureObject*texture, const Point2I &in_rAt, const RectI &srcRect, const GFXBitmapFlip in_flip = GFXBitmapFlip_None)
+   {
+      RectI stretch( in_rAt.x, in_rAt.y, srcRect.len_x(), srcRect.len_y() );
+      return drawStretchSR( texture, stretch, srcRect, in_flip );
+   }
+
+   static GFXDrawBitmapInfo& drawStretchSR(GFXTextureObject*texture, const RectI &dstRect, const RectI &srcRect, const GFXBitmapFlip in_flip = GFXBitmapFlip_None)
+   {
+      static GFXDrawBitmapInfo outInfo;
+      outInfo.mDestRect = RectF((F32)dstRect.point.x,(F32)dstRect.point.y,(F32)dstRect.extent.x,(F32)dstRect.extent.y);
+      outInfo.mSrcRect = RectF((F32)srcRect.point.x,(F32)srcRect.point.y,(F32)srcRect.extent.x,(F32)srcRect.extent.y);
+      outInfo.mTexture = texture;
+      outInfo.mFlip = in_flip;
+      return outInfo;
+   }
+
+   static GFXDrawBitmapInfo& drawStretch(GFXTextureObject*texture, const RectI &dstRect, const GFXBitmapFlip in_flip = GFXBitmapFlip_None)
+   {
+      RectF subRegion( 0.f, 0.f, (F32)texture->getBitmapWidth(), (F32)texture->getBitmapHeight() );
+      
+      static GFXDrawBitmapInfo outInfo;
+      outInfo.mDestRect = RectF((F32)dstRect.point.x,(F32)dstRect.point.y,(F32)dstRect.extent.x,(F32)dstRect.extent.y);
+      outInfo.mSrcRect = subRegion;
+      outInfo.mTexture = texture;
+      outInfo.mFlip = in_flip;
+      return outInfo;
+   }
+};
 
 /// Helper class containing utility functions for useful drawing routines
 /// (line, box, rect, billboard, text).
@@ -86,9 +124,11 @@ public:
    // Color Modulation
    //-----------------------------------------------------------------------------
    void setBitmapModulation( const ColorI &modColor );
-   void setTextAnchorColor( const ColorI &ancColor );
+   void setTextAnchorColor( const ColorI &modColor );
+   void setBitmapModulation( const ColorF &ancColor );
    void clearBitmapModulation();
    void getBitmapModulation( ColorI *color );
+   void getBitmapModulation( ColorF *color );
 
    //-----------------------------------------------------------------------------
    // Draw Bitmaps
@@ -97,12 +137,18 @@ public:
    void drawBitmapSR( GFXTextureObject*texture, const Point2F &in_rAt, const RectF &srcRect, const GFXBitmapFlip in_flip = GFXBitmapFlip_None, const GFXTextureFilterType filter = GFXTextureFilterPoint , bool in_wrap = true );
    void drawBitmapStretch( GFXTextureObject*texture, const RectF &dstRect, const GFXBitmapFlip in_flip = GFXBitmapFlip_None, const GFXTextureFilterType filter = GFXTextureFilterPoint , bool in_wrap = true );
    void drawBitmapStretchSR( GFXTextureObject*texture, const RectF &dstRect, const RectF &srcRect, const GFXBitmapFlip in_flip = GFXBitmapFlip_None, const GFXTextureFilterType filter = GFXTextureFilterPoint , bool in_wrap = true );
+   void drawBitmapStretchRot( GFXTextureObject*texture, const RectF &dstRect, const RectF &srcRect, const GFXBitmapFlip in_flip = GFXBitmapFlip_None, const F32 rotRadians = 0, const Point2F* rotCenter = NULL );
+   void drawBitmapStretchSpin( GFXTextureObject*texture, const RectF &dstRect, const RectF &srcRect, const GFXBitmapFlip in_flip = GFXBitmapFlip_None, const F32 rotSpin = 0 );
 
    void drawBitmap( GFXTextureObject*texture, const Point2I &in_rAt, const GFXBitmapFlip in_flip = GFXBitmapFlip_None, const GFXTextureFilterType filter = GFXTextureFilterPoint , bool in_wrap = true );
    void drawBitmapSR( GFXTextureObject*texture, const Point2I &in_rAt, const RectI &srcRect, const GFXBitmapFlip in_flip = GFXBitmapFlip_None, const GFXTextureFilterType filter = GFXTextureFilterPoint , bool in_wrap = true );
    void drawBitmapStretch( GFXTextureObject*texture, const RectI &dstRect, const GFXBitmapFlip in_flip = GFXBitmapFlip_None, const GFXTextureFilterType filter = GFXTextureFilterPoint , bool in_wrap = true );
    void drawBitmapStretchSR( GFXTextureObject*texture, const RectI &dstRect, const RectI &srcRect, const GFXBitmapFlip in_flip = GFXBitmapFlip_None, const GFXTextureFilterType filter = GFXTextureFilterPoint , bool in_wrap = true );
+   void drawBitmapStretchRot( GFXTextureObject*texture, const RectI &dstRect, const RectI &srcRect, const GFXBitmapFlip in_flip = GFXBitmapFlip_None, const F32 rotRadians = 0, const Point2F* rotCenter = NULL );
+   void drawBitmapStretchSpin( GFXTextureObject*texture, const RectI &dstRect, const RectI &srcRect, const GFXBitmapFlip in_flip = GFXBitmapFlip_None, const F32 rotSpin = 0 );
 
+   void drawBitmapMulti( Vector<GFXDrawBitmapInfo> &infos, const GFXTextureFilterType filter = GFXTextureFilterPoint , bool in_wrap = true );
+   
    //-----------------------------------------------------------------------------
    // Draw 3D Shapes
    //-----------------------------------------------------------------------------
@@ -116,7 +162,7 @@ public:
    void drawCone( const GFXStateBlockDesc &desc, const Point3F &basePnt, const Point3F &tipPnt, F32 baseRadius, const ColorI &color );      
    void drawCylinder( const GFXStateBlockDesc &desc, const Point3F &basePnt, const Point3F &tipPnt, F32 baseRadius, const ColorI &color );      
    void drawArrow( const GFXStateBlockDesc &desc, const Point3F &start, const Point3F &end, const ColorI &color );
-   void drawFrustum( const Frustum& f, const ColorI &color );   
+   void drawFrustum( const MatrixF &transform, const Frustum& f, const ColorI &color );
 
    /// Draw a solid or wireframe (depending on fill mode of @a desc) polyhedron with the given color.
    ///

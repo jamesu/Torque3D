@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -100,12 +101,14 @@ void ShaderGen::initShaderGen()
    mInit = true;
 
    String shaderPath = Con::getVariable( "$shaderGen::cachePath");
-#if defined(TORQUE_SHADERGEN) && ( defined(TORQUE_OS_XENON) || defined(TORQUE_OS_PS3) )
-   // If this is a console build, and TORQUE_SHADERGEN is defined 
-   // (signifying that new shaders should be generated) then clear the shader
-   // path so that the MemFileSystem is used instead.
-   shaderPath.clear();
-#endif
+
+   if (!Platform::sIsDevMode)
+   {
+      // If this is a console build, and TORQUE_SHADERGEN is defined
+      // (signifying that new shaders should be generated) then clear the shader
+      // path so that the MemFileSystem is used instead.
+      shaderPath.clear();
+   }
 
    if (!shaderPath.equal( "shadergen:" ) && !shaderPath.isEmpty() )
    {
@@ -131,6 +134,19 @@ void ShaderGen::initShaderGen()
 
    // Delete the auto-generated conditioner include file.
    Torque::FS::Remove( "shadergen:/" + ConditionerFeature::ConditionerIncludeFileName );
+#ifndef TORQUE_SHIPPING
+   if (mMemFS == NULL)
+   {
+     Vector<String> shaders;
+     Torque::FS::FindByPattern("shadergen:/", "*", true, shaders);
+
+     for (Vector<String>::const_iterator it = shaders.begin(), itEnd = shaders.end(); it != itEnd; ++it)
+     {
+       const String& filePath = *it;
+       Torque::FS::Remove(filePath);
+     }
+   }
+#endif
 }
 
 void ShaderGen::generateShader( const MaterialFeatureData &featureData,
@@ -409,13 +425,13 @@ void ShaderGen::_printVertShader( Stream &stream )
    _printFeatureList(stream);
 
    // print out structures
-   mComponents[C_VERT_STRUCT]->print( stream );
-   mComponents[C_CONNECTOR]->print( stream );
+   mComponents[C_VERT_STRUCT]->print( stream, true );
+   mComponents[C_CONNECTOR]->print( stream, true );
 
    mPrinter->printMainComment(stream);
 
-   mComponents[C_VERT_MAIN]->print( stream );
-
+   mComponents[C_VERT_MAIN]->print( stream, true );
+   mComponents[C_VERT_STRUCT]->printOnMain( stream, true );
 
    // print out the function
    _printFeatures( stream );
@@ -430,12 +446,13 @@ void ShaderGen::_printPixShader( Stream &stream )
    _printDependencies(stream); // TODO: Split into vert and pix dependencies?
    _printFeatureList(stream);
 
-   mComponents[C_CONNECTOR]->print( stream );
+   mComponents[C_CONNECTOR]->print( stream, false );
 
    mPrinter->printPixelShaderOutputStruct(stream, mFeatureData);
    mPrinter->printMainComment(stream);
 
-   mComponents[C_PIX_MAIN]->print( stream );
+   mComponents[C_PIX_MAIN]->print( stream, false );
+   mComponents[C_CONNECTOR]->printOnMain( stream, false );
 
    // print out the function
    _printFeatures( stream );
@@ -443,9 +460,9 @@ void ShaderGen::_printPixShader( Stream &stream )
    mPrinter->printPixelShaderCloser(stream);
 }
 
-GFXShader* ShaderGen::getShader( const MaterialFeatureData &featureData, const GFXVertexFormat *vertexFormat, const Vector<GFXShaderMacro> *macros )
+GFXShader* ShaderGen::getShader( const MaterialFeatureData &featureData, const GFXVertexFormat *vertexFormat, const Vector<GFXShaderMacro> *macros, const Vector<String> &samplers  )
 {
-   PROFILE_SCOPE( ShaderGen_GetShader );
+   PROFILE_SCOPE( ShaderGen_GetShader ); 
 
    const FeatureSet &features = featureData.codify();
 
@@ -487,8 +504,9 @@ GFXShader* ShaderGen::getShader( const MaterialFeatureData &featureData, const G
    generateShader( featureData, vertFile, pixFile, &pixVersion, vertexFormat, cacheKey, shaderMacros );
 
    GFXShader *shader = GFX->createShader();
+   shader->mVertexFormat.copy( *vertexFormat );
    shader->mInstancingFormat.copy( mInstancingFormat ); // TODO: Move to init() below!
-   if ( !shader->init( vertFile, pixFile, pixVersion, shaderMacros ) )
+   if ( !shader->init( vertFile, pixFile, pixVersion, shaderMacros, samplers ) )
    {
       delete shader;
       return NULL;

@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -23,9 +24,7 @@
 #ifndef _BUMP_HLSL_H_
 #define _BUMP_HLSL_H_
 
-#ifndef _SHADERGEN_HLSL_SHADERFEATUREHLSL_H_
 #include "shaderGen/HLSL/shaderFeatureHLSL.h"
-#endif
 #ifndef _LANG_ELEMENT_H_
 #include "shaderGen/langElement.h"
 #endif
@@ -38,11 +37,11 @@ class MultiLine;
 /// transform it by the inverse of the worldToTanget 
 /// matrix.  This normal is then used by subsequent
 /// shader features.
-class BumpFeatHLSL : public ShaderFeatureHLSL
+class BumpFeat : public ShaderFeatureCommon
 {
 public:
 
-   // ShaderFeatureHLSL
+   // ShaderFeatureCommon
    virtual void processVert( Vector<ShaderComponent*> &componentList,
                              const MaterialFeatureData &fd );
    virtual void processPix( Vector<ShaderComponent*> &componentList, 
@@ -54,13 +53,16 @@ public:
                             RenderPassData &passData,
                             U32 &texIndex );
    virtual String getName() { return "Bumpmap"; }
+
+   static const char* detailBumpMapSamplerName;
+   static const char* bumpMapSamplerName;
 };
 
 
 /// This feature either generates the cheap yet effective offset
 /// mapping style parallax or the much more expensive occlusion 
 /// mapping technique based on the enabled feature flags.
-class ParallaxFeatHLSL : public ShaderFeatureHLSL
+class ParallaxFeat : public ShaderFeatureCommon
 {
 protected:
 
@@ -72,9 +74,9 @@ protected:
 
 public:
 
-   ParallaxFeatHLSL();
+   ParallaxFeat();
 
-   // ShaderFeatureHLSL
+   // ShaderFeatureCommon
    virtual void processVert(  Vector<ShaderComponent*> &componentList,
                               const MaterialFeatureData &fd );
    virtual void processPix(   Vector<ShaderComponent*> &componentList, 
@@ -90,11 +92,11 @@ public:
 
 /// This feature is used to render normals to the 
 /// diffuse target for imposter rendering.
-class NormalsOutFeatHLSL : public ShaderFeatureHLSL
+class NormalsOutFeat : public ShaderFeatureCommon
 {
 public:
 
-   // ShaderFeatureHLSL
+   // ShaderFeatureCommon
    virtual void processVert(  Vector<ShaderComponent*> &componentList,
                               const MaterialFeatureData &fd );
    virtual void processPix( Vector<ShaderComponent*> &componentList, 

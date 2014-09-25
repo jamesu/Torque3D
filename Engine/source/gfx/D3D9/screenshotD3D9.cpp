@@ -26,8 +26,6 @@
 #include "gfx/D3D9/gfxD3D9Device.h"
 
 #include <d3d9.h>
-#include <d3dx9core.h>
-#include <d3dx9tex.h>
 
 
 GBitmap* ScreenShotD3D::_captureBackBuffer()
@@ -95,9 +93,6 @@ GBitmap* ScreenShotD3D::_captureBackBuffer()
    }
 
    surface[1]->UnlockRect();
-
-   //  Also save it out with D3DX
-   //D3DXSaveSurfaceToFile( dT( "testScreen.png" ), D3DXIFF_PNG, surface[1], NULL, NULL );
 
    // release the COM pointers
    surface[0]->Release();

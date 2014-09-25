@@ -20,13 +20,13 @@
 // IN THE SOFTWARE.
 //-----------------------------------------------------------------------------
 
-in vec4 vPosition;
-in vec2 vTexCoord0;
+attribute vec4 vPosition;
+attribute vec2 vTexCoord0;
 
 uniform mat4x4 modelview;
 
-out vec4 hpos;
-out vec2 uv0;
+varying vec4 hpos;
+varying vec2 uv0;
 
 
 void main()
@@ -35,5 +35,4 @@ void main()
    gl_Position = hpos;
 
    uv0 = vTexCoord0.st;
-   gl_Position.y *= -1;
 }

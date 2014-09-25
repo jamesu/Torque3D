@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -30,12 +31,14 @@
 #define GFX_UNSUPPORTED_VAL 0xDEADBEEF
 #define GFX_UNINIT_VAL 0xDECAFBAD
 
+#define GFX_MAX_FORWARD_FRAMES 4
+
 // Adjust these pools to your app's needs.  Be aware dynamic vertices are much more
 // expensive than static vertices. These are in gfxEnums because they should be
 // consistant across all APIs/platforms so that the dynamic buffer performance
 // and behavior is also consistant. -patw
-#define MAX_DYNAMIC_VERTS   (8192*2)
-#define MAX_DYNAMIC_INDICES (8192*4)
+#define MAX_DYNAMIC_VERTS   (8192*4) * GFX_MAX_FORWARD_FRAMES
+#define MAX_DYNAMIC_INDICES (8192*4) * GFX_MAX_FORWARD_FRAMES
 
 enum GFXBufferType
 {
@@ -48,6 +51,8 @@ enum GFXBufferType
                    ///< allowed.
       GFXBufferTypeVolatile, ///< Volatile vertex or index buffers are meant for vertices or indices that are essentially
                    ///< only used once.  They can be resized without any performance penalty.
+   
+      GFXBufferTypeVolatileInternal, ///< Actual storage for a violate VBO in GL
       
       GFXBufferType_COUNT ///< Number of buffer types.
 };
@@ -467,7 +472,6 @@ enum GFXTextureStageState
    GFXTSSTexCoordIndex,
    GFXTSSBumpEnvlScale,
    GFXTSSBumpEnvlOffset,
-   GFXTSSTextureTransformFlags,
    GFXTSSColorArg0,
    GFXTSSAlphaArg0,
    GFXTSSResultArg,
@@ -577,7 +581,9 @@ enum GFXShaderConstType
    GFXSCT_Float4, 
    // Matrices
    GFXSCT_Float2x2, 
-   GFXSCT_Float3x3, 
+   GFXSCT_Float3x3,
+   GFXSCT_Float3x4,
+   GFXSCT_Float4x3, // jamesu - for hardware skinning
    GFXSCT_Float4x4, 
    // Scalar
    GFXSCT_Int, 
@@ -616,6 +622,9 @@ enum GFXDeclType
    /// A four-component, packed, unsigned bytes mapped to 0 to 1 range.
    /// @see GFXVertexColor
    GFXDeclType_Color,
+
+   /// Four-component, packed, unsigned bytes ranged 0-255
+   GFXDeclType_UByte4,
 
    /// The count of total GFXDeclTypes.
    GFXDeclType_COUNT,

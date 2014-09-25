@@ -247,6 +247,10 @@ public:
    /// Get the Client Area Extent (Resolution) of this window
    virtual const Point2I getClientExtent() = 0;
 
+   /// Get the Backing Client Area Extent (Resolution) of this window
+   virtual const Point2I getRealClientExtent() = 0;
+
+
    /// @}
    /// The bounds of a Window are defined as the entire area occupied by 
    /// that Window.  This includes the area needed for a title-bar, menu,

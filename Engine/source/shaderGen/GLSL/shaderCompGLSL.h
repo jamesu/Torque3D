@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -23,56 +24,54 @@
 #ifndef _SHADERCOMP_GLSL_H_
 #define _SHADERCOMP_GLSL_H_
 
+
 #ifndef _SHADERCOMP_H_
 #include "shaderGen/shaderComp.h"
 #endif
 
-
 class VertPixelConnectorGLSL : public ShaderConnector
 {
 public:
-
+   
    // ShaderConnector
-   virtual Var* getElement(   RegisterType type, 
-                              U32 numElements = 1, 
-                              U32 numRegisters = -1 );
+   virtual Var* getElement(   RegisterType type,
+                           U32 numElements = 1,
+                           U32 numRegisters = -1 );
    virtual void setName( char *newName );
    virtual void reset();
    virtual void sortVars();
-
-   virtual void print( Stream &stream) {} // TODO OPENGL temporal fix for dedicated build on Linux
-   virtual void print( Stream &stream, bool isVerterShader );
+   
+   virtual void print( Stream &stream, bool isVertexShader );
    void printStructDefines( Stream &stream, bool in );
-   virtual void printOnMain( Stream &stream, bool isVerterShader );
+   virtual void printOnMain( Stream &stream, bool isVertexShader );
 };
 
 class AppVertConnectorGLSL : public ShaderConnector
 {
 public:
-   virtual Var* getElement(   RegisterType type, 
-                              U32 numElements = 1, 
-                              U32 numRegisters = -1 );
+   virtual Var* getElement(   RegisterType type,
+                           U32 numElements = 1,
+                           U32 numRegisters = -1 );
    virtual void setName( char *newName );
    virtual void reset();
    virtual void sortVars();
    
-   virtual void print( Stream &stream) {} // TODO OPENGL temporal fix for dedicated build on Linux
-   virtual void print( Stream &stream, bool isVerterShader );   
-   virtual void printOnMain( Stream &stream, bool isVerterShader );
+   virtual void print( Stream &stream, bool isVertexShader );
+   virtual void printOnMain( Stream &stream, bool isVertexShader );
 };
 
 
 class VertexParamsDefGLSL : public ParamsDef
 {
 public:
-   virtual void print( Stream &stream, bool isVerterShader );   
+   virtual void print( Stream &stream, bool isVertexShader );
 };
 
 
 class PixelParamsDefGLSL : public ParamsDef
 {
 public:
-   virtual void print( Stream &stream, bool isVerterShader );
+   virtual void print( Stream &stream, bool isVertexShader );
 };
 
 #endif // _SHADERCOMP_GLSL_H_

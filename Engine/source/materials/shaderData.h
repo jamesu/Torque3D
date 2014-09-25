@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -19,6 +20,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 //-----------------------------------------------------------------------------
+
 #ifndef _SHADERTDATA_H_
 #define _SHADERTDATA_H_
 
@@ -31,6 +33,8 @@
 #ifndef _TDICTIONARY_H_
 #include "core/util/tDictionary.h"
 #endif
+
+#include "materials/materialDefinition.h"
 
 class GFXShader;
 class ShaderData;
@@ -70,7 +74,8 @@ protected:
    ///
    /// SAMPLE_TAPS=10;USE_TEXKILL;USE_TORQUE_FOG=1
    ///
-   String mDefines;
+   String mDefinesDX;
+   String mDefinesOGL;
 
    /// The shader macros built from mDefines.
    /// @see _getMacros()
@@ -91,10 +96,17 @@ protected:
    /// @see LightManager::smActivateSignal
    static void _onLMActivate( const char *lm, bool activate );
 
+   String mSamplerNames[TEXTURE_STAGE_COUNT];
+
 public:
 
 
    ShaderData();
+
+   void setSamplerName(const String &name, int idx) { mSamplerNames[idx] = name; }
+   String getSamplerName(int idx) const { return mSamplerNames[idx]; }
+
+   bool hasSamplerDef(const String &samplerName, int &pos) const;
 
    /// Returns an initialized shader instance or NULL 
    /// if the shader failed to be created.

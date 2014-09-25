@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -49,29 +50,35 @@ public:
    /// Initialize the state hint from a ProcessMaterial.  This
    /// assumes that the ProcessedMaterial has properly initialized
    /// its passes to describe the material uniquely.
-   void init( const ProcessedMaterial *mat );
+   void init( const ProcessedMaterial *mat, const U32 passNum );
 
    /// Clears the hint.
    void clear() { mState.clear(); }
 
    /// Returns a 32bit hash key used for sorting by material state.
-   operator U32() const { return mState.getHashCaseSensitive(); }
+   operator U32() const { return ((mState.getHashCaseSensitive() & 0xFFFF) | (mShaderId << 16)); }
 
    /// Fast comparision of state for equality.
-   bool operator ==( const MatStateHint& hint ) const { return mState == hint.mState; }
+   bool operator ==( const MatStateHint& hint ) const { return mShaderId == hint.mShaderId && mState == hint.mState; }
 
    /// Fast comparision of state for inequality.
-   bool operator !=( const MatStateHint& hint ) const { return mState != hint.mState; }
+   bool operator !=( const MatStateHint& hint ) const { return mShaderId != hint.mShaderId || mState != hint.mState; }
 
    /// A default state hint.
    static const MatStateHint Default;
 
-protected:
+public:
 
    /// An interned string of the combined material shader and state info
    /// for evert pass of the processed material.
    String mState;
    
+   /// Shader id
+   U32 mShaderId;
+   
 };
+
+
+typedef Vector<MatStateHint> MatStateHintList;
 
 #endif // _MATSTATEHINT_H_

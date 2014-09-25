@@ -124,6 +124,8 @@ protected:
    virtual void setVertexDecl( const GFXVertexDecl *decl ) {  }
    virtual void setVertexStream( U32 stream, GFXVertexBuffer *buffer ) { }
    virtual void setVertexStreamFrequency( U32 stream, U32 frequency ) { }
+   
+   virtual void onDrawStateChanged() { }
 
 public:
    virtual GFXCubemap * createCubemap();
@@ -176,6 +178,8 @@ public:
 
    GFXFence *createFence() { return new GFXGeneralFence( this ); }
    GFXOcclusionQuery* createOcclusionQuery() { return NULL; }
+
+   void updateModelView() {;}
    
 private:
    typedef GFXDevice Parent;

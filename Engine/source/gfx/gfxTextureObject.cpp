@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -58,12 +59,49 @@ U32 GFXTextureObject::dumpActiveTOs()
    return smActiveTOCount;
 }
 
+U32 GFXTextureObject::dumpTextureSizes()
+{
+  if(!smActiveTOCount)
+  {
+    Con::printf( "GFXTextureObject::dumpTextureSizes - no active TOs to dump." );
+    return 0;
+  }
+
+  Con::printf("GFXTextureObject Usage Report - %d active TOs", smActiveTOCount);
+  Con::printf("---------------------------------------------------------------");
+  Con::printf(" Addr   Dim. GFXTextureProfile  ProfilerPath DebugDescription");
+
+  for(GFXTextureObject *walk = smHead; walk; walk=walk->mDebugNext)
+  {
+    U32 width = walk->getWidth();
+    U32 height = walk->getHeight();
+    const String& texturePath = walk->getPath();
+    U32 textureSizeInKiB = walk->getEstimatedSizeInBytes() / 1024;
+    Con::printf(" (%4i, %4i)  %6i    %s", 
+      width,
+      height,
+      textureSizeInKiB,
+      texturePath.c_str());
+  }
+
+  Con::printf("----- dump complete -------------------------------------------");
+  return smActiveTOCount;
+}
+
 DefineEngineFunction( dumpTextureObjects, void, (),,
    "Dumps a list of all active texture objects to the console.\n"
    "@note This function is only available in debug builds.\n"
    "@ingroup GFX\n" )
 {
    GFXTextureObject::dumpActiveTOs();
+}
+
+DefineEngineFunction( dumpTextureSizes, void, (),,
+  "Dumps the memory usage of all active texture object to the console.\n"
+  "@note This function is only available in debug builds.\n"
+  "@ingroup GFX\n" )
+{
+  GFXTextureObject::dumpTextureSizes();
 }
 
 #endif // TORQUE_DEBUG
@@ -99,7 +137,7 @@ GFXTextureObject::GFXTextureObject(GFXDevice *aDevice, GFXTextureProfile *aProfi
    // Active object tracking.
    smActiveTOCount++;
    mDebugDescription = "Anonymous Texture Object";
-#if defined(TORQUE_ENABLE_PROFILE_PATH)   
+#if defined(TORQUE_ENABLE_PROFILE_PATH) && defined(TORQUE_ENABLE_PROFILER)
    mDebugCreationPath = gProfiler->getProfilePath();
 #endif
    mDebugNext = smHead;
@@ -252,4 +290,76 @@ bool GFXTextureObject::dumpToDisk( const String &bmType, const String &path )
    GBitmap bitmap( getWidth(), getHeight(), false, getFormat() );
    copyToBmp( &bitmap );
    return bitmap.writeBitmap( bmType, stream );
+}
+
+void GFX_getTextureMetrics(GFXFormat pixelFormat, U32 width, U32 height, U32 *numRows, U32 *rowSize)
+{
+  if (pixelFormat == GFXFormatDXT5)
+  {
+    *rowSize = width * 4;
+    *numRows = height / 4;
+  }
+  else if (pixelFormat == GFXFormatDXT1)
+  {
+    *rowSize = width * 2;
+    *numRows = height / 4;
+  }
+  else
+  {
+    *rowSize = GFXFormat_getByteSize(pixelFormat) * width;
+    *numRows = height;
+  }
+}
+
+// martinJ - Makes a copy of the texture object
+GFXTextureObject* GFX_copyTexture(GFXTextureObject* source)
+{
+  const GFXFormat sourceFormat = source->getFormat();
+  const U32 sourceWidth = source->getWidth();
+  const U32 sourceHeight = source->getHeight();
+
+  GFXTextureObject* newTexture = TEXMGR->createTexture(sourceWidth, sourceHeight, sourceFormat, &GFXDefaultPersistentProfile, source->getMipLevels(), 0);
+
+  U32 numRows;
+  U32 rowSize;
+
+  if (sourceFormat == GFXFormatDXT5)
+  {
+    rowSize = sourceWidth * 4;
+    numRows = sourceHeight / 4;
+  }
+  else if (sourceFormat == GFXFormatDXT1)
+  {
+    rowSize = sourceWidth * 2;
+    numRows = sourceHeight / 4;
+  }
+  else
+  {
+    rowSize = source->getFormatByteSize() * sourceWidth;
+    numRows = sourceHeight;
+  }
+
+  // Loop through all mip levels and copy the texels
+  for (U32 mipI = 0, mipCount = source->getMipLevels(); mipI < mipCount; ++mipI)
+  {
+    // memcpy can't be used to copy the entire texture because the locked rect pitch may be greater than the row size
+    const GFXLockedRect* sourceLockedRect = source->lock(mipI);
+    GFXLockedRect* destLockedRect = newTexture->lock(mipI);
+
+    for (U32 y = 0; y < numRows; ++y)
+    {
+      const ColorI* sourceTexelRow = (const ColorI*)(sourceLockedRect->bits + sourceLockedRect->pitch * y);
+      ColorI* destTexelRow = (ColorI*)(destLockedRect->bits + destLockedRect->pitch * y);
+
+      memcpy(destTexelRow, sourceTexelRow, rowSize);
+    }
+
+    source->unlock(mipI);
+    newTexture->unlock(mipI);
+
+    rowSize /= 2;
+    numRows /= 2;
+  }
+
+  return newTexture;
 }

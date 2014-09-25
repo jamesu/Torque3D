@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -99,6 +100,8 @@ struct DDSFile
    // mips to drop into the ResourceManager loading process.
    static U32 smDropMipCount;
 
+   static bool smMakeDummyMips;
+
    struct SurfaceData
    {
       SurfaceData()
@@ -172,11 +175,15 @@ struct DDSFile
 
    const Torque::Path &getSourcePath() const { return mSourcePath; }
    const String &getTextureCacheString() const { return mCacheString; }
+    
+   bool decompressToGBitmap(GBitmap *dest);
+   static bool encodeGBitmap(GBitmap *src, GFXFormat destFormat);
 
    static Resource<DDSFile> load( const Torque::Path &path, U32 dropMipCount );
 
    // For debugging fun!
    static S32 smActiveCopies;
+   static bool smDebugMipIndexes;
 
    DDSFile()
    {

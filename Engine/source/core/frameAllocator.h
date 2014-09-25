@@ -71,6 +71,8 @@ class FrameAllocator
    inline static void setWaterMark(const U32);
    inline static U32  getWaterMark();
    inline static U32  getHighWaterMark();
+   inline static void* getWaterMarkPtr(U32 pos) { return smBuffer + pos; }
+    
 
 #ifdef TORQUE_DEBUG
    static U32 getMaxFrameAllocation() { return smMaxFrameAllocation; }

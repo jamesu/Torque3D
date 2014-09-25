@@ -23,15 +23,15 @@
 //-----------------------------------------------------------------------------
 // Data
 //-----------------------------------------------------------------------------
-in vec4 vPosition;
-in vec2 vTexCoord0;
+attribute vec4 vPosition;
+attribute vec2 vTexCoord0;
 
 uniform mat4 modelview;
 uniform vec3 cameraPos, ambient;
 uniform vec2 fadeStartEnd;
 
-out vec4 color;
-out vec2 texCoord;
+varying vec4 color;
+varying vec2 texCoord;
 
 //-----------------------------------------------------------------------------
 // Main
@@ -49,6 +49,5 @@ void main()
       float distance = length( cameraPos - vPosition.xyz );
       color.a = abs( clamp( ( distance - fadeStartEnd.x ) / ( fadeStartEnd.y - fadeStartEnd.x ), 0.0, 1.0 ) - 1.0 );
    }
-   gl_Position.y *= -1;
 }
 

@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -24,22 +25,22 @@
 #include "shaderGen/GLSL/shaderGenGLSL.h"
 
 #include "shaderGen/GLSL/shaderCompGLSL.h"
-
+#include "shaderGen/HLSL/shaderFeatureHLSL.h"
 
 void ShaderGenPrinterGLSL::printShaderHeader( Stream& stream )
 {
    const char *header1 = "//*****************************************************************************\r\n";
    const char *header2 = "// Torque -- GLSL procedural shader\r\n";
-
+   
    stream.write( dStrlen(header1), header1 );
    stream.write( dStrlen(header2), header2 );
    stream.write( dStrlen(header1), header1 );
-
+   
    // Cheap HLSL compatibility.
-   const char* header3 = "#include \"shaders/common/gl/hlslCompat.glsl\"\r\n";      
+   const char* header3 = "#include \"shaders/common/gl/hlslCompat.glsl\"\r\n";
    stream.write( dStrlen(header3), header3 );
-
-   const char* header4 = "\r\n";      
+   
+   const char* header4 = "\r\n";
    stream.write( dStrlen(header4), header4 );
 }
 
@@ -48,7 +49,7 @@ void ShaderGenPrinterGLSL::printMainComment( Stream& stream )
    // Print out main function definition
    const char * header5 = "// Main                                                                        \r\n";
    const char * line    = "//-----------------------------------------------------------------------------\r\n";
-
+   
    stream.write( dStrlen(line), line );
    stream.write( dStrlen(header5), header5 );
    stream.write( dStrlen(line), line );
@@ -56,9 +57,7 @@ void ShaderGenPrinterGLSL::printMainComment( Stream& stream )
 
 void ShaderGenPrinterGLSL::printVertexShaderCloser( Stream& stream )
 {
-   // We are render OpenGL upside down for use DX9 texture coords.
-   // Must be the last vertex feature.
-   const char *closer = "   gl_Position.y *= -1;\r\n}\r\n";
+   const char *closer = "}\r\n";
    stream.write( dStrlen(closer), closer );
 }
 
@@ -69,7 +68,7 @@ void ShaderGenPrinterGLSL::printPixelShaderOutputStruct( Stream& stream, const M
 
 void ShaderGenPrinterGLSL::printPixelShaderCloser( Stream& stream )
 {
-   const char *closer = "   OUT_FragColor0 = col;\r\n}\r\n";
+   const char *closer = "   gl_FragColor = col;\r\n}\r\n";
    stream.write( dStrlen(closer), closer );
 }
 
@@ -78,7 +77,7 @@ void ShaderGenPrinterGLSL::printLine(Stream& stream, const String& line)
    stream.write(line.length(), line.c_str());
    const char* end = "\r\n";
    stream.write(dStrlen(end), end);
-} 
+}
 
 const char* ShaderGenComponentFactoryGLSL::typeToString( GFXDeclType type )
 {
@@ -87,15 +86,16 @@ const char* ShaderGenComponentFactoryGLSL::typeToString( GFXDeclType type )
       default:
       case GFXDeclType_Float:
          return "float";
-
+         
       case GFXDeclType_Float2:
          return "vec2";
-
+         
       case GFXDeclType_Float3:
          return "vec3";
-
+         
       case GFXDeclType_Float4:
       case GFXDeclType_Color:
+      case GFXDeclType_UByte4:
          return "vec4";
    }
 }
@@ -103,14 +103,14 @@ const char* ShaderGenComponentFactoryGLSL::typeToString( GFXDeclType type )
 ShaderComponent* ShaderGenComponentFactoryGLSL::createVertexInputConnector( const GFXVertexFormat &vertexFormat )
 {
    AppVertConnectorGLSL *vertComp = new AppVertConnectorGLSL;
-
+   
    // Loop thru the vertex format elements.
    for ( U32 i=0; i < vertexFormat.getElementCount(); i++ )
    {
       const GFXVertexElement &element = vertexFormat.getElement( i );
       
       Var *var = NULL;
-
+      
       if ( element.isSemantic( GFXSemantic::POSITION ) )
       {
          var = vertComp->getElement( RT_POSITION );
@@ -149,20 +149,30 @@ ShaderComponent* ShaderGenComponentFactoryGLSL::createVertexInputConnector( cons
          else
             var->setName( String::ToString( "texCoord%d", element.getSemanticIndex() + 1 ) );
       }
+      else if ( element.isSemantic( GFXSemantic::BLENDINDICES ) )
+      {
+         var = vertComp->getElement( RT_BLENDINDICES );
+         var->setName( "blendIndices" );
+      }
+      else if ( element.isSemantic( GFXSemantic::BLENDWEIGHT ) )
+      {
+         var = vertComp->getElement( RT_BLENDWEIGHT );
+         var->setName( "blendWeights" );
+      }
       else
       {
          // Everything else is a texcoord!
          var = vertComp->getElement( RT_TEXCOORD );
          var->setName( "tc" + element.getSemantic() );
       }
-
+      
       if ( !var )
          continue;
-
+      
       var->setStructName( "IN" );
       var->setType( typeToString( element.getType() ) );
    }
-
+   
    return vertComp;
 }
 
@@ -183,4 +193,3 @@ ShaderComponent* ShaderGenComponentFactoryGLSL::createPixelParamsDef()
    PixelParamsDefGLSL* comp = new PixelParamsDefGLSL;
    return comp;
 }
-

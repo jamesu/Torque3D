@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -19,18 +20,17 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 //-----------------------------------------------------------------------------
-#ifndef _DEPTH_HLSL_H_
-#define _DEPTH_HLSL_H_
 
-#ifndef _SHADERGEN_HLSL_SHADERFEATUREHLSL_H_
+#ifndef _DEPTH_GLSL_H_
+#define _DEPTH_GLSL_H_
+
 #include "shaderGen/HLSL/shaderFeatureHLSL.h"
-#endif
 #ifndef _SHADEROP_H_
 #include "shaderGen/shaderOp.h"
 #endif
 
 
-class EyeSpaceDepthOutHLSL : public ShaderFeatureHLSL
+class EyeSpaceDepthOut : public ShaderFeatureCommon
 {
 public:
 
@@ -44,7 +44,7 @@ public:
 };
 
 
-class DepthOutHLSL : public ShaderFeatureHLSL
+class DepthOut : public ShaderFeatureCommon
 {
 public:
 
@@ -54,7 +54,7 @@ public:
    virtual Resources getResources( const MaterialFeatureData &fd );
    virtual String getName() { return "Depth (Out)"; }
    virtual Material::BlendOp getBlendOp() { return Material::None; }
-   virtual const char* getOutputVarName() const { return "IN.depth"; }
+   virtual const char* getOutputVarName() const { return "outDepth"; }
 };
 
 #endif // _DEPTH_HLSL_H_

@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -21,7 +22,7 @@
 //-----------------------------------------------------------------------------
 
 #include "console/console.h"
-#include "gfx/gl/ggl/ggl.h"
+#include "gfx/gl/tGL/tGL.h"
 #include "math/mRect.h"
 #include "gfx/gl/gfxGLTextureObject.h"
 #include "gfx/gfxDevice.h"
@@ -32,22 +33,26 @@
 
 
 GFXGLTextureObject::GFXGLTextureObject(GFXDevice * aDevice, GFXTextureProfile *profile) :
-   GFXTextureObject(aDevice, profile),
-   mBinding(GL_TEXTURE_2D),
-   mBytesPerTexel(4),
-   mLockedRectRect(0, 0, 0, 0),
-   mGLDevice(static_cast<GFXGLDevice*>(mDevice)),
-   mZombieCache(NULL)
+GFXTextureObject(aDevice, profile),
+mBinding(GL_TEXTURE_2D),
+mBytesPerTexel(4),
+mLockedRectRect(0, 0, 0, 0),
+mGLDevice(static_cast<GFXGLDevice*>(mDevice)),
+mNeedInitSamplerState(true),
+mFrameAllocatorMark(0),
+mFrameAllocatorPtr(NULL)
 {
    AssertFatal(dynamic_cast<GFXGLDevice*>(mDevice), "GFXGLTextureObject::GFXGLTextureObject - Invalid device type, expected GFXGLDevice!");
-   glGenTextures(1, &mHandle);
-   glGenBuffers(1, &mBuffer);
+   
+   mHandle = 0;
+   mBuffer = 0;
+   
+   mIsManaged = !profile->isDynamic();
 }
 
-GFXGLTextureObject::~GFXGLTextureObject() 
-{ 
-   glDeleteBuffers(1, &mBuffer);
-   delete[] mZombieCache;
+GFXGLTextureObject::~GFXGLTextureObject()
+{
+   release();
    kill();
 }
 
@@ -56,12 +61,12 @@ GFXLockedRect* GFXGLTextureObject::lock(U32 mipLevel, RectI *inRect)
    AssertFatal(mBinding != GL_TEXTURE_3D, "GFXGLTextureObject::lock - We don't support locking 3D textures yet");
    U32 width = mTextureSize.x >> mipLevel;
    U32 height = mTextureSize.y >> mipLevel;
-
+	
    if(inRect)
    {
       if((inRect->point.x + inRect->extent.x > width) || (inRect->point.y + inRect->extent.y > height))
          AssertFatal(false, "GFXGLTextureObject::lock - Rectangle too big!");
-
+		
       mLockedRectRect = *inRect;
    }
    else
@@ -70,16 +75,20 @@ GFXLockedRect* GFXGLTextureObject::lock(U32 mipLevel, RectI *inRect)
    }
    
    mLockedRect.pitch = mLockedRectRect.extent.x * mBytesPerTexel;
-   
-   glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, mBuffer);
+	
    // CodeReview [ags 12/19/07] This one texel boundary is necessary to keep the clipmap code from crashing.  Figure out why.
-   glBufferData(GL_PIXEL_UNPACK_BUFFER_ARB, (mLockedRectRect.extent.x + 1) * (mLockedRectRect.extent.y + 1) * mBytesPerTexel, NULL, GL_STREAM_DRAW);
-   mLockedRect.bits = (U8*)glMapBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, GL_WRITE_ONLY);
-   glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, 0);
+   U32 size = (mLockedRectRect.extent.x + 1) * (mLockedRectRect.extent.y + 1) * mBytesPerTexel;
+   AssertFatal(!mFrameAllocatorMark && !mFrameAllocatorPtr, "");
+   mFrameAllocatorMark = FrameAllocator::getWaterMark();
+   mFrameAllocatorPtr = (U8*)FrameAllocator::alloc( size );
+   mLockedRect.bits = mFrameAllocatorPtr;
+#if TORQUE_DEBUG
+   mFrameAllocatorMarkGuard = FrameAllocator::getWaterMark();
+#endif
    
    if( !mLockedRect.bits )
       return NULL;
-
+	
    return &mLockedRect;
 }
 
@@ -87,21 +96,28 @@ void GFXGLTextureObject::unlock(U32 mipLevel)
 {
    if(!mLockedRect.bits)
       return;
-
-   glActiveTexture(GL_TEXTURE0);
-   U32 boundTexture;
-   glGetIntegerv(GL_TEXTURE_BINDING_2D, (GLint*)&boundTexture);
-
-   glBindTexture(GL_TEXTURE_2D, mHandle);
+	
+   static_cast<GFXGLDevice*>(getOwningDevice())->_setTempBoundTexture(mBinding, mHandle);
+   
    glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, mBuffer);
-   glUnmapBuffer(GL_PIXEL_UNPACK_BUFFER_ARB);
-   glTexSubImage2D(GL_TEXTURE_2D, mipLevel, mLockedRectRect.point.x, mLockedRectRect.point.y, 
-      mLockedRectRect.extent.x, mLockedRectRect.extent.y, GL_BGRA, GL_UNSIGNED_BYTE, NULL);
+   glBufferData(GL_PIXEL_UNPACK_BUFFER_ARB, (mLockedRectRect.extent.x + 1) * (mLockedRectRect.extent.y + 1) * mBytesPerTexel, mFrameAllocatorPtr, GL_STREAM_DRAW);
+	
+   if(mBinding == GL_TEXTURE_2D)
+	   glTexSubImage2D(mBinding, mipLevel, mLockedRectRect.point.x, mLockedRectRect.point.y,
+							 mLockedRectRect.extent.x, mLockedRectRect.extent.y, GFXGLTextureFormat[mFormat], GFXGLTextureType[mFormat], NULL);
+   else if(mBinding == GL_TEXTURE_1D)
+		glTexSubImage1D(mBinding, mipLevel, (mLockedRectRect.point.x > 1 ? mLockedRectRect.point.x : mLockedRectRect.point.y),
+							 (mLockedRectRect.extent.x > 1 ? mLockedRectRect.extent.x : mLockedRectRect.extent.y), GFXGLTextureFormat[mFormat], GFXGLTextureType[mFormat], NULL);
+   
    glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, 0);
-
+	
    mLockedRect.bits = NULL;
-
-   glBindTexture(GL_TEXTURE_2D, boundTexture);
+#if TORQUE_DEBUG
+   AssertFatal(mFrameAllocatorMarkGuard == FrameAllocator::getWaterMark(), "");
+#endif
+   FrameAllocator::setWaterMark(mFrameAllocatorMark);
+   mFrameAllocatorMark = 0;
+   mFrameAllocatorPtr = NULL;
 }
 
 void GFXGLTextureObject::release()
@@ -115,108 +131,138 @@ void GFXGLTextureObject::release()
 
 bool GFXGLTextureObject::copyToBmp(GBitmap * bmp)
 {
-   GLint oldTex;
-   glGetIntegerv(0x8069, &oldTex);
-   glBindTexture(GL_TEXTURE_2D, mHandle);
+   if (!bmp)
+      return false;
+	
+   // check format limitations
+   // at the moment we only support RGBA for the source (other 4 byte formats should
+   // be easy to add though)
+   AssertFatal(mFormat == GFXFormatR8G8B8A8, "GFXGLTextureObject::copyToBmp - invalid format");
+   AssertFatal(bmp->getFormat() == GFXFormatR8G8B8A8 || bmp->getFormat() == GFXFormatR8G8B8, "GFXGLTextureObject::copyToBmp - invalid format");
+   if(mFormat != GFXFormatR8G8B8A8)
+      return false;
+	
+   if(bmp->getFormat() != GFXFormatR8G8B8A8 && bmp->getFormat() != GFXFormatR8G8B8)
+      return false;
+	
+   AssertFatal(bmp->getWidth() == getWidth(), "GFXGLTextureObject::copyToBmp - invalid size");
+   AssertFatal(bmp->getHeight() == getHeight(), "GFXGLTextureObject::copyToBmp - invalid size");
+	
+   PROFILE_SCOPE(GFXGLTextureObject_copyToBmp);
+	
+   static_cast<GFXGLDevice*>(getOwningDevice())->_setTempBoundTexture(mBinding, mHandle);
+	
+   U8 dstBytesPerPixel = GFXFormat_getByteSize( bmp->getFormat() );
+   U8 srcBytesPerPixel = GFXFormat_getByteSize( mFormat );
+   if(dstBytesPerPixel == srcBytesPerPixel)
+   {
+      glGetTexImage(mBinding, 0, GFXGLTextureFormat[mFormat], GFXGLTextureType[mFormat], bmp->getWritableBits());
+      return true;
+   }
+	
+   FrameAllocatorMarker mem;
    
-   GLint textureFormat = GFXGLTextureFormat[bmp->getFormat()];
-   // Don't swizzle outgoing textures.
-   if(textureFormat == GL_BGRA)
-      textureFormat = GL_RGBA;
+   U32 srcPixelCount = mTextureSize.x * mTextureSize.y;
+   U8 *dest = bmp->getWritableBits();
+   U8 *orig = (U8*)mem.alloc(srcPixelCount * srcBytesPerPixel);
+	
+   glGetTexImage(mBinding, 0, GFXGLTextureFormat[mFormat], GFXGLTextureType[mFormat], orig);
    
-   glGetTexImage(GL_TEXTURE_2D, 0, textureFormat, GL_UNSIGNED_BYTE, bmp->getWritableBits());
-   
-   glBindTexture(GL_TEXTURE_2D, oldTex);
+   for(int i = 0; i < srcPixelCount; ++i)
+   {
+      dest[0] = orig[0];
+      dest[1] = orig[1];
+      dest[2] = orig[2];
+      if(dstBytesPerPixel == 4)
+         dest[3] = orig[3];
+		
+      orig += srcBytesPerPixel;
+      dest += dstBytesPerPixel;
+   }
+	
    return true;
 }
 
-void GFXGLTextureObject::bind(U32 textureUnit) const
+void GFXGLTextureObject::initSamplerState(const GFXSamplerStateDesc &ssd)
 {
-   glActiveTexture(GL_TEXTURE0 + textureUnit);
-   glBindTexture(mBinding, mHandle);
-   glEnable(mBinding);
-  
-   GFXGLStateBlockRef sb = mGLDevice->getCurrentStateBlock();
-   AssertFatal(sb, "GFXGLTextureObject::bind - No active stateblock!");
-   if (!sb)
-      return;
-         
-   const GFXSamplerStateDesc ssd = sb->getDesc().samplers[textureUnit];
-   glTexParameteri(mBinding, GL_TEXTURE_MIN_FILTER, minificationFilter(ssd.minFilter, ssd.mipFilter, mMipLevels));   
-   glTexParameteri(mBinding, GL_TEXTURE_MAG_FILTER, GFXGLTextureFilter[ssd.magFilter]);   
+   glTexParameteri(mBinding, GL_TEXTURE_MIN_FILTER, minificationFilter(ssd.minFilter, ssd.mipFilter, mMipLevels));
+   glTexParameteri(mBinding, GL_TEXTURE_MAG_FILTER, GFXGLTextureFilter[ssd.magFilter]);
    glTexParameteri(mBinding, GL_TEXTURE_WRAP_S, !mIsNPoT2 ? GFXGLTextureAddress[ssd.addressModeU] : GL_CLAMP_TO_EDGE);
    glTexParameteri(mBinding, GL_TEXTURE_WRAP_T, !mIsNPoT2 ? GFXGLTextureAddress[ssd.addressModeV] : GL_CLAMP_TO_EDGE);
    if(mBinding == GL_TEXTURE_3D)
       glTexParameteri(mBinding, GL_TEXTURE_WRAP_R, GFXGLTextureAddress[ssd.addressModeW]);
+   if(static_cast< GFXGLDevice* >( GFX )->supportsAnisotropic() )
+      glTexParameterf(mBinding, GL_TEXTURE_MAX_ANISOTROPY_EXT, ssd.maxAnisotropy);
+	
+   mNeedInitSamplerState = false;
+   mSampler = ssd;
+}
 
-   glTexEnvf(GL_TEXTURE_FILTER_CONTROL, GL_TEXTURE_LOD_BIAS, ssd.mipLODBias);
+void GFXGLTextureObject::bind(U32 textureUnit)
+{
+   static_cast<GFXGLDevice*>(getOwningDevice())->_setActiveTexture(GL_TEXTURE0 + textureUnit);
+   glBindTexture(mBinding, mHandle);
+	
+   GFXGLStateBlockRef sb = mGLDevice->getCurrentStateBlock();
+   AssertFatal(sb, "GFXGLTextureObject::bind - No active stateblock!");
+   if (!sb)
+      return;
+	
+   const GFXSamplerStateDesc ssd = sb->getDesc().samplers[textureUnit];
+	
+   if(mNeedInitSamplerState)
+   {
+      initSamplerState(ssd);
+      return;
+   }
+	
+   if(mSampler.minFilter != ssd.minFilter || mSampler.mipFilter != ssd.mipFilter) {
+      //Con::warnf("TEXTURE %i [index %i] changed from MIN_FILTER == %u to %u IN BIND!", getHandle(), textureUnit, mSampler.minFilter , ssd.minFilter);
+      glTexParameteri(mBinding, GL_TEXTURE_MIN_FILTER, minificationFilter(ssd.minFilter, ssd.mipFilter, mMipLevels));
+   }
+   if(mSampler.magFilter != ssd.magFilter)
+      glTexParameteri(mBinding, GL_TEXTURE_MAG_FILTER, GFXGLTextureFilter[ssd.magFilter]);
+   if(mSampler.addressModeU != ssd.addressModeU)
+      glTexParameteri(mBinding, GL_TEXTURE_WRAP_S, !mIsNPoT2 ? GFXGLTextureAddress[ssd.addressModeU] : GL_CLAMP_TO_EDGE);
+   if(mSampler.addressModeV != ssd.addressModeV)
+      glTexParameteri(mBinding, GL_TEXTURE_WRAP_T, !mIsNPoT2 ? GFXGLTextureAddress[ssd.addressModeV] : GL_CLAMP_TO_EDGE);
+   if(mBinding == GL_TEXTURE_3D && mSampler.addressModeW != ssd.addressModeW )
+      glTexParameteri(mBinding, GL_TEXTURE_WRAP_R, GFXGLTextureAddress[ssd.addressModeW]);
+   if(mSampler.maxAnisotropy != ssd.maxAnisotropy  && static_cast< GFXGLDevice* >( GFX )->supportsAnisotropic() )
+      glTexParameterf(mBinding, GL_TEXTURE_MAX_ANISOTROPY_EXT, ssd.maxAnisotropy);
+	
+   mSampler = ssd;
 }
 
 U8* GFXGLTextureObject::getTextureData()
 {
    U8* data = new U8[mTextureSize.x * mTextureSize.y * mBytesPerTexel];
-   glBindTexture(GL_TEXTURE_2D, mHandle);
-   glGetTexImage(GL_TEXTURE_2D, 0, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV, data);
+   static_cast<GFXGLDevice*>(getOwningDevice())->_setTempBoundTexture(mBinding, mHandle);
+   glGetTexImage(mBinding, 0, GFXGLTextureFormat[mFormat], GFXGLTextureType[mFormat], data);
    return data;
-}
-
-void GFXGLTextureObject::copyIntoCache()
-{
-   glBindTexture(mBinding, mHandle);
-   U32 cacheSize = mTextureSize.x * mTextureSize.y;
-   if(mBinding == GL_TEXTURE_3D)
-      cacheSize *= mTextureSize.z;
-      
-   cacheSize *= mBytesPerTexel;
-   mZombieCache = new U8[cacheSize];
-   
-   glGetTexImage(mBinding, 0, GFXGLTextureFormat[mFormat], GFXGLTextureType[mFormat], mZombieCache);
-   glBindTexture(mBinding, 0);
-}
-
-void GFXGLTextureObject::reloadFromCache()
-{
-   if(!mZombieCache)
-      return;
-      
-   if(mBinding == GL_TEXTURE_3D)
-   {
-      static_cast<GFXGLTextureManager*>(TEXMGR)->_loadTexture(this, mZombieCache);
-      delete[] mZombieCache;
-      mZombieCache = NULL;
-      return;
-   }
-   
-   glBindTexture(mBinding, mHandle);
-   glTexSubImage2D(mBinding, 0, 0, 0, mTextureSize.x, mTextureSize.y, GFXGLTextureFormat[mFormat], GFXGLTextureType[mFormat], mZombieCache);
-   
-   if(GFX->getCardProfiler()->queryProfile("GL::Workaround::needsExplicitGenerateMipmap") && mMipLevels != 1)
-      glGenerateMipmapEXT(mBinding);
-      
-   delete[] mZombieCache;
-   mZombieCache = NULL;
-   mIsZombie = false;
 }
 
 void GFXGLTextureObject::zombify()
 {
-   if(mIsZombie)
+   if(mIsManaged)
       return;
-      
-   mIsZombie = true;
-   if(!mProfile->doStoreBitmap() && !mProfile->isRenderTarget() && !mProfile->isDynamic() && !mProfile->isZTarget())
-      copyIntoCache();
-      
+   
    release();
 }
 
 void GFXGLTextureObject::resurrect()
 {
-   if(!mIsZombie)
+   if (mHandle == 0)
+   {
+      glGenTextures(1, &mHandle);
+      glGenBuffers(1, &mBuffer);
+   }
+   
+   if (mIsManaged)
       return;
-      
-   glGenTextures(1, &mHandle);
-   glGenBuffers(1, &mBuffer);
+   
+   mNeedInitSamplerState = true;
+   static_cast<GFXGLTextureManager*>(TEXMGR)->refreshTexture(this);
 }
 
 F32 GFXGLTextureObject::getMaxUCoord() const

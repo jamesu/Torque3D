@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -57,6 +58,9 @@
 #include "materials/matTextureTarget.h"
 #endif
 
+#include "materials/materialDefinition.h"
+#include "materials/shaderData.h"
+
 class GFXStateBlockData;
 class Frustum;
 class SceneRenderState;
@@ -80,7 +84,7 @@ public:
 
    enum
    {
-      NumTextures = 6,
+      NumTextures = Material::MAX_TEX_PER_PASS,
    };
 
 protected:
@@ -196,6 +200,9 @@ protected:
 
    U32 mShaderReloadKey;
 
+   bool mTextureChanged;
+   Point2I mCalculatedTargetSize;
+
    class EffectConst
    {
    public:
@@ -203,7 +210,13 @@ protected:
       EffectConst( const String &name, const String &val )
          : mName( name ), 
            mHandle( NULL ),
-           mDirty( true )
+           mDirty( true ),
+           mSetFromString( false ),
+           mFloat( 0.0f ),
+           mPoint2F( 0.0f, 0.0f ),
+           mPoint3F( 0.0f, 0.0f, 0.0f ),
+           mPoint4F( 0.0f, 0.0f, 0.0f, 0.0f ),
+           mMatrixF( MatrixF::Identity )
       {
          set( val );
       }
@@ -217,6 +230,14 @@ protected:
       GFXShaderConstHandle *mHandle;
 
       String mStringVal;
+
+      float mFloat;
+      Point2F mPoint2F;
+      Point3F mPoint3F;
+      Point4F mPoint4F;
+      MatrixF mMatrixF;
+
+      bool mSetFromString;
 
       bool mDirty;
    };
@@ -289,6 +310,9 @@ public:
    virtual bool onAdd();
    virtual void onRemove();
    static void initPersistFields();
+   
+   // ConsoleObject
+   static void consoleInit();
 
    /// @name Callbacks
    /// @{
@@ -300,6 +324,8 @@ public:
    DECLARE_CALLBACK( void, onDisabled, () );
 
    /// @}
+
+	void preSetupTarget();
 
    virtual void process(   const SceneRenderState *state, 
                            GFXTexHandle &inOutTex,
@@ -344,6 +370,11 @@ public:
 
    ///
    void setShaderConst( const String &name, const String &val );   
+   void setShaderConst( const String &name, float val);
+   void setShaderConst( const String &name, const Point2F &val);
+   void setShaderConst( const String &name, const Point3F &val);
+   void setShaderConst( const String &name, const Point4F &val);
+   void setShaderConst( const String &name, const MatrixF &val);
 
    void setOnThisFrame( bool enabled ) { mOnThisFrame = enabled; }
    bool isOnThisFrame() { return mOnThisFrame; }

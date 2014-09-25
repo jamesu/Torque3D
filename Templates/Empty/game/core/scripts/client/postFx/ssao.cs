@@ -161,12 +161,14 @@ singleton ShaderData( SSAOBlurYShader )
    DXPixelShaderFile 	= "shaders/common/postFx/ssao/SSAO_Blur_P.hlsl";   
    pixVersion = 3.0;      
    
-   defines = "BLUR_DIR=float2(0.0,1.0)";         
+   definesDX = "BLUR_DIR=float2(0.0,1.0)";
+   definesOGL = "BLUR_DIR=float2(0.0,1.0)";         
 };
 
 singleton ShaderData( SSAOBlurXShader : SSAOBlurYShader )
 {
-   defines = "BLUR_DIR=float2(1.0,0.0)";
+   definesDX = "BLUR_DIR=float2(1.0,0.0)";
+   definesOGL = "BLUR_DIR=float2(1.0,0.0)";
 };
 
 //-----------------------------------------------------------------------------

@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -29,9 +30,13 @@
 #include "materials/processedMaterial.h"
 #include "materials/materialFeatureTypes.h"
 #include "shaderGen/shaderGenVars.h"
+#include "shaderGen/shaderGen.h"
 
 
-void BumpFeatHLSL::processVert(  Vector<ShaderComponent*> &componentList, 
+const char* BumpFeat::detailBumpMapSamplerName = "detailBumpMap";
+const char* BumpFeat::bumpMapSamplerName = "bumpMap";
+
+void BumpFeat::processVert(  Vector<ShaderComponent*> &componentList, 
                                  const MaterialFeatureData &fd )
 {
    MultiLine *meta = new MultiLine;
@@ -41,9 +46,11 @@ void BumpFeatHLSL::processVert(  Vector<ShaderComponent*> &componentList,
 
    // Output the texture coord.
    getOutTexCoord(   "texCoord", 
-                     "float2", 
+                     "texCoord", 
+                     getVector2Name(), 
                      true, 
                      useTexAnim, 
+                     "texMat",
                      meta, 
                      componentList );
 
@@ -57,14 +64,14 @@ void BumpFeatHLSL::processVert(  Vector<ShaderComponent*> &componentList,
    getOutWorldToTangent( componentList, meta, fd );
 }
 
-void BumpFeatHLSL::processPix(   Vector<ShaderComponent*> &componentList, 
+void BumpFeat::processPix(   Vector<ShaderComponent*> &componentList, 
                                  const MaterialFeatureData &fd )
 {
    MultiLine *meta = new MultiLine;
    output = meta;
 
    // Get the texture coord.
-   Var *texCoord = getInTexCoord( "texCoord", "float2", true, componentList );
+   Var *texCoord = getInTexCoord( "texCoord", getVector2Name(), true, componentList );
 
    // Sample the bumpmap.
    Var *bumpMap = getNormalMapTex();
@@ -79,46 +86,51 @@ void BumpFeatHLSL::processPix(   Vector<ShaderComponent*> &componentList,
 
       Var *atlasedTex = new Var;
       atlasedTex->setName("atlasedBumpCoord");
-      atlasedTex->setType( "float2" );
+      atlasedTex->setType( getVector2Name() );
       LangElement *atDecl = new DecOp( atlasedTex );
 
       // Parameters of the texture atlas
       Var *atParams  = new Var;
-      atParams->setType( "float4" );
+      atParams->setType( getVector4Name() );
       atParams->setName("bumpAtlasParams");
       atParams->uniform = true;
       atParams->constSortPos = cspPotentialPrimitive;
 
       // Parameters of the texture (tile) this object is using in the atlas
       Var *tileParams  = new Var;
-      tileParams->setType( "float4" );
+      tileParams->setType( getVector4Name() );
       tileParams->setName("bumpAtlasTileParams");
       tileParams->uniform = true;
       tileParams->constSortPos = cspPotentialPrimitive;
 
-      const bool is_sm3 = (GFX->getPixelShaderVersion() > 2.0f);
+      const bool is_sm3 = (GFX->getPixelShaderVersion() > 2.0f) || GFX->getAdapterType() == OpenGL;
       if(is_sm3)
       {
          // Figure out the mip level
-         meta->addStatement( new GenOp( "   float2 _dx_bump = ddx(@ * @.z);\r\n", texCoord, atParams ) );
-         meta->addStatement( new GenOp( "   float2 _dy_bump = ddy(@ * @.z);\r\n", texCoord, atParams ) );
+         meta->addStatement( new GenOp( avar("   %s _dx_bump = ddx(@ * @.z);\r\n", getVector2Name()), texCoord, atParams ) );
+         meta->addStatement( new GenOp( avar("   %s _dy_bump = ddy(@ * @.z);\r\n", getVector2Name()), texCoord, atParams ) );
          meta->addStatement( new GenOp( "   float mipLod_bump = 0.5 * log2(max(dot(_dx_bump, _dx_bump), dot(_dy_bump, _dy_bump)));\r\n" ) );
          meta->addStatement( new GenOp( "   mipLod_bump = clamp(mipLod_bump, 0.0, @.w);\r\n", atParams ) );
 
          // And the size of the mip level
          meta->addStatement( new GenOp( "   float mipPixSz_bump = pow(2.0, @.w - mipLod_bump);\r\n", atParams ) );
-         meta->addStatement( new GenOp( "   float2 mipSz_bump = mipPixSz_bump / @.xy;\r\n", atParams ) );
+         meta->addStatement( new GenOp( avar("   %s mipSz_bump = mipPixSz_bump / @.xy;\r\n", getVector2Name()), atParams ) );
       }
       else
       {
-         meta->addStatement(new GenOp("   float2 mipSz = float2(1.0, 1.0);\r\n"));
+         meta->addStatement(new GenOp(avar("   %s mipSz = %s(1.0, 1.0);\r\n", getVector2Name())));
       }
 
       // Tiling mode
       if( true ) // Wrap
-         meta->addStatement( new GenOp( "   @ = frac(@);\r\n", atDecl, texCoord ) );
+      {
+         UsedForDirect3D(meta->addStatement( new GenOp( "   @ = frac(@);\r\n", atDecl, texCoord ) ));
+         UsedForOpenGL(meta->addStatement( new GenOp( "   @ = fract(@);\r\n", atDecl, texCoord ) ));
+      }
       else       // Clamp
+      {
          meta->addStatement( new GenOp( "   @ = saturate(@);\r\n", atDecl, texCoord ) );
+      }
 
       // Finally scale/offset, and correct for filtering
       meta->addStatement( new GenOp( "   @ = @ * ((mipSz_bump * @.xy - 1.0) / mipSz_bump) + 0.5 / mipSz_bump + @.xy * @.xy;\r\n", 
@@ -129,19 +141,20 @@ void BumpFeatHLSL::processPix(   Vector<ShaderComponent*> &componentList,
 
       if(is_sm3)
       {
-         texOp = new GenOp( "tex2Dlod(@, float4(@, 0.0, mipLod_bump))", bumpMap, texCoord );
+         UsedForDirect3D(texOp = new GenOp( "tex2Dlod(@, float4(@, 0.0, mipLod_bump))", bumpMap, texCoord ));
+         UsedForOpenGL(texOp = new GenOp( "texture2DLod(@, @, mipLod_bump)", bumpMap, texCoord ));
       }
       else
       {
-         texOp = new GenOp( "tex2D(@, @)", bumpMap, texCoord );
+         texOp = new GenOp( avar("%s(@, @)", getTexture2DFunction()), bumpMap, texCoord );
       }
    }
    else
    {
-      texOp = new GenOp( "tex2D(@, @)", bumpMap, texCoord );
+      texOp = new GenOp( avar("%s(@, @)", getTexture2DFunction()), bumpMap, texCoord );
    }
 
-   Var *bumpNorm = new Var( "bumpNormal", "float4" );
+   Var *bumpNorm = new Var( "bumpNormal", getVector4Name() );
    meta->addStatement( expandNormalMap( texOp, new DecOp( bumpNorm ), bumpNorm, fd ) );
 
    // If we have a detail normal map we add the xy coords of
@@ -151,17 +164,17 @@ void BumpFeatHLSL::processPix(   Vector<ShaderComponent*> &componentList,
    {
       bumpMap = new Var;
       bumpMap->setType( "sampler2D" );
-      bumpMap->setName( "detailBumpMap" );
+      bumpMap->setName( detailBumpMapSamplerName );
       bumpMap->uniform = true;
       bumpMap->sampler = true;
       bumpMap->constNum = Var::getTexUnitNum();
 
-      texCoord = getInTexCoord( "detCoord", "float2", true, componentList );
-      texOp = new GenOp( "tex2D(@, @)", bumpMap, texCoord );
+      texCoord = getInTexCoord( "detCoord", getVector2Name(), true, componentList );
+      texOp = new GenOp( avar("%s(@, @)", getTexture2DFunction()), bumpMap, texCoord );
 
       Var *detailBump = new Var;
       detailBump->setName( "detailBump" );
-      detailBump->setType( "float4" );
+      detailBump->setType( getVector4Name() );
       meta->addStatement( expandNormalMap( texOp, new DecOp( detailBump ), detailBump, fd ) );
 
       Var *detailBumpScale = new Var;
@@ -174,12 +187,13 @@ void BumpFeatHLSL::processPix(   Vector<ShaderComponent*> &componentList,
 
    // We transform it into world space by reversing the 
    // multiplication by the worldToTanget transform.
-   Var *wsNormal = new Var( "wsNormal", "float3" );
+   Var *wsNormal = new Var( "wsNormal", getVector3Name() );
    Var *worldToTanget = getInWorldToTangent( componentList );
-   meta->addStatement( new GenOp( "   @ = normalize( mul( @.xyz, @ ) );\r\n", new DecOp( wsNormal ), bumpNorm, worldToTanget ) );
+   UsedForDirect3D(meta->addStatement( new GenOp( "   @ = normalize( mul( @.xyz, @ ) );\r\n", new DecOp( wsNormal ), bumpNorm, worldToTanget ) ));
+   UsedForOpenGL(meta->addStatement( new GenOp( "   @ = normalize( @.xyz * mat3(@) );\r\n", new DecOp( wsNormal ), bumpNorm, worldToTanget ) ));
 }
 
-ShaderFeature::Resources BumpFeatHLSL::getResources( const MaterialFeatureData &fd )
+ShaderFeature::Resources BumpFeat::getResources( const MaterialFeatureData &fd )
 {
    Resources res; 
 
@@ -209,7 +223,7 @@ ShaderFeature::Resources BumpFeatHLSL::getResources( const MaterialFeatureData &
    return res;
 }
 
-void BumpFeatHLSL::setTexData(   Material::StageData &stageDat,
+void BumpFeat::setTexData(   Material::StageData &stageDat,
                                  const MaterialFeatureData &fd,
                                  RenderPassData &passData,
                                  U32 &texIndex )
@@ -222,24 +236,26 @@ void BumpFeatHLSL::setTexData(   Material::StageData &stageDat,
    if ( fd.features[MFT_NormalMap] )
    {
       passData.mTexType[ texIndex ] = Material::Bump;
+      passData.mTexSlot[ texIndex ].samplerName = BumpFeat::bumpMapSamplerName;
       passData.mTexSlot[ texIndex++ ].texObject = stageDat.getTex( MFT_NormalMap );
    }
 
    if ( fd.features[ MFT_DetailNormalMap ] )
    {
       passData.mTexType[ texIndex ] = Material::DetailBump;
+      passData.mTexSlot[ texIndex ].samplerName = BumpFeat::detailBumpMapSamplerName;
       passData.mTexSlot[ texIndex++ ].texObject = stageDat.getTex( MFT_DetailNormalMap );
    }
 }
 
 
-ParallaxFeatHLSL::ParallaxFeatHLSL()
+ParallaxFeat::ParallaxFeat()
    : mIncludeDep( "shaders/common/torque.hlsl" )
 {
    addDependency( &mIncludeDep );
 }
 
-Var* ParallaxFeatHLSL::_getUniformVar( const char *name, const char *type, ConstantSortPosition csp )
+Var* ParallaxFeat::_getUniformVar( const char *name, const char *type, ConstantSortPosition csp )
 {
    Var *theVar = (Var*)LangElement::find( name );
    if ( !theVar )
@@ -254,19 +270,21 @@ Var* ParallaxFeatHLSL::_getUniformVar( const char *name, const char *type, Const
    return theVar;
 }
 
-void ParallaxFeatHLSL::processVert( Vector<ShaderComponent*> &componentList, 
+void ParallaxFeat::processVert( Vector<ShaderComponent*> &componentList, 
                                     const MaterialFeatureData &fd )
 {
    AssertFatal( GFX->getPixelShaderVersion() >= 2.0, 
-      "ParallaxFeatHLSL::processVert - We don't support SM 1.x!" );
+      "ParallaxFeat::processVert - We don't support SM 1.x!" );
 
    MultiLine *meta = new MultiLine;
 
    // Add the texture coords.
    getOutTexCoord(   "texCoord", 
-                     "float2", 
+                     "texCoord", 
+                     getVector2Name(), 
                      true, 
                      fd.features[MFT_TexAnim], 
+                     "texMat",
                      meta, 
                      componentList );
 
@@ -277,7 +295,7 @@ void ParallaxFeatHLSL::processVert( Vector<ShaderComponent*> &componentList,
 
    // Get the object space eye position and the 
    // object to tangent space transform.
-   Var *eyePos = _getUniformVar( "eyePos", "float3", cspPrimitive );
+   Var *eyePos = _getUniformVar( "eyePos", getVector3Name(), cspPrimitive );
    Var *objToTangentSpace = getOutObjToTangentSpace( componentList, meta, fd );
 
    // Now send the negative view vector in tangent space to the pixel shader.
@@ -285,8 +303,8 @@ void ParallaxFeatHLSL::processVert( Vector<ShaderComponent*> &componentList,
    Var *outNegViewTS = connectComp->getElement( RT_TEXCOORD );
    outNegViewTS->setName( "outNegViewTS" );
    outNegViewTS->setStructName( "OUT" );
-   outNegViewTS->setType( "float3" );
-   meta->addStatement( new GenOp( "   @ = mul( @, float3( @.xyz - @ ) );\r\n", 
+   outNegViewTS->setType( getVector3Name() );
+   meta->addStatement( new GenOp( avar("   @ = mul( @, %s( @.xyz - @ ) );\r\n", getVector3Name()), 
       outNegViewTS, objToTangentSpace, inPos, eyePos ) );
 
    // TODO: I'm at a loss at why i need to flip the binormal/y coord
@@ -302,23 +320,23 @@ void ParallaxFeatHLSL::processVert( Vector<ShaderComponent*> &componentList,
    Var *texMat = (Var*)LangElement::find( "texMat" );
    if ( texMat )
    {
-      meta->addStatement( new GenOp( "   @ = mul(@, float4(@,0)).xyz;\r\n",
+      meta->addStatement( new GenOp( avar("   @ = mul(@, %s(@,0)).xyz;\r\n", getVector4Name()),
          outNegViewTS, texMat, outNegViewTS ) );
    }
 
    output = meta;
 }
 
-void ParallaxFeatHLSL::processPix(  Vector<ShaderComponent*> &componentList, 
+void ParallaxFeat::processPix(  Vector<ShaderComponent*> &componentList, 
                                     const MaterialFeatureData &fd )
 {
    AssertFatal( GFX->getPixelShaderVersion() >= 2.0, 
-      "ParallaxFeatHLSL::processPix - We don't support SM 1.x!" );
+      "ParallaxFeat::processPix - We don't support SM 1.x!" );
 
    MultiLine *meta = new MultiLine;
 
    // Order matters... get this first!
-   Var *texCoord = getInTexCoord( "texCoord", "float2", true, componentList );
+   Var *texCoord = getInTexCoord( "texCoord", getVector2Name(), true, componentList );
 
    ShaderConnector *connectComp = dynamic_cast<ShaderConnector *>( componentList[C_CONNECTOR] );
 
@@ -333,10 +351,10 @@ void ParallaxFeatHLSL::processPix(  Vector<ShaderComponent*> &componentList,
          inNegViewTS = connectComp->getElement( RT_TEXCOORD );
          inNegViewTS->setName( "outNegViewTS" );
          inNegViewTS->setStructName( "IN" );
-         inNegViewTS->setType( "float3" );
+         inNegViewTS->setType( getVector3Name() );
       }
 
-      negViewTS = new Var( "negViewTS", "float3" );
+      negViewTS = new Var( "negViewTS", getVector3Name() );
       meta->addStatement( new GenOp( "   @ = normalize( @ );\r\n", new DecOp( negViewTS ), inNegViewTS ) );
    }
 
@@ -353,10 +371,10 @@ void ParallaxFeatHLSL::processPix(  Vector<ShaderComponent*> &componentList,
    output = meta;
 }
 
-ShaderFeature::Resources ParallaxFeatHLSL::getResources( const MaterialFeatureData &fd )
+ShaderFeature::Resources ParallaxFeat::getResources( const MaterialFeatureData &fd )
 {
    AssertFatal( GFX->getPixelShaderVersion() >= 2.0, 
-      "ParallaxFeatHLSL::getResources - We don't support SM 1.x!" );
+      "ParallaxFeat::getResources - We don't support SM 1.x!" );
 
    Resources res;
 
@@ -371,24 +389,25 @@ ShaderFeature::Resources ParallaxFeatHLSL::getResources( const MaterialFeatureDa
    return res;
 }
 
-void ParallaxFeatHLSL::setTexData(  Material::StageData &stageDat,
+void ParallaxFeat::setTexData(  Material::StageData &stageDat,
                                     const MaterialFeatureData &fd,
                                     RenderPassData &passData,
                                     U32 &texIndex )
 {
    AssertFatal( GFX->getPixelShaderVersion() >= 2.0, 
-      "ParallaxFeatHLSL::setTexData - We don't support SM 1.x!" );
+      "ParallaxFeat::setTexData - We don't support SM 1.x!" );
 
    GFXTextureObject *tex = stageDat.getTex( MFT_NormalMap );
    if ( tex )
    {
       passData.mTexType[ texIndex ] = Material::Bump;
+      passData.mTexSlot[ texIndex ].samplerName = BumpFeat::bumpMapSamplerName;
       passData.mTexSlot[ texIndex++ ].texObject = tex;
    }
 }
 
 
-void NormalsOutFeatHLSL::processVert(  Vector<ShaderComponent*> &componentList, 
+void NormalsOutFeat::processVert(  Vector<ShaderComponent*> &componentList, 
                                        const MaterialFeatureData &fd )
 {
    // If we have normal maps then we can count
@@ -404,11 +423,12 @@ void NormalsOutFeatHLSL::processVert(  Vector<ShaderComponent*> &componentList,
    Var *outNormal = connectComp->getElement( RT_TEXCOORD );
    outNormal->setName( "wsNormal" );
    outNormal->setStructName( "OUT" );
-   outNormal->setType( "float3" );
+   outNormal->setType( getVector3Name() );
    outNormal->mapsToSampler = false;
 
    // Find the incoming vertex normal.
-   Var *inNormal = (Var*)LangElement::find( "normal" );   
+   Var *inNormal = (Var*)LangElement::find( "inNormal" );
+   if (!inNormal) inNormal = (Var*) LangElement::find( "normal" );
    if ( inNormal )
    {
       // Transform the normal to world space.
@@ -419,11 +439,11 @@ void NormalsOutFeatHLSL::processVert(  Vector<ShaderComponent*> &componentList,
    {
       // If we don't have a vertex normal... just pass the
       // camera facing normal to the pixel shader.
-      meta->addStatement( new GenOp( "   @ = float3( 0.0, 0.0, 1.0 );\r\n", outNormal ) );
+      meta->addStatement( new GenOp( avar("   @ = %s( 0.0, 0.0, 1.0 );\r\n", getVector3Name()), outNormal ) );
    }
 }
 
-void NormalsOutFeatHLSL::processPix(   Vector<ShaderComponent*> &componentList, 
+void NormalsOutFeat::processPix(   Vector<ShaderComponent*> &componentList, 
                                        const MaterialFeatureData &fd )
 {
    MultiLine *meta = new MultiLine;
@@ -433,12 +453,17 @@ void NormalsOutFeatHLSL::processPix(   Vector<ShaderComponent*> &componentList,
    if ( !wsNormal )
    {
       ShaderConnector *connectComp = dynamic_cast<ShaderConnector *>( componentList[C_CONNECTOR] );
-      wsNormal = connectComp->getElement( RT_TEXCOORD );
-      wsNormal->setName( "wsNormal" );
-      wsNormal->setStructName( "IN" );
-      wsNormal->setType( "float3" );
+		
+		Var *wsNormal = (Var*)LangElement::find( "wsNormal" );
+		if ( !wsNormal )
+		{
+			wsNormal = connectComp->getElement( RT_TEXCOORD );
+			wsNormal->setName( "wsNormal" );
+			wsNormal->setStructName( "IN" );
+			wsNormal->setType( getVector3Name() );
+		}
 
-      // If we loaded the normal its our resposibility
+      // If we loaded the normal its our responsibility
       // to normalize it... the interpolators won't.
       //
       // Note we cast to half here to get partial precision
@@ -446,15 +471,19 @@ void NormalsOutFeatHLSL::processPix(   Vector<ShaderComponent*> &componentList,
       // precision for normals and performs much better
       // on older Geforce cards.
       //
-      meta->addStatement( new GenOp( "   @ = normalize( half3( @ ) );\r\n", wsNormal, wsNormal ) );      
+      meta->addStatement( new GenOp( avar("   @ = normalize( %s( @ ) );\r\n", getHalfVector3Name()), wsNormal, wsNormal ) );      
    }
 
    LangElement *normalOut;
    Var *outColor = (Var*)LangElement::find( "col" );
    if ( outColor && !fd.features[MFT_AlphaTest] )
-      normalOut = new GenOp( "float4( ( -@ + 1 ) * 0.5, @.a )", wsNormal, outColor );
+   {
+      normalOut = new GenOp( avar("%s( ( -@ + 1 ) * 0.5, @.a )", getVector4Name()), wsNormal, outColor );
+   }
    else
-      normalOut = new GenOp( "float4( ( -@ + 1 ) * 0.5, 1 )", wsNormal );
+   {
+      normalOut = new GenOp( avar("%s( ( -@ + 1 ) * 0.5, 1 )", getVector4Name()), wsNormal );
+   }
 
    meta->addStatement( new GenOp( "   @;\r\n", 
       assignColor( normalOut, Material::None ) ) );

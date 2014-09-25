@@ -23,8 +23,8 @@
 #include "torque.glsl"
 #include "hlslCompat.glsl"
 
-in vec4 offscreenPos;
-in vec4 backbufferPos;
+varying vec4 offscreenPos;
+varying vec4 backbufferPos;
 
 #define IN_offscreenPos offscreenPos
 #define IN_backbufferPos backbufferPos
@@ -52,10 +52,12 @@ void main()
 #ifdef REJECT_EDGES
    // Cut out particles along the edges, this will create the stencil mask
 	uvScene.zw = viewportCoordToRenderTarget(uvScene.zw, edgeTargetParams);
-	float edge = texture( edgeSource, uvScene.zw ).r;
-	clip( -edge );
+	float edge = texture2D( edgeSource, uvScene.zw ).r;
+    if (-edge < 0.0)
+       discard;
+
 #endif
 	
 	// Sample offscreen target and return
-   OUT_FragColor0 = texture( colorSource, uvScene.xy );
+   gl_FragColor = texture2D( colorSource, uvScene.xy );
 }

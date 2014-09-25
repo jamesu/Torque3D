@@ -28,6 +28,7 @@
 #include "gfx/gfxPrimitiveBuffer.h"
 #include "materials/sceneData.h"
 #include "materials/processedMaterial.h"
+#include "materials/matInstance.h"
 #include "materials/materialManager.h"
 #include "scene/sceneRenderState.h"
 #include "gfx/gfxDebugEvent.h"
@@ -100,8 +101,37 @@ void RenderMeshMgr::render(SceneRenderState * state)
    if(!mElementList.size())
       return;
 
+#ifdef TORQUE_ENABLE_GFXDEBUGEVENTS
+   // This gfx debug event is hit multiple times per frame. Appending the name with the pass
+   // type makes frame analysing clearer.
+   char* passTypeName = "UNDEFINED";
 
-   GFXDEBUGEVENT_SCOPE( RenderMeshMgr_Render, ColorI::GREEN );
+   switch(state->getScenePassType())
+   {
+   case SPT_Diffuse:
+     passTypeName = "Diffuse";
+     break;
+
+   case SPT_Other:
+     passTypeName = "Other";
+     break;
+
+   case SPT_Reflect:
+     passTypeName = "Reflect";
+     break;
+
+   case SPT_Shadow:
+     passTypeName = "Shadow";
+     break;
+   }
+
+   char name[1024];
+   dSprintf(name, 1024, "RenderMeshMgr_%s", passTypeName);
+
+   GFXDebugEventScope GFXDebugEventScopeRenderMeshMgr_Render( name, ColorI::GREEN );
+#endif//TORQUE_ENABLE_GFXDEBUGEVENTS
+
+   SCOPED_GFX_TIMER(state->getRenderPass()->getName());
 
    // Automagically save & restore our viewport and transforms.
    GFXTransformSaver saver;
@@ -124,7 +154,13 @@ void RenderMeshMgr::render(SceneRenderState * state)
    for( U32 j=0; j<binSize; )
    {
       MeshRenderInst *ri = static_cast<MeshRenderInst*>(mElementList[j].inst);
-
+      
+#ifdef TORQUE_ENABLE_GFXDEBUGEVENTS
+      char buf[256];
+      dSprintf(buf, sizeof(buf), "%s BASE", ri->meshName ? ri->meshName : "MESH", 0);
+      GFXDEBUGEVENT_SCOPE_EX(RenderMeshMgr_renderElement, ColorI::GREEN, buf);
+#endif
+      
       setupSGData( ri, sgData );
       BaseMatInstance *mat = ri->matInst;
 
@@ -161,6 +197,12 @@ void RenderMeshMgr::render(SceneRenderState * state)
                lastLM = NULL;
                break;
             }
+            
+#ifdef TORQUE_ENABLE_GFXDEBUGEVENTS
+            char buf[256];
+            dSprintf(buf, sizeof(buf), "%s PASS", passRI->meshName ? passRI->meshName : "MESH", 0);
+            GFXDEBUGEVENT_SCOPE_EX(RenderMeshMgr_renderElement, ColorI::GREEN, buf);
+#endif
 
             matrixSet.setWorld(*passRI->objectToWorld);
             matrixSet.setView(*passRI->worldToCamera);

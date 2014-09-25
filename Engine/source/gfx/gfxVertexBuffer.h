@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -80,6 +81,9 @@ public:
    virtual void lock(U32 vertexStart, U32 vertexEnd, void **vertexPtr) = 0;
    virtual void unlock() = 0;
    virtual void prepare() = 0;
+
+   virtual void onFenceDone(U32 fenceId) {;}
+   virtual U32 getStorageVertsFree() { return mNumVerts; }
 
    // GFXResource
    virtual const String describeSelf() const;

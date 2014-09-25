@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -54,6 +55,8 @@
 #include "math/util/frustum.h"
 #endif
 
+//martinJ
+#include "gfx/gfxTimer.h"
 
 class FontRenderBatcher;
 class GFont;
@@ -279,6 +282,9 @@ protected:
    /// This will allow querying to see if a device is initialized and ready to
    /// have operations performed on it.
    bool mInitialized;
+   
+   /// Controls whether clip rect should be flipped
+   bool mFlipClipRect;
 
    /// This is called before this, or any other device, is deleted in the global destroy()
    /// method. It allows the device to clean up anything while everything is still valid.
@@ -436,9 +442,11 @@ protected:
    /// A global forced wireframe mode.
    static bool smWireframe;
 
+public:
    /// The global vsync state.
    static bool smDisableVSync;
 
+protected:
    /// The forced shader model version if non-zero.
    static F32 smForcedPixVersion;
 
@@ -502,6 +510,8 @@ protected:
    MatrixF mTextureMatrix[TEXTURE_STAGE_COUNT];
    bool    mTextureMatrixDirty[TEXTURE_STAGE_COUNT];
    bool    mTextureMatrixCheckDirty;
+
+   bool    mModelViewMatrixDirty;
    /// @}
 
    /// @name Current frustum planes
@@ -557,6 +567,9 @@ protected:
    /// @param   mat   Matrix to assign
    virtual void setMatrix( GFXMatrixType mtype, const MatrixF &mat ) = 0;
 
+   /// Updates the combined ModelView matrix for OpenGL-like APIs
+   virtual void updateModelView() = 0;
+
    //-----------------------------------------------------------------------------
 protected:
 
@@ -589,9 +602,15 @@ protected:
    /// Set the vertex stream frequency on the device.
    virtual void setVertexStreamFrequency( U32 stream, U32 frequency ) = 0;
 
+public:
    /// The maximum number of supported vertex streams which
    /// may be more than the device supports.
    static const U32 VERTEX_STREAM_COUNT = 4;
+   
+protected:
+   
+   /// Callback for when vertex decl, buffer, or primitive buffer has changed
+   virtual void onDrawStateChanged() = 0;
 
    StrongRefPtr<GFXVertexBuffer> mCurrentVertexBuffer[VERTEX_STREAM_COUNT];
    bool mVertexBufferDirty[VERTEX_STREAM_COUNT];
@@ -701,7 +720,7 @@ public:
    void popActiveRenderTarget();
 
    /// Assign a new active render target.
-   void setActiveRenderTarget( GFXTarget *target, bool updateViewport=true );
+   void setActiveRenderTarget( GFXTarget *target, bool updateViewport = false );
 
    /// Returns the current active render target.
    inline GFXTarget* getActiveRenderTarget() { return mCurrentRT; }
@@ -729,6 +748,9 @@ public:
    /// and deleted by the caller.
    /// @see GFXShader::init
    virtual GFXShader* createShader() = 0;
+
+   /// For handle with DX9 API texel-to-pixel mapping offset
+   virtual bool hasTexelPixelOffset() const { return true; }
    
    /// @}
  
@@ -747,6 +769,8 @@ public:
    virtual GFXTexHandle & getFrontBuffer(){ return mFrontBuffer[mCurrentFrontBufferIdx]; }
 
    void setPrimitiveBuffer( GFXPrimitiveBuffer *buffer );
+	
+	virtual void updatePrimitiveBuffer( GFXPrimitiveBuffer *newBuffer );
 
    /// Sets the vertex buffer.
    ///
@@ -831,6 +855,15 @@ public:
    /// Returns a hardware occlusion query object or NULL
    /// if this device does not support them.   
    virtual GFXOcclusionQuery* createOcclusionQuery() { return NULL; }
+
+
+#ifdef ENABLE_GPU_TIMERS
+   /// martinJ - Returns a query object which can return a time value on the GPU if the device supports this.
+   virtual GFXTimer* createTimer() { return NULL; }
+
+   virtual U64 getTimerFrequency() { return 0; }
+   virtual bool supportsTimers() { return false; }
+#endif//ENABLE_GPU_TIMERS
    
    /// @name Light Settings
    /// NONE of these should be overridden by API implementations
@@ -851,6 +884,7 @@ public:
    void setTexture(U32 stage, GFXTextureObject*texture);
    void setCubeTexture( U32 stage, GFXCubemap *cubemap );
    inline GFXTextureObject* getCurrentTexture( U32 stage ) { return mCurrentTexture[stage]; }
+   inline bool getCurrentTextureDirty( U32 stage ) { return mTextureDirty[stage]; }
 
    /// @}
 
@@ -863,6 +897,8 @@ public:
 
    /// Sets the current stateblock (actually activated in ::updateStates)
    virtual void setStateBlock( GFXStateBlock *block );
+
+   inline GFXStateBlock* getStateBlock() { return mNewStateBlock; }
 
    /// This sets a stateblock directly from the description
    /// structure.  Its acceptable to use this for debug rendering
@@ -929,6 +965,8 @@ public:
 
    /// Get the current area of the target we will render to.   
    const RectI &getViewport() const { return mViewport; }
+   
+   void setClipRectFlip(bool value) { mFlipClipRect = value; }
 
    virtual void setClipRect( const RectI &rect ) = 0;
    virtual const RectI &getClipRect() const = 0;
@@ -1111,6 +1149,5 @@ inline void GFXDevice::setVertexFormat( const GFXVertexFormat *vertexFormat )
    mVertexDeclDirty = true;
    mStateDirty = true;
 }
-
 
 #endif // _GFXDEVICE_H_

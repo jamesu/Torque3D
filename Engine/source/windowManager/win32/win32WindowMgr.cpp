@@ -20,6 +20,7 @@
 // IN THE SOFTWARE.
 //-----------------------------------------------------------------------------
 
+
 #include "platformWin32/platformWin32.h"
 #include "windowManager/win32/win32WindowMgr.h"
 #include "gfx/gfxDevice.h"

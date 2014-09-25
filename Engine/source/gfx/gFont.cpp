@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -35,6 +36,8 @@
 #include "platform/threads/mutex.h"
 #include "zlib/zlib.h"
 
+bool GFont::smLoadFonts = true;
+bool GFont::smSaveFonts = true;
 
 GFX_ImplementTextureProfile(GFXFontTextureProfile,
                             GFXTextureProfile::DiffuseMap, 
@@ -42,7 +45,7 @@ GFX_ImplementTextureProfile(GFXFontTextureProfile,
                             GFXTextureProfile::Static |
                             GFXTextureProfile::KeepBitmap |
                             GFXTextureProfile::NoMipmap, 
-                            GFXTextureProfile::NONE);
+                            GFXTextureProfile::None);
 
 template<> void *Resource<GFont>::create(const Torque::Path &path)
 {
@@ -100,16 +103,18 @@ GFont* GFont::load( const Torque::Path& path )
    }
    else
    {
-#ifndef TORQUE_OS_XENON
-      PlatformFont   *platFont = createPlatformFont(ret->getFontFaceName(), ret->getFontSize(), ret->getFontCharSet());
-
-      if ( platFont == NULL )
+#ifndef NO_FONT_GENERATION
+      if (smLoadFonts)
       {
-         Con::errorf( "GFont::load - error creating platform font for '%s'", path.getFullPath().c_str() );
-         SAFE_DELETE(ret);
+         PlatformFont   *platFont = createPlatformFont(ret->getFontFaceName(), ret->getFontSize(), ret->getFontCharSet());
+
+         if ( platFont == NULL )
+         {
+            // do nothing
+         }
+         else
+            ret->setPlatformFont(platFont);
       }
-      else
-         ret->setPlatformFont(platFont);
 #endif
    }
    
@@ -139,13 +144,22 @@ Resource<GFont> GFont::create(const String &faceName, U32 size, const char *cach
    }
 
    // Otherwise attempt to have the platform generate a new font
-   PlatformFont *platFont = createPlatformFont(faceName, size, charset);
+   PlatformFont *platFont = smLoadFonts ? createPlatformFont(faceName, size, charset) : NULL;
    
    if (platFont == NULL)
    {
       String fontName;
 
-#ifdef _XBOX
+      if (!smLoadFonts)
+      {
+         if(!faceName.equal("arial", String::NoCase) || size != 14)
+         {
+            return create("Arial", 14, cacheDirectory, charset);
+         }
+         return ret;
+      }
+
+#ifdef NO_FONT_GENERATION
       //AssertFatal( false, "Font creation is not supported on the Xbox platform. Create the font files (*.uft) using the Windows/MacOS build of the project." );
       if(!faceName.equal("arial", String::NoCase) || size != 14)
       {
@@ -215,7 +229,7 @@ GFont::GFont()
 
 GFont::~GFont()
 {
-   if(mNeedSave)
+   if(mNeedSave && smSaveFonts)
    {
       AssertFatal( mGFTFile.getFullPath().isNotEmpty(), "GFont::~GFont - path not set" );
 

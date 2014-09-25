@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -116,6 +117,22 @@ Var * ShaderConnectorHLSL::getIndexedElement( U32 index, RegisterType type, U32 
 
          return newVar;
       }
+         
+   case RT_BLENDINDICES:
+      {
+         Var *newVar = new Var;
+         mElementList.push_back( newVar );
+         newVar->setConnectName( "BLENDINDICES" );
+         return newVar;
+      }
+         
+   case RT_BLENDWEIGHT:
+      {
+         Var *newVar = new Var;
+         mElementList.push_back( newVar );
+         newVar->setConnectName( "BLENDWEIGHT" );
+         return newVar;
+      }
 
    default:
       break;
@@ -203,7 +220,7 @@ void ShaderConnectorHLSL::reset()
    mCurTexElem = 0;
 }
 
-void ShaderConnectorHLSL::print( Stream &stream )
+void ShaderConnectorHLSL::print( Stream &stream, bool isVertexShader )
 {
    const char * header = "struct ";
    const char * header2 = "\r\n{\r\n";
@@ -260,7 +277,14 @@ void ParamsDefHLSL::assignConstantNumbers()
                   {
                      mCurrConst += (3 * var->arraySize);
                   } else {
+					  if (dStrcmp((const char*)var->type, "float4x3") == 0)
+					  {
+						 mCurrConst += (3 * var->arraySize);
+					  }
+					  else
+					  {
                      mCurrConst += var->arraySize;
+					  }
                   }
                }
             }
@@ -269,7 +293,7 @@ void ParamsDefHLSL::assignConstantNumbers()
    }
 }
 
-void VertexParamsDefHLSL::print( Stream &stream )
+void VertexParamsDefHLSL::print( Stream &stream, bool isVerterShader )
 {
    assignConstantNumbers();
 
@@ -305,7 +329,7 @@ void VertexParamsDefHLSL::print( Stream &stream )
    stream.write( dStrlen(closer), closer );
 }
 
-void PixelParamsDefHLSL::print( Stream &stream )
+void PixelParamsDefHLSL::print( Stream &stream, bool isVerterShader )
 {
    assignConstantNumbers();
 

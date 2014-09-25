@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -19,6 +20,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 //-----------------------------------------------------------------------------
+
 #ifndef _BASEMATINSTANCE_H_
 #define _BASEMATINSTANCE_H_
 
@@ -195,7 +197,7 @@ public:
    /// Returns the state hint which can be used for 
    /// sorting and fast comparisions of the equality 
    /// of a material instance.
-   virtual const MatStateHint& getStateHint() const = 0;
+   virtual const MatStateHint& getStateHint(U32 passNum = 0) const = 0;
 
    /// Returns the active features in use by this material.
    /// @see getRequestedFeatures

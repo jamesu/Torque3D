@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -45,6 +46,8 @@ namespace GFXSemantic
    extern const String TANGENTW;
    extern const String COLOR;
    extern const String TEXCOORD;
+   extern const String BLENDWEIGHT;
+   extern const String BLENDINDICES;
 }
 
 
@@ -181,6 +184,9 @@ public:
 
    /// Returns true if there is a COLOR semantic in this vertex format.
    bool hasColor() const;
+   
+   /// Returns true if there is a BLENDWEIGHT or BLENDINDICES semantic in this vertex format.
+   bool hasBlend() const;
 
    /// Returns the texture coordinate count by 
    /// counting the number of TEXCOORD semantics.
@@ -224,6 +230,9 @@ protected:
 
    /// Is true if there is a COLOR semantic in this vertex format.
    bool mHasColor;
+   
+   /// Is true if there is a BLENDWEIGHT or BLENDINDICES semantic in this vertex format.
+   bool mHasBlend;
 
    /// The texture coordinate count by counting the 
    /// number of "TEXCOORD" semantics.

@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -92,9 +93,6 @@ void GFXD3D9Cubemap::initStatic( GFXTexHandle *faces )
 
       D3DPOOL pool = D3DPOOL_MANAGED;
 
-      if (dev->isD3D9Ex())
-         pool = D3DPOOL_DEFAULT;
-
       LPDIRECT3DDEVICE9 D3D9Device = dev->getDevice();     
       
       // NOTE - check tex sizes on all faces - they MUST be all same size
@@ -118,9 +116,6 @@ void GFXD3D9Cubemap::initStatic( DDSFile *dds )
    GFXD3D9Device *dev = static_cast<GFXD3D9Device *>(GFX);
 
    D3DPOOL pool = D3DPOOL_MANAGED;
-
-   if (dev->isD3D9Ex())
-      pool = D3DPOOL_DEFAULT;
 
    LPDIRECT3DDEVICE9 D3D9Device = dev->getDevice();     
    
@@ -208,11 +203,28 @@ void GFXD3D9Cubemap::fillCubeTextures( GFXTexHandle *faces, LPDIRECT3DDEVICE9 D3
       IDirect3DSurface9 *inSurf;
       D3D9Assert( texObj->get2DTex()->GetSurfaceLevel( 0, &inSurf ), NULL );
       
-      // copy incoming texture into cube face
-      D3D9Assert( GFXD3DX.D3DXLoadSurfaceFromSurface( cubeSurf, NULL, NULL, inSurf, NULL, 
-                                  NULL, D3DX_FILTER_NONE, 0 ), NULL );
-      cubeSurf->Release();
-      inSurf->Release();
+	  // copy incoming texture into cube face
+
+	  // Lock the dest surface.
+	  D3DLOCKED_RECT destRect;
+	  cubeSurf->LockRect(&destRect, NULL, 0);
+
+	  D3DLOCKED_RECT srcRect;
+	  inSurf->LockRect(&srcRect, NULL, 0);
+
+	  U32 numRows = 0;
+	  U32 rowSize = 0;
+	  
+	  AssertFatal( destRect.Pitch==srcRect.Pitch, "Pitch mismatch" );
+
+	  GFX_getTextureMetrics(texObj->getFormat(), texObj->getWidth(), texObj->getHeight(), &numRows, &rowSize);
+	  GFX_copyTextureData(rowSize, numRows, srcRect.Pitch, destRect.Pitch, srcRect.pBits, destRect.pBits);
+
+	  cubeSurf->UnlockRect();
+	  inSurf->UnlockRect();
+
+	  cubeSurf->Release();
+	  inSurf->Release();
    }
 }
 

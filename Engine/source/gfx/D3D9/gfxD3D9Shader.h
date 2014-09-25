@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -40,13 +41,13 @@
 #endif
 
 
+#include <D3Dcompiler.h>
+
+class _D3DConstantTable;
 class GFXD3D9Shader;
 struct IDirect3DVertexShader9;
 struct IDirect3DPixelShader9;
 struct IDirect3DDevice9;
-struct ID3DXConstantTable;
-struct ID3DXBuffer;
-struct _D3DXMACRO;
 
 
 class GFXD3D9ShaderBufferLayout : public GenericConstBufferLayout
@@ -185,8 +186,8 @@ protected:
 };
 
 
-class _gfxD3DXInclude;
-typedef StrongRefPtr<_gfxD3DXInclude> _gfxD3DXIncludeRef;
+class _gfxD3DInclude;
+typedef StrongRefPtr<_gfxD3DInclude> _gfxD3DIncludeRef;
 
 /// The D3D9 implementation of a shader.
 class GFXD3D9Shader : public GFXShader
@@ -228,7 +229,7 @@ protected:
    GFXD3D9ShaderBufferLayout* mVertexConstBufferLayoutI;   
    GFXD3D9ShaderBufferLayout* mPixelConstBufferLayoutI;
 
-   static _gfxD3DXIncludeRef smD3DXInclude;
+   static _gfxD3DIncludeRef smD3DInclude;
 
    HandleMap mHandles;
 
@@ -245,18 +246,18 @@ protected:
    // These two functions are used when compiling shaders from hlsl
    virtual bool _compileShader( const Torque::Path &filePath, 
                                 const String &target, 
-                                const _D3DXMACRO *defines, 
+                                const D3D_SHADER_MACRO *defines, 
                                 GenericConstBufferLayout *bufferLayoutF, 
                                 GenericConstBufferLayout *bufferLayoutI,
                                 Vector<GFXShaderConstDesc> &samplerDescriptions );
 
-   void _getShaderConstants( ID3DXConstantTable* table, 
+   void _getShaderConstants( _D3DConstantTable* table, 
                              GenericConstBufferLayout *bufferLayoutF, 
                              GenericConstBufferLayout *bufferLayoutI,
                              Vector<GFXShaderConstDesc> &samplerDescriptions );
 
    bool _saveCompiledOutput( const Torque::Path &filePath, 
-                             ID3DXBuffer *buffer, 
+                             ID3DBlob *buffer, 
                              GenericConstBufferLayout *bufferLayoutF, 
                              GenericConstBufferLayout *bufferLayoutI,
                              Vector<GFXShaderConstDesc> &samplerDescriptions );

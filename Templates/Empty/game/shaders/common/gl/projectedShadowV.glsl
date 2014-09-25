@@ -20,16 +20,15 @@
 // IN THE SOFTWARE.
 //-----------------------------------------------------------------------------
 
-#include "hlslCompat.glsl"
+attribute vec4 vPosition;
+attribute vec3 vNormal;
+attribute vec2 vTangent;
+attribute vec4 vColor;
+attribute vec2 vTexCoord0;
 
-in vec4 vPosition;
-in vec4 vColor;
-in vec2 vTexCoord0;
-in vec2 vTexCoord1;
-
-out vec2 texCoord;
-out vec4 color;
-out float fade;
+varying vec2 texCoord;
+varying vec4 color;
+varying float fade;
 
 uniform mat4 modelview;
 uniform float shadowLength;
@@ -40,10 +39,8 @@ void main()
    gl_Position = modelview * vec4(vPosition.xyz, 1.0);
    
    color = vColor;
-   texCoord = vTexCoord1.st;
+   texCoord = vTexCoord0.st;
    
    float fromCasterDist = length(vPosition.xyz - shadowCasterPosition) - shadowLength;
    fade = 1.0 - clamp( fromCasterDist / shadowLength , 0.0, 1.0 );
-   
-   correctSSP(gl_Position);
 }

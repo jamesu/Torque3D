@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -64,6 +65,8 @@ public:
       /// to Material::TexTarget.
       /// @see mTexType
      NamedTexTargetRef texTarget;
+
+	 StringTableEntry samplerName;
 
    } mTexSlot[Material::MAX_TEX_PER_PASS];
 
@@ -164,7 +167,10 @@ public:
    /// Returns the state hint which can be used for 
    /// sorting and fast comparisions of the equality 
    /// of a material instance.
-   virtual const MatStateHint& getStateHint() const { return mStateHint; }
+   virtual const MatStateHint& getStateHint(S32 passNum) const { return mStateHintList[passNum]; }
+   
+   virtual U32 getPassShaderId(U32 passNumber) const = 0;
+   virtual bool hasPass(SceneRenderState * state, const SceneData &sgData, U32 pass) = 0;
 
    /// Sets up the given pass.  Returns true if the pass was set up, false if there was an error or if
    /// the specified pass is out of bounds.
@@ -221,6 +227,15 @@ public:
       return (stage < Material::MAX_STAGES) ? mStages[stage].getTex(type) : NULL;
    }
 
+   /// martinJ - sets the texture used by a stage
+   void setStageTexture(U32 stage, const FeatureType &type, GFXTextureObject* tex)
+   {
+     if (stage < Material::MAX_STAGES)
+     {
+       mStages[stage].setTex(type, tex);
+     }
+   }
+
 protected:
 
    /// Our passes.
@@ -263,7 +278,7 @@ protected:
 
    /// The state hint used for material sorting 
    /// and quick equality comparision.
-   MatStateHint mStateHint;
+   MatStateHintList mStateHintList;
 
    /// Loads all the textures for all of the stages in the Material
    virtual void _setStageData();

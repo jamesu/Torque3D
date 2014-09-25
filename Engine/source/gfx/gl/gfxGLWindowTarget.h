@@ -28,10 +28,12 @@
 class GFXGLWindowTarget : public GFXWindowTarget
 {
 public:
-
+	
    GFXGLWindowTarget(PlatformWindow *win, GFXDevice *d);
-   const Point2I getSize() 
-   { 
+   virtual ~GFXGLWindowTarget();
+   
+   const Point2I getSize()
+   {
       return mWindow->getClientExtent();
    }
    virtual GFXFormat getFormat()
@@ -42,8 +44,8 @@ public:
    void makeActive();
    virtual bool present();
    virtual void resetMode();
-   virtual void zombify() { }
-   virtual void resurrect() { }
+   virtual void zombify();
+   virtual void resurrect();
    
    virtual void resolveTo(GFXTextureObject* obj);
    
@@ -51,12 +53,16 @@ public:
    
 private:
    friend class GFXGLDevice;
-   Point2I size;   
+	
+   GLuint mCopyFBO, mBackBufferFBO;
+   GFXTexHandle mBackBufferColorTex, mBackBufferDepthTex;
+   Point2I size;
    GFXDevice* mDevice;
    void* mContext;
-   void* mFullscreenContext;
    void _teardownCurrentMode();
    void _setupNewMode();
+   void _setupAttachments();
+   void _WindowPresent();
 };
 
 #endif

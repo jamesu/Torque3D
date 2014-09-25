@@ -37,6 +37,7 @@ class Torque3D
         includeLib( 'ungif' );
         includeLib( 'zlib' );
         includeLib( 'jpeg' );
+        includeLib( 'glew' );
         includeLib( 'tinyxml' );
         includeLib( 'opcode' );
         includeLib( 'squish' );
@@ -98,6 +99,7 @@ class Torque3D
         addLibIncludePath( "lmng" );
         addLibIncludePath( "lpng" );
         addLibIncludePath( "ljpeg" );
+        addLibIncludePath( "glew/include" );
         addLibIncludePath( "lungif" );
         addLibIncludePath( "zlib" );
         addLibIncludePath( "tinyxml" );
@@ -137,6 +139,7 @@ class Torque3D
         addProjectDependency( 'lpng' );
         addProjectDependency( 'lungif' );
         addProjectDependency( 'ljpeg' );
+        addProjectDependency( 'glew' );
         addProjectDependency( 'zlib' );
         addProjectDependency( 'tinyxml' );
         addProjectDependency( 'opcode' );
@@ -183,6 +186,9 @@ class Torque3D
             addProjectLibInput('shell32.lib');
             addProjectLibInput('oleaut32.lib');
             addProjectLibInput('version.lib');
+
+
+            addProjectLibInput('opengl32.lib');
         }
         
         // Include project specific sources in the project/buildFiles/config/projectCode.conf
@@ -237,6 +243,7 @@ class Torque3D
                  
               addSolutionProjectRef( 'collada_dom' );
               addSolutionProjectRef( 'ljpeg' );
+              addSolutionProjectRef( 'glew' );
               addSolutionProjectRef( 'lmng' );
               addSolutionProjectRef( 'lpng' );
               addSolutionProjectRef( 'lungif' );

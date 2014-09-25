@@ -121,10 +121,9 @@ GFXDeclareVertexFormat( GFXVertexPNTBT )
    Point2F texCoord;
 };
 
-/*
 
-DEFINE_VERT( GFXVertexPCNT, 
-            GFXVertexFlagXYZ | GFXVertexFlagNormal | GFXVertexFlagDiffuse | GFXVertexFlagTextureCount1 | GFXVertexFlagUV0)
+// jamesu - need this for the test wall rendering
+GFXDeclareVertexFormat( GFXVertexPCNT )
 {
    Point3F point;
    Point3F normal;
@@ -132,6 +131,7 @@ DEFINE_VERT( GFXVertexPCNT,
    Point2F texCoord;
 };
 
+/*
 DEFINE_VERT( GFXVertexPCNTT, 
             GFXVertexFlagXYZ | GFXVertexFlagNormal | GFXVertexFlagDiffuse | GFXVertexFlagTextureCount2 | GFXVertexFlagUV0 | GFXVertexFlagUV1)
 {

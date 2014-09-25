@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -26,7 +27,6 @@
 #include "materials/materialManager.h"
 #include "materials/customMaterialDefinition.h"
 #include "materials/processedMaterial.h"
-#include "materials/processedFFMaterial.h"
 #include "materials/processedShaderMaterial.h"
 #include "materials/processedCustomMaterial.h"
 #include "materials/materialFeatureTypes.h"
@@ -35,6 +35,7 @@
 #include "gfx/sim/cubemapData.h"
 #include "gfx/gfxCubemap.h"
 #include "core/util/safeDelete.h"
+#include "ts/tsShape.h"
 
 class MatInstParameters;
 
@@ -319,9 +320,12 @@ bool MatInstance::processMaterial()
    SAFE_DELETE(mDefaultParameters);
 
    CustomMaterial *custMat = NULL;
+   
+   int pickedMaterial = 0;
 
    if( dynamic_cast<CustomMaterial*>(mMaterial) )
    {
+      pickedMaterial = 1;
       F32 pixVersion = GFX->getPixelShaderVersion();
       custMat = static_cast<CustomMaterial*>(mMaterial);
       if ((custMat->mVersion > pixVersion) || (custMat->mVersion == 0.0))
@@ -332,20 +336,18 @@ bool MatInstance::processMaterial()
             return processMaterial();            
          }
          else
-         {            
-            AssertWarn(custMat->mVersion == 0.0f, avar("Can't load CustomMaterial %s for %s, using generic FF fallback", 
-               String(mMaterial->getName()).isEmpty() ? "Unknown" : mMaterial->getName(), custMat->mMapTo.c_str()));
-            mProcessedMaterial = new ProcessedFFMaterial(*mMaterial);
+         {
+            AssertFatal(false, "No fallback shader available");
          }
       }
       else 
          mProcessedMaterial = new ProcessedCustomMaterial(*mMaterial);
    }
-   else if(GFX->getPixelShaderVersion() > 0.001)
+   else {
+      pickedMaterial = 2;
       mProcessedMaterial = getShaderMaterial();
-   else
-      mProcessedMaterial = new ProcessedFFMaterial(*mMaterial);
-
+   }
+   
    if (mProcessedMaterial)
    {
       mProcessedMaterial->addStateBlockDesc( mUserDefinedState );
@@ -361,6 +363,8 @@ bool MatInstance::processMaterial()
          SAFE_DELETE( mProcessedMaterial );
          return false;
       }
+      
+      mMaxStages = mProcessedMaterial->getNumStages();
 
       mDefaultParameters = new MatInstParameters(mProcessedMaterial->getDefaultMaterialParameters());
       mActiveParameters = mDefaultParameters;
@@ -378,10 +382,10 @@ bool MatInstance::processMaterial()
    return false;
 }
 
-const MatStateHint& MatInstance::getStateHint() const
+const MatStateHint& MatInstance::getStateHint(U32 passNum) const
 {
    if ( mProcessedMaterial )
-      return mProcessedMaterial->getStateHint();
+      return mProcessedMaterial->getStateHint(passNum);
    else
       return MatStateHint::Default;
 }
@@ -403,7 +407,21 @@ void MatInstance::updateStateBlocks()
 }
 
 void MatInstance::addShaderMacro( const String &name, const String &value )
-{   
+{  
+#ifdef TORQUE_ENABLE_ASSERTS
+  bool nameMadeOfWhitespace = true;
+  AssertFatal(!name.isEmpty(), "Empty define");
+  for (U32 i = 0, nameSize = name.size(); i < nameSize; ++i)
+  {
+    if (name[i] != ' ')
+    {
+      nameMadeOfWhitespace = false;
+      break;
+    }
+  }
+  AssertFatal(!nameMadeOfWhitespace, "Can't add a shader macro with a name made of whitespace.");
+#endif
+
    // Check to see if we already have this macro.
    Vector<GFXShaderMacro>::iterator iter = mUserMacros.begin();
    for ( ; iter != mUserMacros.end(); iter++ )
@@ -419,6 +437,15 @@ void MatInstance::addShaderMacro( const String &name, const String &value )
    mUserMacros.increment();
    mUserMacros.last().name = name;
    mUserMacros.last().value = value;
+}
+
+
+bool MatInstance::hasPass(SceneRenderState * state, const SceneData &sgData, U32 passNumber )
+{
+   if( !mProcessedMaterial )
+      return false;
+   
+   return mProcessedMaterial->hasPass( state, sgData, passNumber );
 }
 
 //----------------------------------------------------------------------------
@@ -468,6 +495,7 @@ void MatInstance::setTextureStages(SceneRenderState * state, const SceneData &sg
 
 bool MatInstance::isInstanced() const 
 {
+   AssertFatal(mProcessedMaterial != NULL, "Material not generated");
    return mProcessedMaterial->getFeatures().hasFeature( MFT_UseInstancing );
 }
 

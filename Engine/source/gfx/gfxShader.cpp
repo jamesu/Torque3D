@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -45,17 +46,6 @@ GFXShader::~GFXShader()
    Torque::FS::RemoveChangeNotification( mPixelFile, this, &GFXShader::_onFileChanged );
 }
 
-#ifndef TORQUE_OPENGL
-bool GFXShader::init(   const Torque::Path &vertFile, 
-                        const Torque::Path &pixFile, 
-                        F32 pixVersion, 
-                        const Vector<GFXShaderMacro> &macros )
-{
-   Vector<String> samplerNames;
-   return init( vertFile, pixFile, pixVersion, macros, samplerNames );
-}
-#endif
-
 bool GFXShader::init(   const Torque::Path &vertFile, 
                         const Torque::Path &pixFile, 
                         F32 pixVersion, 
@@ -68,6 +58,7 @@ bool GFXShader::init(   const Torque::Path &vertFile,
    mPixVersion = pixVersion;
    mMacros = macros;
    mSamplerNamesOrdered = samplerNames;
+   mId = (U32)this;
 
    // Before we compile the shader make sure the
    // conditioner features have been updated.

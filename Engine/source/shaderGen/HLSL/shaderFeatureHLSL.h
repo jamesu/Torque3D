@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -19,6 +20,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 //-----------------------------------------------------------------------------
+
 #ifndef _SHADERGEN_HLSL_SHADERFEATUREHLSL_H_
 #define _SHADERGEN_HLSL_SHADERFEATUREHLSL_H_
 
@@ -31,16 +33,18 @@ struct MaterialFeatureData;
 struct RenderPassData;
 
 
-class ShaderFeatureHLSL : public ShaderFeature
+class ShaderFeatureCommon : public ShaderFeature
 {
 public:
-   ShaderFeatureHLSL();
+   ShaderFeatureCommon();
 
    ///
    Var* getOutTexCoord( const char *name,
+                        const char *vertexCoordName,
                         const char *type,
                         bool mapsToSampler,
                         bool useTexAnim,
+                        const char* texMatrixName,
                         MultiLine *meta,
                         Vector<ShaderComponent*> &componentList );
 
@@ -62,6 +66,10 @@ public:
    /// Returns the VPOS input register for the pixel shader.
    static Var* getInVpos(  MultiLine *meta,
                            Vector<ShaderComponent*> &componentList );
+
+   /// Returns the VNORMAL input register for the pixel shader.
+   static Var* getInVnormal(  MultiLine *meta,
+                              Vector<ShaderComponent*> &componentList );
 
    /// Returns the "objToTangentSpace" transform or creates one if this
    /// is the first feature to need it.
@@ -98,19 +106,56 @@ public:
                         MultiLine *meta,
                         LangElement *wsPosition );
 
+   /// Calculates the view space position in the vertex shader and 
+   /// assigns it to the passed language element.  It does not pass 
+   /// it across the connector to the pixel shader.
+   /// @see addOutWsPosition
+   void getVsPosition(  Vector<ShaderComponent*> &componentList,                                       
+                        bool useInstancing,
+                        MultiLine *meta,
+                        LangElement *vsPosition );
+
+   /// Calculates the view space normal in the vertex shader and 
+   /// assigns it to the passed language element.  It does not pass 
+   /// it across the connector to the pixel shader.
+   /// @see addOutWsPosition
+   void getVsNormal(  Vector<ShaderComponent*> &componentList,                                       
+                      bool useInstancing,
+                      MultiLine *meta,
+                      LangElement *vsNormal );
+                      
    /// Adds the "wsPosition" to the input connector if it doesn't exist.
    Var* addOutWsPosition(  Vector<ShaderComponent*> &componentList,                                       
                            bool useInstancing,
                            MultiLine *meta );
 
+   /// Adds the "vsPosition" to the input connector if it doesn't exist.
+   Var* addOutVsPosition(  Vector<ShaderComponent*> &componentList,                                       
+                           bool useInstancing,
+                           MultiLine *meta );
+
+   /// Adds the "vsNormal" to the input connector if it doesn't exist.
+   Var* addOutVsNormal(  Vector<ShaderComponent*> &componentList,                                       
+                         bool useInstancing,
+                         MultiLine *meta );
+
    /// Returns the input world space position from the connector.
    static Var* getInWsPosition( Vector<ShaderComponent*> &componentList );
+
+   /// Returns the input view space position from the connector.
+   static Var* getInVsPosition( Vector<ShaderComponent*> &componentList );
 
    /// Returns the world space view vector from the wsPosition.
    static Var* getWsView( Var *wsPosition, MultiLine *meta );
 
    /// Returns the input normal map texture.
    static Var* getNormalMapTex();
+
+   /// martinJ - Searches for the existing sampler and creates it if it doesn't exist
+   static Var* findOrCreateSampler( const char* name );
+
+   /// martinJ - Searches for the existing variable and creates it if it doesn't exist
+   static Var* findOrCreateVar( const char* name, const char* type, bool uniform );
 
    ///
    Var* addOutDetailTexCoord( Vector<ShaderComponent*> &componentList, 
@@ -122,10 +167,20 @@ public:
                      bool useInstancing,
                      MultiLine *meta );
 
+   /// martinJ - gets the previous frame's object transform
+   Var* getPrevObjTrans( Vector<ShaderComponent*> &componentList,                                       
+                         bool useInstancing,
+                         MultiLine *meta );
+
    ///
    Var* getModelView(   Vector<ShaderComponent*> &componentList,                                       
                         bool useInstancing,
                         MultiLine *meta );
+
+   /// martinJ - gets the transform comprised of previousFrameWorldMatrix * currentFrameViewMatrix * currentFrameProjectionMatrix
+   Var* getPrevModelView(   Vector<ShaderComponent*> &componentList,                                       
+                            bool useInstancing,
+                            MultiLine *meta );
 
    ///
    Var* getWorldView(   Vector<ShaderComponent*> &componentList,                                       
@@ -142,30 +197,128 @@ public:
    LangElement* setupTexSpaceMat(  Vector<ShaderComponent*> &componentList, Var **texSpaceMat );
    LangElement* assignColor( LangElement *elem, Material::BlendOp blend, LangElement *lerpElem = NULL, ShaderFeature::OutputTarget outputTarget = ShaderFeature::DefaultTarget );
    LangElement* expandNormalMap( LangElement *sampleNormalOp, LangElement *normalDecl, LangElement *normalVar, const MaterialFeatureData &fd );
+
+   // Retrieves the shader names for common constants and functions
+   static const char* getHalfFloatName();
+   static const char* getHalfVector2Name();
+   static const char* getHalfVector3Name();
+   static const char* getHalfVector4Name();
+   static const char* getVector2Name();
+   static const char* getVector3Name();
+   static const char* getVector4Name();
+   static const char* getMatrix3x3Name();
+   static const char* getMatrix4x3Name();
+   static const char* getMatrix4x4Name();
+   static const char* getTexture2DFunction();
+   static const char* getTexture2DLodFunction();
+   static const char* getTextureCubeFunction();
+
+   static GFXAdapterType getCurrentAdapterType();
+   static void setCurrentAdapterType(GFXAdapterType type);
+
+protected:
+   static const char* smHalfFloatName;
+   static const char* smHalfVector2Name;
+   static const char* smHalfVector3Name;
+   static const char* smHalfVector4Name;
+   static const char* smVector2Name;
+   static const char* smVector3Name;
+   static const char* smVector4Name;
+   static const char* smMatrix3x3Name;
+   static const char* smMatrix4x3Name;
+   static const char* smMatrix4x4Name;
+   static const char* smTexture2DFunction;
+   static const char* smTexture2DLodFunction;
+   static const char* smTextureCubeFunction;
+   static GFXAdapterType smCurrentAdapterType;
 };
 
+inline const char* ShaderFeatureCommon::getHalfFloatName()
+{
+  return smHalfFloatName;
+}
 
-class NamedFeatureHLSL : public ShaderFeatureHLSL
+inline const char* ShaderFeatureCommon::getHalfVector2Name()
+{
+  return smHalfVector2Name;
+}
+
+inline const char* ShaderFeatureCommon::getHalfVector3Name()
+{
+  return smHalfVector3Name;
+}
+
+inline const char* ShaderFeatureCommon::getHalfVector4Name()
+{
+  return smHalfVector4Name;
+}
+
+inline const char* ShaderFeatureCommon::getVector2Name()
+{
+  return smVector2Name;
+}
+
+inline const char* ShaderFeatureCommon::getVector3Name()
+{
+  return smVector3Name;
+}
+
+inline const char* ShaderFeatureCommon::getVector4Name()
+{
+  return smVector4Name;
+}
+
+inline const char* ShaderFeatureCommon::getMatrix3x3Name()
+{
+  return smMatrix3x3Name;
+}
+
+inline const char* ShaderFeatureCommon::getMatrix4x3Name()
+{
+   return smMatrix4x3Name;
+}
+
+inline const char* ShaderFeatureCommon::getMatrix4x4Name()
+{
+  return smMatrix4x4Name;
+}
+
+inline const char* ShaderFeatureCommon::getTexture2DFunction()
+{
+  return smTexture2DFunction;
+}
+
+inline const char* ShaderFeatureCommon::getTexture2DLodFunction()
+{
+  return smTexture2DLodFunction;
+}
+
+inline const char* ShaderFeatureCommon::getTextureCubeFunction()
+{
+  return smTextureCubeFunction;
+}
+
+class NamedFeature : public ShaderFeatureCommon
 {
 protected:
    String mName;
 
 public:
-   NamedFeatureHLSL( const String &name )
+   NamedFeature( const String &name )
       : mName( name )
    {}
 
    virtual String getName() { return mName; }
 };
 
-class RenderTargetZeroHLSL : public ShaderFeatureHLSL
+class RenderTargetZero : public ShaderFeatureCommon
 {
 protected:
    ShaderFeature::OutputTarget mOutputTargetMask;
    String mFeatureName;
 
 public:
-   RenderTargetZeroHLSL( const ShaderFeature::OutputTarget target )
+   RenderTargetZero( const ShaderFeature::OutputTarget target )
       : mOutputTargetMask( target )
    {
       char buffer[256];
@@ -183,7 +336,7 @@ public:
 
 
 /// Vertex position
-class VertPositionHLSL : public ShaderFeatureHLSL
+class VertPosition : public ShaderFeatureCommon
 {
 public:
    virtual void processVert( Vector<ShaderComponent*> &componentList,
@@ -206,7 +359,7 @@ public:
 
 /// Vertex lighting based on the normal and the light 
 /// direction passed through the vertex color.
-class RTLightingFeatHLSL : public ShaderFeatureHLSL
+class RTLightingFeat : public ShaderFeatureCommon
 {
 protected:
 
@@ -214,7 +367,7 @@ protected:
 
 public:
 
-   RTLightingFeatHLSL();
+   RTLightingFeat();
 
    virtual void processVert( Vector<ShaderComponent*> &componentList,
                              const MaterialFeatureData &fd );
@@ -234,7 +387,7 @@ public:
 
 
 /// Base texture
-class DiffuseMapFeatHLSL : public ShaderFeatureHLSL
+class DiffuseMapFeat : public ShaderFeatureCommon
 {
 public:
    virtual void processVert( Vector<ShaderComponent*> &componentList,
@@ -257,11 +410,13 @@ public:
    {
       return "Base Texture";
    }
+
+   static const char* diffuseMapSamplerName;
 };
 
 
 /// Overlay texture
-class OverlayTexFeatHLSL : public ShaderFeatureHLSL
+class OverlayTexFeat : public ShaderFeatureCommon
 {
 public:
    virtual void processVert( Vector<ShaderComponent*> &componentList,
@@ -284,11 +439,13 @@ public:
    {
       return "Overlay Texture";
    }
+
+   static const char* overlayMapSamplerName;
 };
 
 
 /// Diffuse color
-class DiffuseFeatureHLSL : public ShaderFeatureHLSL
+class DiffuseFeature : public ShaderFeatureCommon
 {
 public:   
    virtual void processPix(   Vector<ShaderComponent*> &componentList, 
@@ -303,7 +460,7 @@ public:
 };
 
 /// Diffuse vertex color
-class DiffuseVertColorFeatureHLSL : public ShaderFeatureHLSL
+class DiffuseVertColorFeature : public ShaderFeatureCommon
 {
 public:   
 
@@ -321,7 +478,7 @@ public:
 };
 
 /// Lightmap
-class LightmapFeatHLSL : public ShaderFeatureHLSL
+class LightmapFeat : public ShaderFeatureCommon
 {
 public:
    virtual void processVert(  Vector<ShaderComponent*> &componentList,
@@ -346,11 +503,13 @@ public:
    }
 
    virtual U32 getOutputTargets( const MaterialFeatureData &fd ) const;
+   
+   static const char* lightMapSamplerName;
 };
 
 
 /// Tonemap
-class TonemapFeatHLSL : public ShaderFeatureHLSL
+class TonemapFeat : public ShaderFeatureCommon
 {
 public:
    virtual void processVert(  Vector<ShaderComponent*> &componentList,
@@ -375,11 +534,13 @@ public:
    }
 
    virtual U32 getOutputTargets( const MaterialFeatureData &fd ) const;
+
+   static const char* toneMapSamplerName;
 };
 
 
 /// Baked lighting stored on the vertex color
-class VertLitHLSL : public ShaderFeatureHLSL
+class VertLit : public ShaderFeatureCommon
 {
 public:
    virtual void processVert( Vector<ShaderComponent*> &componentList,
@@ -400,7 +561,7 @@ public:
 
 
 /// Detail map
-class DetailFeatHLSL : public ShaderFeatureHLSL
+class DetailFeat : public ShaderFeatureCommon
 {
 public:
    virtual void processVert( Vector<ShaderComponent*> &componentList,
@@ -423,11 +584,13 @@ public:
    {
       return "Detail";
    }
+
+   static const char* detailMapSamplerName;
 };
 
 
 /// Reflect Cubemap
-class ReflectCubeFeatHLSL : public ShaderFeatureHLSL
+class ReflectCubeFeat : public ShaderFeatureCommon
 {
 public:
    virtual void processVert( Vector<ShaderComponent*> &componentList,
@@ -448,18 +611,21 @@ public:
    {
       return "Reflect Cube";
    }
+
+   static const char* cubeMapSamplerName;
+   static const char* glossMapSamplerName;
 };
 
 
 /// Fog
-class FogFeatHLSL : public ShaderFeatureHLSL
+class FogFeat : public ShaderFeatureCommon
 {
 protected:
 
    ShaderIncludeDependency mFogDep;
 
 public:
-   FogFeatHLSL();
+   FogFeat();
 
    virtual void processVert( Vector<ShaderComponent*> &componentList,
                              const MaterialFeatureData &fd );
@@ -479,7 +645,7 @@ public:
 
 
 /// Tex Anim
-class TexAnimHLSL : public ShaderFeatureHLSL
+class TexAnim : public ShaderFeatureCommon
 {
 public:
    virtual Material::BlendOp getBlendOp() { return Material::None; }
@@ -492,7 +658,7 @@ public:
 
 
 /// Visibility
-class VisibilityFeatHLSL : public ShaderFeatureHLSL
+class VisibilityFeat : public ShaderFeatureCommon
 {
 protected:
 
@@ -500,7 +666,7 @@ protected:
 
 public:
 
-   VisibilityFeatHLSL();
+   VisibilityFeat();
 
    virtual void processVert( Vector<ShaderComponent*> &componentList,
                              const MaterialFeatureData &fd );
@@ -520,7 +686,7 @@ public:
 
 
 ///
-class AlphaTestHLSL : public ShaderFeatureHLSL
+class AlphaTest : public ShaderFeatureCommon
 {
 public:
    virtual void processPix(   Vector<ShaderComponent*> &componentList, 
@@ -538,7 +704,7 @@ public:
 /// Special feature used to mask out the RGB color for
 /// non-glow passes of glow materials.
 /// @see RenderGlowMgr
-class GlowMaskHLSL : public ShaderFeatureHLSL
+class GlowMask : public ShaderFeatureCommon
 {
 public:
    virtual void processPix(   Vector<ShaderComponent*> &componentList, 
@@ -556,8 +722,8 @@ public:
 /// encodes the color for the current HDR target format.
 /// @see HDRPostFx
 /// @see LightManager
-/// @see torque.hlsl
-class HDROutHLSL : public ShaderFeatureHLSL
+/// @see torque.
+class HDROut : public ShaderFeatureCommon
 {
 protected:
 
@@ -565,7 +731,7 @@ protected:
 
 public:
 
-   HDROutHLSL();
+   HDROut();
 
    virtual void processPix(   Vector<ShaderComponent*> &componentList, 
                               const MaterialFeatureData &fd );
@@ -576,7 +742,7 @@ public:
 };
 
 ///
-class FoliageFeatureHLSL : public ShaderFeatureHLSL
+class FoliageFeature : public ShaderFeatureCommon
 {
 protected:
 
@@ -584,7 +750,7 @@ protected:
 
 public:
 
-   FoliageFeatureHLSL();
+   FoliageFeature();
 
    virtual void processVert( Vector<ShaderComponent*> &componentList,
                              const MaterialFeatureData &fd );
@@ -607,7 +773,7 @@ public:
    virtual ShaderFeatureConstHandles* createConstHandles( GFXShader *shader, SimObject *userObject );   
 };
 
-class ParticleNormalFeatureHLSL : public ShaderFeatureHLSL
+class ParticleNormalFeature : public ShaderFeatureCommon
 {
 public:
 
@@ -624,7 +790,7 @@ public:
 
 /// Special feature for unpacking imposter verts.
 /// @see RenderImposterMgr
-class ImposterVertFeatureHLSL : public ShaderFeatureHLSL
+class ImposterVertFeature : public ShaderFeatureCommon
 {
 protected:
 
@@ -632,7 +798,7 @@ protected:
 
 public:
 
-   ImposterVertFeatureHLSL();
+   ImposterVertFeature();
 
    virtual void processVert(  Vector<ShaderComponent*> &componentList,
                               const MaterialFeatureData &fd );

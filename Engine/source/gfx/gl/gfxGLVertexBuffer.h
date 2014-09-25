@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -26,14 +27,24 @@
 #ifndef _GFXVERTEXBUFFER_H_
 #include "gfx/gfxVertexBuffer.h"
 #endif
-#ifndef GL_GGL_H
-#include "gfx/gl/ggl/ggl.h"
+#ifndef T_GL_H
+#include "gfx/gl/tGL/tGL.h"
 #endif
+#ifndef _GFXGLBUFFERSTORAGE_H_
+#include "gfx/gl/gfxGLBufferStorage.h"
+#endif
+
+
+class GFXGLVAO;
 
 /// This is a vertex buffer which uses GL_ARB_vertex_buffer_object.
 class GFXGLVertexBuffer : public GFXVertexBuffer 
 {
+   friend class GFXLVAO;
+   
 public:
+   GFXGLVertexBuffer() : GFXVertexBuffer(NULL, 0, NULL, 0, GFXBufferTypeDynamic), mClearAtFrameEnd(false) {;}
+
 	GFXGLVertexBuffer(   GFXDevice *device, 
                         U32 numVerts, 
                         const GFXVertexFormat *vertexFormat, 
@@ -42,23 +53,31 @@ public:
 
 	~GFXGLVertexBuffer();
 
-	virtual void lock(U32 vertexStart, U32 vertexEnd, void **vertexPtr); ///< calls glMapBuffer and offsets the pointer by vertex start
-	virtual void unlock(); ///< calls glUnmapBuffer, unbinds the buffer
-	virtual void prepare(); ///< Binds the buffer
-   virtual void finish(); ///< We're done here
-
-	GLvoid* getBuffer(); ///< returns NULL
+	virtual void lock(U32 vertexStart, U32 vertexEnd, void **vertexPtr);
+	virtual void unlock();
+	virtual void prepare();
+   virtual void finish();
 
    // GFXResource interface
    virtual void zombify();
    virtual void resurrect();
+
+   virtual void onFenceMarked(U32 fenceId);
+   virtual void onFenceDone(U32 fenceId);
+   virtual U32 getStorageVertsFree();
+
+   static GFXGLVertexBuffer* createBuffer(GFXDevice *device);
+
+   inline GLuint getHandle() const { return mStorage->getHandle(); }
+
+   void dispose();
+   bool mClearAtFrameEnd;
    
-private:
+protected:
    friend class GFXGLDevice;
-	/// GL buffer handle
-	GLuint mBuffer;
    
-   U8* mZombieCache;
+   StrongRefPtr<GFXGLVAO> mVAO;
+   StrongRefPtr<GFXGLBufferStorage> mStorage;
 };
 
 #endif

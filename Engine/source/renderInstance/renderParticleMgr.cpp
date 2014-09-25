@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -639,9 +640,6 @@ GFXStateBlockRef RenderParticleMgr::_getOffscreenStateBlock(ParticleRenderInst *
 
    // Diffuse texture sampler
    d.samplers[0] = GFXSamplerStateDesc::getClampLinear();
-   d.samplers[0].alphaOp = GFXTOPModulate;
-   d.samplers[0].alphaArg1 = GFXTATexture;
-   d.samplers[0].alphaArg2 = GFXTADiffuse;
 
    // Prepass sampler
    d.samplers[1] = GFXSamplerStateDesc::getClampPoint();
@@ -672,9 +670,6 @@ GFXStateBlockRef RenderParticleMgr::_getHighResStateBlock(ParticleRenderInst *ri
 
    // Diffuse texture sampler
    d.samplers[0] = GFXSamplerStateDesc::getClampLinear();
-   d.samplers[0].alphaOp = GFXTOPModulate;
-   d.samplers[0].alphaArg1 = GFXTATexture;
-   d.samplers[0].alphaArg2 = GFXTADiffuse;
 
    // Prepass sampler
    d.samplers[1] = GFXSamplerStateDesc::getClampPoint();
@@ -744,9 +739,6 @@ GFXStateBlockRef RenderParticleMgr::_getMixedResStateBlock(ParticleRenderInst *r
 
    // Diffuse texture sampler
    d.samplers[0] = GFXSamplerStateDesc::getClampLinear();
-   d.samplers[0].alphaOp = GFXTOPModulate;
-   d.samplers[0].alphaArg1 = GFXTATexture;
-   d.samplers[0].alphaArg2 = GFXTADiffuse;
 
    // Prepass sampler
    d.samplers[1] = GFXSamplerStateDesc::getClampPoint();

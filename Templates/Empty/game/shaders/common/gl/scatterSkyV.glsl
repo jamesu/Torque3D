@@ -25,20 +25,20 @@
 // The scale equation calculated by Vernier's Graphical Analysis
 float vernierScale(float fCos)
 {
-	float x = 1.0 - fCos;
-	float x5 = x * 5.25;
-	float x5p6 = (-6.80 + x5);
-	float xnew = (3.83 + x * x5p6);
-	float xfinal = (0.459 + x * xnew);
-	float xfinal2 = -0.00287 + x * xfinal;
-	float outx = exp( xfinal2 ); 
-	return 0.25 * outx;
+   float x = 1.0 - fCos;
+   float x5 = x * 5.25;
+   float x5p6 = (-6.80 + x5);
+   float xnew = (3.83 + x * x5p6);
+   float xfinal = (0.459 + x * xnew);
+   float xfinal2 = -0.00287 + x * xfinal;
+   float outx = exp( xfinal2 ); 
+   return 0.25 * outx;
 }
 
-in vec4 vPosition;
-in vec3 vNormal;
-in vec4 vColor;
-in vec2 vTexCoord0;
+attribute vec4 vPosition;
+attribute vec3 vNormal;
+attribute vec4 vColor;
+attribute vec2 vTexCoord0;
 
 // This is the shader input vertex structure.
 #define IN_position vPosition
@@ -46,18 +46,16 @@ in vec2 vTexCoord0;
 #define IN_color vColor
 
 // This is the shader output data.
-out vec4  rayleighColor;
+varying vec4  rayleighColor;
 #define OUT_rayleighColor rayleighColor
-out vec4  mieColor;
+varying vec4  mieColor;
 #define OUT_mieColor mieColor
-out vec3  v3Direction;
+varying vec3  v3Direction;
 #define OUT_v3Direction v3Direction
-out float zPosition;
-#define OUT_zPosition zPosition
-out vec3  pos;
+varying vec3  pos;
 #define OUT_pos pos
  
-uniform mat4 modelView;
+uniform mat4 modelview;
 uniform vec4 misc;
 uniform vec4 sphereRadii;
 uniform vec4 scatteringCoeffs;
@@ -138,7 +136,7 @@ void main()
    
    // Finally, scale the Mie and Rayleigh colors 
    // and set up the varying variables for the pixel shader.
-   gl_Position = modelView * IN_position;
+   gl_Position = modelview * IN_position;
    OUT_mieColor.rgb = v3FrontColor * mieBrightness;
    OUT_mieColor.a = 1.0;
    OUT_rayleighColor.rgb = v3FrontColor * (invWaveLength.xyz * rayleighBrightness);
@@ -154,8 +152,6 @@ void main()
    OUT_rayleighColor.g *= colorize.g;  
    OUT_rayleighColor.b *= colorize.b;  
      
-#endif 
-   
-   correctSSP(gl_Position);
+#endif
 }
 

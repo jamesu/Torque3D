@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -73,12 +74,16 @@ struct GFXLockedRect
 class GFXTextureObject : public StrongRefBase, public GFXResource
 {
 public:
+  friend class GFXTextureManager;
+  friend class GFXTextureProfile;
+
 
    #ifdef TORQUE_DEBUG
       // In debug builds we provide a TOC leak tracking system.
       static U32 smActiveTOCount;
       static GFXTextureObject *smHead;
       static U32 dumpActiveTOs();
+      static U32 dumpTextureSizes();
 
       String            mDebugCreationPath;
       String            mDebugDescription;   
@@ -89,7 +94,8 @@ public:
    /// The path to the texture file if the
    /// content was loaded from a resource.
    String mPath;
-
+   
+protected:
    bool mDead;
 
    /// The device this texture belongs to.
@@ -115,6 +121,7 @@ public:
    /// texture were removed.
    U32 mDeleteTime;
 
+public:
    Point3I  mBitmapSize;
    Point3I  mTextureSize;
    U32      mMipLevels;
@@ -129,17 +136,19 @@ public:
    // object, or data buffer. Something more generic. -patw
    GBitmap           *mBitmap;   ///< GBitmap we are backed by.
    DDSFile           *mDDS;      ///< DDSFile we're backed by.
-      
-   U32 getFormatByteSize() const { return GFXFormat_getByteSize( mFormat ); }
 
    GFXTextureProfile *mProfile;
    GFXFormat          mFormat;
-
+      
+public:
+   U32 getFormatByteSize() const { return GFXFormat_getByteSize( mFormat ); }
 
    GFXTextureObject(GFXDevice * aDevice, GFXTextureProfile *profile);
    virtual ~GFXTextureObject();
 
-   GBitmap *getBitmap();
+   void setBitmap(GBitmap* bitmap);
+
+   GBitmap *getBitmap() const;
    DDSFile *getDDS();
    U32 getWidth() const { return mTextureSize.x; }
    U32 getHeight() const { return mTextureSize.y; }
@@ -150,6 +159,13 @@ public:
    U32 getBitmapHeight() const { return mBitmapSize.y; }
    U32 getBitmapDepth() const { return mBitmapSize.z; }
    GFXFormat getFormat() const { return mFormat; }
+   S32 getAntialiasLevel() const { return mAntialiasLevel; }
+
+   bool hasTransparency() const { return mHasTransparency; }
+
+   const String& getTextureLookupName() const { return mTextureLookupName; }
+
+   GFXTextureProfile* getProfile() const { return mProfile; }
 
    /// Returns true if this texture is a render target.
    bool isRenderTarget() const { return mProfile->isRenderTarget(); }
@@ -208,11 +224,16 @@ public:
 
 //-----------------------------------------------------------------------------
 
-inline GBitmap *GFXTextureObject::getBitmap()
+inline GBitmap *GFXTextureObject::getBitmap() const
 {
    AssertFatal( mProfile->doStoreBitmap(), avar("GFXTextureObject::getBitmap - Cannot access bitmap for a '%s' texture.", mProfile->getName().c_str()) );
 
    return mBitmap;
+}
+
+inline void GFXTextureObject::setBitmap(GBitmap* bitmap)
+{
+  mBitmap = bitmap;
 }
 
 inline DDSFile *GFXTextureObject::getDDS()
@@ -221,5 +242,23 @@ inline DDSFile *GFXTextureObject::getDDS()
 
    return mDDS;
 }
+
+#include <string.h>
+
+void GFX_getTextureMetrics(GFXFormat pixelFormat, U32 width, U32 height, U32 *numRows, U32 *rowSize);
+
+inline void GFX_copyTextureData(U32 rowSize, U32 numRows, U32 srcPitch, U32 destPitch, void *src, void *dest)
+{
+  for (U32 y = 0; y < numRows; ++y)
+  {
+	  const U8* sourceTexelRow = ((U8*)src + srcPitch * y);
+	  U8* destTexelRow = ((U8*)dest + destPitch * y);
+
+	  memcpy(destTexelRow, sourceTexelRow, rowSize);
+  }
+}
+
+// martinJ - Makes a copy of the texture object
+GFXTextureObject* GFX_copyTexture(GFXTextureObject* source);
 
 #endif // _GFXTEXTUREOBJECT_H_

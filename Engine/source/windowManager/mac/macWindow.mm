@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -56,7 +57,6 @@ MacWindow::MacWindow(U32 windowId, const char* windowText, Point2I clientExtent)
    mCursorController = new MacCursorController( this );
    mOwningWindowManager = NULL;
    
-   mFullscreen = false;
    mShouldFullscreen = false;
    mDefaultDisplayMode = NULL;
    
@@ -75,9 +75,6 @@ MacWindow::MacWindow(U32 windowId, const char* windowText, Point2I clientExtent)
 
 MacWindow::~MacWindow()
 {
-   if(mFullscreen)
-      _setFullscreen(false);
-
    appEvent.remove(this, &MacWindow::_onAppEvent);
 
    //ensure our view isn't the delegate
@@ -119,7 +116,7 @@ void MacWindow::hideBrowserWindow(bool hide)
       {
          if (sSafariWindowInfo && sSafariWindowInfo->safariWindow)
             [sSafariWindowInfo->safariWindow removeChildWindow: sInstance->mCocoaWindow];
-         
+   
          sInstance->hide();
       }
       else
@@ -186,63 +183,59 @@ void MacWindow::setSafariWindow(NSWindow *window, S32 x, S32 y, S32 width, S32 h
    }
    
 }
-   
+
 void MacWindow::_initCocoaWindow(const char* windowText, Point2I clientExtent)
 {
-   // TODO: cascade windows on screen?
-   
    // create the window
    NSRect contentRect;
    U32 style;
    
    if (sSafariWindowInfo)
    {
-     
+      
       NSRect frame = [sSafariWindowInfo->safariWindow frame];
-            
+      
       NSPoint o = { (float)sSafariWindowInfo->x,  frame.size.height -  sSafariWindowInfo->y  };
       
       NSPoint p = [sSafariWindowInfo->safariWindow convertBaseToScreen: o];
-             
+      
       contentRect = NSMakeRect(0, 0, sSafariWindowInfo->width,sSafariWindowInfo->height);
       
-      style = NSBorderlessWindowMask; 
-            
+      style = NSBorderlessWindowMask;
+      
       mCocoaWindow = [[SafariBrowserWindow alloc] initWithContentRect:contentRect styleMask:style backing:NSBackingStoreBuffered defer:YES screen:nil];
       
       [mCocoaWindow setFrameTopLeftPoint: p];
       
-      [sSafariWindowInfo->safariWindow addChildWindow: mCocoaWindow ordered:NSWindowAbove];      
+      [sSafariWindowInfo->safariWindow addChildWindow: mCocoaWindow ordered:NSWindowAbove];
       
-       // necessary to accept mouseMoved events
+      // necessary to accept mouseMoved events
       [mCocoaWindow setAcceptsMouseMovedEvents:YES];
    }
    else
    {
-   
+      
       contentRect = NSMakeRect(0,0,clientExtent.x, clientExtent.y);
       
       style = NSTitledWindowMask | NSClosableWindowMask | NSMiniaturizableWindowMask | NSResizableWindowMask;
-   
+      
       mCocoaWindow = [[NSWindow alloc] initWithContentRect:contentRect styleMask:style backing:NSBackingStoreBuffered defer:YES screen:nil];
       if(windowText)
-         [mCocoaWindow setTitle: [NSString stringWithUTF8String: windowText]];   
-
+         [mCocoaWindow setTitle: [NSString stringWithUTF8String: windowText]];
+      
       // necessary to accept mouseMoved events
       [mCocoaWindow setAcceptsMouseMovedEvents:YES];
       
       // correctly position the window on screen
       [mCocoaWindow center];
-
+      
+      // create the opengl view. we don't care about its pixel format, because we
+      // will be replacing its context with another one.
+      GGMacView* view = [[GGMacView alloc] initWithFrame:contentRect pixelFormat:[NSOpenGLView defaultPixelFormat]];
+      [view setTorqueWindow:this];
+      [mCocoaWindow setContentView:view];
+      [mCocoaWindow setDelegate:static_cast<id<NSWindowDelegate> >(view)];
    }
-   
-   // create the opengl view. we don't care about its pixel format, because we
-   // will be replacing its context with another one.
-   GGMacView* view = [[GGMacView alloc] initWithFrame:contentRect pixelFormat:[NSOpenGLView defaultPixelFormat]];
-   [view setTorqueWindow:this];
-   [mCocoaWindow setContentView:view];
-   [mCocoaWindow setDelegate:view];
-   
 }
 
 void MacWindow::_disassociateCocoaWindow()
@@ -261,13 +254,52 @@ void MacWindow::_disassociateCocoaWindow()
 
 void MacWindow::setVideoMode(const GFXVideoMode &mode)
 {
+   if (mCurrentMode == mode)
+      return;
+   
    mCurrentMode = mode;
-   setSize(mCurrentMode.resolution);
+   
+   if(mCurrentMode.fullScreen)
+   {
+      [mCocoaWindow setLevel:NSMainMenuWindowLevel+1];
+      
+      [mCocoaWindow setOpaque:YES];
+      [mCocoaWindow setHidesOnDeactivate:YES];
+      
+      [mCocoaWindow makeKeyAndOrderFront:mCocoaWindow];
+      [mCocoaWindow setStyleMask:NSBorderlessWindowMask];
+      
+      CGRect bounds = CGDisplayBounds(mDisplay);
+      setBounds(RectI(bounds.origin.x, bounds.origin.y, bounds.size.width, bounds.size.height));
+      
+      // Set backing size
+      GLint dim[2];
+      dim[0] = mCurrentMode.resolution.x;
+      dim[1] = mCurrentMode.resolution.y;
+      
+      CGLContextObj ctx = CGLGetCurrentContext();
+      CGLSetParameter(ctx, kCGLCPSurfaceBackingSize, dim);
+      CGLEnable(ctx, kCGLCESurfaceBackingSize);
+   }
+   else
+   {
+      [mCocoaWindow setLevel:NSNormalWindowLevel];
+      
+      [mCocoaWindow setOpaque:NO];
+      [mCocoaWindow setHidesOnDeactivate:NO];
+      
+      [mCocoaWindow setStyleMask:NSTitledWindowMask | NSClosableWindowMask | NSMiniaturizableWindowMask | NSResizableWindowMask];
+      mDefaultDisplayMode = NULL;
+      
+      setSize(mCurrentMode.resolution);
+      
+      // Clear backing size
+      CGLContextObj ctx = CGLGetCurrentContext();
+      CGLDisable(ctx, kCGLCESurfaceBackingSize);
+   }
    
    if(mTarget.isValid())
       mTarget->resetMode();
-
-   _setFullscreen(mCurrentMode.fullScreen);
 }
 
 void MacWindow::_onAppEvent(WindowId, S32 evt)
@@ -291,34 +323,7 @@ void MacWindow::_onAppEvent(WindowId, S32 evt)
 
 void MacWindow::_setFullscreen(bool fullScreen)
 {
-   if(mFullscreen == fullScreen)
-      return;
-   
-   mFullscreen = fullScreen;
-   
-   if(mFullscreen)
-   {
-      Con::printf("Capturing display %x", mDisplay);
-      CGDisplayCapture(mDisplay);
-      [mCocoaWindow setAlphaValue:0.0f];
-   }
-   else
-   {
-      if(mDefaultDisplayMode)
-      {
-         Con::printf("Restoring default display mode... width: %i height: %i bpp: %i", [[mDefaultDisplayMode valueForKey:@"Width"] intValue], 
-               [[mDefaultDisplayMode valueForKey:@"Height"] intValue], [[mDefaultDisplayMode valueForKey:@"BitsPerPixel"] intValue]);
-         CGDisplaySwitchToMode(mDisplay, (CFDictionaryRef)mDefaultDisplayMode);
-         mDisplayBounds = CGDisplayBounds(mDisplay);
-         if(mDisplay == kCGDirectMainDisplay)
-            mMainDisplayBounds = mDisplayBounds;
-      }
-      
-      Con::printf("Releasing display %x", mDisplay);
-      CGDisplayRelease(mDisplay);
-      [mCocoaWindow setAlphaValue:1.0f];
-      mDefaultDisplayMode = NULL;
-   }
+   // NOP
 }
 
 void* MacWindow::getPlatformDrawable() const
@@ -366,8 +371,8 @@ bool MacWindow::setSize(const Point2I &newSize)
 {
    if (sSafariWindowInfo)
       return true;
-      
-   NSSize newExtent = {newSize.x, newSize.y};
+
+   NSSize newExtent = {(CGFloat)newSize.x, (CGFloat)newSize.y};
    [mCocoaWindow setContentSize:newExtent];
    [mCocoaWindow center];
    return true;
@@ -375,31 +380,19 @@ bool MacWindow::setSize(const Point2I &newSize)
 
 void MacWindow::setClientExtent( const Point2I newExtent )
 {
-   if(!mFullscreen)
-   {
-      // Set the Client Area Extent (Resolution) of this window
-      NSSize newSize = {newExtent.x, newExtent.y};
-      [mCocoaWindow setContentSize:newSize];
-   }
-   else
-   {
-      // In fullscreen we have to resize the monitor (it'll be good to change it back too...)
-      if(!mDefaultDisplayMode)
-         mDefaultDisplayMode = (NSDictionary*)CGDisplayCurrentMode(mDisplay);
-      
-      NSDictionary* newMode = (NSDictionary*)CGDisplayBestModeForParameters(mDisplay, 32, newExtent.x, newExtent.y, NULL);
-      Con::printf("Switching to new display mode... width: %i height: %i bpp: %i", 
-                  [[newMode valueForKey:@"Width"] intValue], [[newMode valueForKey:@"Height"] intValue], [[newMode valueForKey:@"BitsPerPixel"] intValue]); 
-      CGDisplaySwitchToMode(mDisplay, (CFDictionaryRef)newMode);
-      mDisplayBounds = CGDisplayBounds(mDisplay);
-      if(mDisplay == kCGDirectMainDisplay)
-         mMainDisplayBounds = mDisplayBounds;
-   }
+   // Set the Client Area Extent (Resolution) of this window
+   NSSize newSize = {(CGFloat)newExtent.x, (CGFloat)newExtent.y};
+   [mCocoaWindow setContentSize:newSize];
+}
+
+const Point2I MacWindow::getRealClientExtent()
+{
+   return getClientExtent();
 }
 
 const Point2I MacWindow::getClientExtent()
 {
-   if(!mFullscreen)
+   if(!mCurrentMode.fullScreen)
    {
       // Get the Client Area Extent (Resolution) of this window
       NSSize size = [[mCocoaWindow contentView] frame].size;
@@ -407,7 +400,7 @@ const Point2I MacWindow::getClientExtent()
    }
    else
    {
-      return Point2I(mDisplayBounds.size.width, mDisplayBounds.size.height);
+      return Point2I(mCurrentMode.resolution.x, mCurrentMode.resolution.y);
    }
 }
 
@@ -419,7 +412,7 @@ void MacWindow::setBounds( const RectI &newBounds )
 
 const RectI MacWindow::getBounds() const
 {
-   if(!mFullscreen)
+   if(!mCurrentMode.fullScreen)
    {
       // Get the position and size (fullscreen windows are always at (0,0)).
       NSRect frame = [mCocoaWindow frame];
@@ -427,7 +420,7 @@ const RectI MacWindow::getBounds() const
    }
    else
    {
-      return RectI(0, 0, mDisplayBounds.size.width, mDisplayBounds.size.height);
+      return RectI(Point2I(0, 0), Point2I(mCurrentMode.resolution.x, mCurrentMode.resolution.y));
    }
 }
 
@@ -436,7 +429,7 @@ void MacWindow::setPosition( const Point2I newPosition )
    NSScreen *screen = [mCocoaWindow screen];
    NSRect screenFrame = [screen frame];
 
-   NSPoint pos = {newPosition.x, newPosition.y + screenFrame.size.height};
+   NSPoint pos = {(CGFloat)newPosition.x, (CGFloat)(newPosition.y + screenFrame.size.height)};
    [mCocoaWindow setFrameTopLeftPoint: pos];
 }
 
@@ -456,17 +449,31 @@ void MacWindow::centerWindow()
 
 Point2I MacWindow::clientToScreen( const Point2I& pos )
 {
-   NSPoint p = { pos.x, pos.y };
+   NSPoint p = { (CGFloat)pos.x, (CGFloat)pos.y };
    
    p = [ mCocoaWindow convertBaseToScreen: p ];
+   
+   if (mCurrentMode.fullScreen)
+   {
+      p.x *= mDisplayBounds.size.width / (F32)mCurrentMode.resolution.x;
+      p.y *= mDisplayBounds.size.height / (F32)mCurrentMode.resolution.y;
+   }
+   
    return Point2I( p.x, p.y );
 }
 
 Point2I MacWindow::screenToClient( const Point2I& pos )
 {
-   NSPoint p = { pos.x, pos.y };
+   NSPoint p = { (CGFloat)pos.x, (CGFloat)pos.y };
    
    p = [ mCocoaWindow convertScreenToBase: p ];
+   
+   if (mCurrentMode.fullScreen)
+   {
+      p.x *= (F32)mCurrentMode.resolution.x / mDisplayBounds.size.width;
+      p.y *= (F32)mCurrentMode.resolution.y / mDisplayBounds.size.height;
+   }
+   
    return Point2I( p.x, p.y );
 }
 

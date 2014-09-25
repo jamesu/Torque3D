@@ -19,13 +19,12 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 //-----------------------------------------------------------------------------
-
-
-#if defined( SOFTSHADOW ) && defined( SOFTSHADOW_HIGH_QUALITY )
-
-#define NUM_PRE_TAPS 4
-#define NUM_TAPS 12
-
+ 
+ 
+#define NUM_TAPS 12 
+ 
+#define NUM_PRE_TAPS 4 
+ 
 /// The non-uniform poisson disk used in the
 /// high quality shadow filtering.
 vec2 sNonUniformTaps[NUM_TAPS] = vec2[]
@@ -49,27 +48,9 @@ vec2 sNonUniformTaps[NUM_TAPS] = vec2[]
    vec2( 0.649526, 0.864333 )
 );
 
-#else
-
-#define NUM_PRE_TAPS 5
-
-/// The non-uniform poisson disk used in the
-/// high quality shadow filtering.
-vec2 sNonUniformTaps[NUM_PRE_TAPS] = vec2[]
-(      
-   vec2( 0.892833, 0.959309 ),
-   vec2( -0.941358, -0.873924 ),
-   vec2( -0.260183, 0.334412 ),
-   vec2( 0.348676, -0.679605 ),
-   vec2( -0.569502, -0.390637 )
-);
-
-#endif
-
-
 /// The texture used to do per-pixel pseudorandom
 /// rotations of the filter taps.
-uniform sampler2D gTapRotationTex ;
+uniform sampler2D gTapRotationTex;
 
 
 float softShadow_sampleTaps(  sampler2D shadowMap,
@@ -81,9 +62,9 @@ float softShadow_sampleTaps(  sampler2D shadowMap,
                               int startTap,
                               int endTap )
 {
-   float shadow = 0;
+   float shadow = 0.0;
 
-   vec2 tap = vec2(0);
+   vec2 tap = vec2(0.0);
    for ( int t = startTap; t < endTap; t++ )
    {
       tap.x = ( sNonUniformTaps[t].x * sinCos.y - sNonUniformTaps[t].y * sinCos.x ) * filterRadius;
@@ -95,12 +76,12 @@ float softShadow_sampleTaps(  sampler2D shadowMap,
    }
 
    return shadow;
-}
-
-
+} 
+ 
+ 
 float softShadow_filter(   sampler2D shadowMap,
-                           vec2 vpos,
-                           vec2 shadowPos,
+                           float2 vpos,
+                           float2 shadowPos,
                            float filterRadius,
                            float distToLight,
                            float dotNL,
@@ -135,7 +116,7 @@ float softShadow_filter(   sampler2D shadowMap,
 
          // Only do the expensive filtering if we're really
          // in a partially shadowed area.
-         if ( shadow * ( 1.0 - shadow ) * max( dotNL, 0 ) > 0.06 )
+         if ( shadow * ( 1.0 - shadow ) * max( dotNL, 0.0 ) > 0.06 )
          {
             shadow += softShadow_sampleTaps( shadowMap,
                                              sinCos,

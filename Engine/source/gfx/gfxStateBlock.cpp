@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -19,6 +20,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 //-----------------------------------------------------------------------------
+
 #include "gfx/gfxStateBlock.h"
 #include "core/crc.h"
 #include "gfx/gfxDevice.h"
@@ -88,15 +90,11 @@ GFXStateBlockDesc::GFXStateBlockDesc()
    stencilMask = 0xFFFFFFFF;
    stencilWriteMask = 0xFFFFFFFF;
 
-   // FF lighting
-   ffLighting = false;
-
    vertexColorEnable = false;
 
    fillMode = GFXFillSolid;
 
    samplersDefined = false;
-   textureFactor.set( 255, 255, 255, 255 );
 }
 
 // This method just needs to return a unique value based on its contents.
@@ -187,7 +185,6 @@ void GFXStateBlockDesc::addDesc(const GFXStateBlockDesc& desc)
       {
          samplers[i] = desc.samplers[i];
       }
-      textureFactor = desc.textureFactor;
    }
 
    vertexColorEnable = desc.vertexColorEnable;
@@ -214,8 +211,8 @@ const String GFXStateBlockDesc::describeSelf() const
    ret += String::ToString("  Stencil: %d, StencilFailOp: %s, StencilZFailOp: %s, StencilPassOp: %s, \n  stencilFunc: %s, stencilRef: %d, stencilMask: 0x%x, stencilWriteMask: 0x%x\n",
       stencilEnable, GFXStringCmpFunc[stencilFailOp], GFXStringCmpFunc[stencilZFailOp], GFXStringCmpFunc[stencilPassOp], 
       GFXStringCmpFunc[stencilFunc], stencilRef, stencilMask, stencilWriteMask);
-   ret += String::ToString("  FF Lighting: %d, VertexColors: %d, fillMode: %s",
-      ffLighting, vertexColorEnable, GFXStringFillMode[fillMode]);
+   ret += String::ToString("  VertexColors: %d, fillMode: %s",
+      vertexColorEnable, GFXStringFillMode[fillMode]);
 
    return ret;
 }
@@ -274,7 +271,6 @@ void GFXStateBlockDesc::setColorWrites( bool red, bool green, bool blue, bool al
 
 GFXSamplerStateDesc::GFXSamplerStateDesc()
 {
-   textureColorOp = GFXTOPDisable;
    addressModeU = GFXAddressWrap;
    addressModeV = GFXAddressWrap;
    addressModeW = GFXAddressWrap;
@@ -282,15 +278,6 @@ GFXSamplerStateDesc::GFXSamplerStateDesc()
    minFilter = GFXTextureFilterLinear;
    mipFilter = GFXTextureFilterLinear;
    maxAnisotropy = 1;
-   alphaArg1 = GFXTATexture;
-   alphaArg2 = GFXTADiffuse;
-   alphaArg3 = GFXTACurrent;
-   colorArg1 = GFXTACurrent;
-   colorArg2 = GFXTATexture;
-   colorArg3 = GFXTACurrent;
-   alphaOp = GFXTOPModulate;
-   textureTransform = GFXTTFFDisable;
-   resultArg = GFXTACurrent;
    mipLODBias = 0.0f;
 }
 
@@ -298,14 +285,12 @@ GFXSamplerStateDesc GFXSamplerStateDesc::getWrapLinear()
 {
    // Linear with wrapping is already the default
    GFXSamplerStateDesc ssd;
-   ssd.textureColorOp = GFXTOPModulate;
    return ssd;
 }
 
 GFXSamplerStateDesc GFXSamplerStateDesc::getWrapPoint()
 {
    GFXSamplerStateDesc ssd;
-   ssd.textureColorOp = GFXTOPModulate;
    ssd.magFilter = GFXTextureFilterPoint;
    ssd.minFilter = GFXTextureFilterPoint;
    ssd.mipFilter = GFXTextureFilterPoint;
@@ -315,7 +300,6 @@ GFXSamplerStateDesc GFXSamplerStateDesc::getWrapPoint()
 GFXSamplerStateDesc GFXSamplerStateDesc::getClampLinear()
 {
    GFXSamplerStateDesc ssd;
-   ssd.textureColorOp = GFXTOPModulate;
    ssd.addressModeU = GFXAddressClamp;
    ssd.addressModeV = GFXAddressClamp;
    ssd.addressModeW = GFXAddressClamp;
@@ -325,7 +309,6 @@ GFXSamplerStateDesc GFXSamplerStateDesc::getClampLinear()
 GFXSamplerStateDesc GFXSamplerStateDesc::getClampPoint()
 {
    GFXSamplerStateDesc ssd;
-   ssd.textureColorOp = GFXTOPModulate;
    ssd.addressModeU = GFXAddressClamp;
    ssd.addressModeV = GFXAddressClamp;
    ssd.addressModeW = GFXAddressClamp;

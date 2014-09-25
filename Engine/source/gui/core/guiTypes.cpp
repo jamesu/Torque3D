@@ -63,13 +63,13 @@ GFX_ImplementTextureProfile(GFXGuiCursorProfile,
                             GFXTextureProfile::DiffuseMap, 
                             GFXTextureProfile::PreserveSize |
                             GFXTextureProfile::Static, 
-                            GFXTextureProfile::NONE);
+                            GFXTextureProfile::None);
 GFX_ImplementTextureProfile(GFXDefaultGUIProfile,
                             GFXTextureProfile::DiffuseMap, 
                             GFXTextureProfile::PreserveSize |
                             GFXTextureProfile::Static |
                             GFXTextureProfile::NoPadding, 
-                            GFXTextureProfile::NONE);
+                            GFXTextureProfile::None);
 
 
 GuiCursor::GuiCursor()

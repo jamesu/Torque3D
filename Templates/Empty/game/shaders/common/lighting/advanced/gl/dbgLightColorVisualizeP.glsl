@@ -20,16 +20,16 @@
 // IN THE SOFTWARE.
 //-----------------------------------------------------------------------------
 
-#include "../../../gl/hlslCompat.glsl"
 #include "shadergen:/autogenConditioners.h"
 
-in vec2 uv0;
+varying vec2 uv0;
 uniform sampler2D lightInfoBuffer;
 
 void main()
 {   
-   vec3 lightcolor;   
+   vec3 lightcolor;
    float nl_Att, specular;   
-   lightinfoUncondition( texture( lightInfoBuffer, uv0 ), lightcolor, nl_Att, specular );   
-   OUT_FragColor0 = vec4( lightcolor, 1.0 ); 
+   lightinfoUncondition( texture2D( lightInfoBuffer, uv0 ), lightcolor, nl_Att, specular );
+   gl_FragColor = vec4( lightcolor, 1.0 );
+   //gl_FragColor = vec4( 1.0, 1.0, 1.0, 1.0 );
 }

@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -71,6 +72,7 @@ public:
 
    virtual bool init( const FeatureSet &features, const GFXVertexFormat *vertexFormat );
    virtual bool setupPass( SceneRenderState *state, const SceneData &sgData );
+   virtual bool hasPass(SceneRenderState * state, const SceneData &sgData, U32 passNumber );
 };
 
 

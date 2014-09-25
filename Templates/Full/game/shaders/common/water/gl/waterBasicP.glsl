@@ -57,29 +57,29 @@
 //-----------------------------------------------------------------------------
 
 // TexCoord 0 and 1 (xy,zw) for ripple texture lookup
-in vec4 rippleTexCoord01;
+varying vec4 rippleTexCoord01;
 #define IN_rippleTexCoord01 rippleTexCoord01
 
 // TexCoord 2 for ripple texture lookup
-in vec2 rippleTexCoord2;
+varying vec2 rippleTexCoord2;
 #define IN_rippleTexCoord2 rippleTexCoord2
 
 // Screenspace vert position BEFORE wave transformation
-in vec4 posPreWave;
+varying vec4 posPreWave;
 #define IN_posPreWave posPreWave
 
 // Screenspace vert position AFTER wave transformation
-in vec4 posPostWave;
+varying vec4 posPostWave;
 #define IN_posPostWave posPostWave 
 
 // Worldspace unit distance/depth of this vertex/pixel
-in float  pixelDist;
+varying float  pixelDist;
 #define IN_pixelDist pixelDist
 
-in vec4 objPos;
+varying vec4 objPos;
 #define IN_objPos objPos
 
-in vec3 misc;
+varying vec3 misc;
 #define IN_misc misc
 
 //-----------------------------------------------------------------------------
@@ -120,9 +120,9 @@ void main()
    vec4 waterBaseColor = baseColor * vec4( ambientColor.rgb, 1 );
    
    // Get the bumpNorm...
-   vec3 bumpNorm = ( texture( bumpMap, IN_rippleTexCoord01.xy ).rgb * 2.0 - 1.0 ) * rippleMagnitude.x;
-   bumpNorm       += ( texture( bumpMap, IN_rippleTexCoord01.zw ).rgb * 2.0 - 1.0 ) * rippleMagnitude.y;      
-   bumpNorm       += ( texture( bumpMap, IN_rippleTexCoord2 ).rgb * 2.0 - 1.0 ) * rippleMagnitude.z;  
+   vec3 bumpNorm = ( texture2D( bumpMap, IN_rippleTexCoord01.xy ).rgb * 2.0 - 1.0 ) * rippleMagnitude.x;
+   bumpNorm       += ( texture2D( bumpMap, IN_rippleTexCoord01.zw ).rgb * 2.0 - 1.0 ) * rippleMagnitude.y;      
+   bumpNorm       += ( texture2D( bumpMap, IN_rippleTexCoord2 ).rgb * 2.0 - 1.0 ) * rippleMagnitude.z;  
    
    bumpNorm = normalize( bumpNorm );
    bumpNorm = mix( bumpNorm, vec3(0,0,1), 1.0 - rippleMagnitude.w );
@@ -136,11 +136,11 @@ void main()
    distortPos.xy += bumpNorm.xy * distortAmt;   
  
  #ifdef UNDERWATER
-   OUT_FragColor0 = hdrEncode( textureProj( refractBuff, distortPos ) );   
+   gl_FragColor = hdrEncode( texture2DProj( refractBuff, distortPos ) );   
  #else
 
    vec3 eyeVec = IN_objPos.xyz - eyePos;
-   eyeVec = tMul( mat3(modelMat), eyeVec );
+   eyeVec = mul( mat3(modelMat), eyeVec );
    vec3 reflectionVec = reflect( eyeVec, bumpNorm ); 
 
    // Color that replaces the reflection color when we do not
@@ -154,23 +154,23 @@ void main()
    float fakeColorAmt = ang;   
       
     // Get reflection map color
-   vec4 refMapColor = hdrDecode( textureProj( reflectMap, distortPos ) ); 
+   vec4 refMapColor = hdrDecode( texture2DProj( reflectMap, distortPos ) ); 
    // If we do not have a reflection texture then we use the cubemap.
-   refMapColor = mix( refMapColor, texture( skyMap, reflectionVec ), NO_REFLECT );      
+   refMapColor = mix( refMapColor, textureCube( skyMap, reflectionVec ), NO_REFLECT );      
    
    // Combine reflection color and fakeColor.
    vec4 reflectColor = mix( refMapColor, fakeColor, fakeColorAmt );
    //return refMapColor;
    
    // Get refract color
-   vec4 refractColor = hdrDecode( textureProj( refractBuff, distortPos ) );   
+   vec4 refractColor = hdrDecode( texture2DProj( refractBuff, distortPos ) );   
    
    // calc "diffuse" color by lerping from the water color
    // to refraction image based on the water clarity.
    vec4 diffuseColor = mix( refractColor, waterBaseColor, 1.0f - CLARITY );   
    
    // fresnel calculation 
-   float fresnelTerm = fresnel( ang, FRESNEL_BIAS, FRESNEL_POWER );	
+   float fresnelTerm = fresnel( ang, FRESNEL_BIAS, FRESNEL_POWER );  
    //return vec4( fresnelTerm.rrr, 1 );
    
    // Also scale the frensel by our distance to the
@@ -188,7 +188,7 @@ void main()
       vec3 newbump = bumpNorm;
       newbump.xy *= 3.5;
       newbump = normalize( bumpNorm );
-      half3 halfAng = normalize( eyeVec + -LIGHT_VEC );
+      vec3 halfAng = normalize( eyeVec + -LIGHT_VEC );
       float specular = saturate( dot( newbump, halfAng ) );
       specular = pow( specular, SPEC_POWER );   
       
@@ -208,7 +208,7 @@ void main()
 
    #endif
    
-   OUT_FragColor0 = OUT;
+   gl_FragColor = OUT;
    
 #endif   
 }

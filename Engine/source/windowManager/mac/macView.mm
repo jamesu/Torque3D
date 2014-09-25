@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -21,7 +22,6 @@
 //-----------------------------------------------------------------------------
 
 #include "windowManager/mac/macView.h"
-#include "platform/event.h"
 #include "platform/platformInput.h"
 #include "console/console.h"
 #include "sim/actionMap.h"
@@ -126,7 +126,7 @@ inline U32 NSModifiersToTorqueModifiers( NSUInteger mods )
       CGRect mainbounds = mTorqueWindow->getMainDisplayBounds();
       F32 offsetY = mainbounds.size.height - (bounds.size.height + bounds.origin.y);
       Point2I pt(mousePoint.x - bounds.origin.x, bounds.size.height + offsetY - mousePoint.y);
-      return pt;
+      return mTorqueWindow->screenToClient(pt);
    }
    return Point2I(mousePoint.x, mTorqueWindow->getClientExtent().y - mousePoint.y);
 }
@@ -373,16 +373,42 @@ inline U32 NSModifiersToTorqueModifiers( NSUInteger mods )
 
 - (void)windowDidChangeScreen:(NSNotification*)notification
 {
+   if (!mTorqueWindow)
+      return;
+   
    NSWindow* wnd = [notification object];
    // TODO: Add a category to NSScreen to deal with this
    CGDirectDisplayID disp = (CGDirectDisplayID)[[[[wnd screen] deviceDescription] valueForKey:@"NSScreenNumber"] unsignedIntValue];
    mTorqueWindow->setDisplay(disp);
+   
+   GFXWindowTarget *target = mTorqueWindow->getGFXTarget();
+   if (target)
+   {
+      target->resetMode();
+   }
+   else
+   {
+      Con::warnf("no target!");
+   }
 }
 
 - (void)windowDidResize:(NSNotification*)notification
 {
+   if (!mTorqueWindow)
+      return;
+   
    Point2I clientExtent = mTorqueWindow->getClientExtent();
    mTorqueWindow->resizeEvent.trigger(mTorqueWindow->getWindowId(), clientExtent.x, clientExtent.y);
+   
+   GFXWindowTarget *target = mTorqueWindow->getGFXTarget();
+   if (target)
+   {
+      target->resetMode();
+   }
+   else
+   {
+      Con::warnf("no target!");
+   }
 }
 
 #pragma mark -

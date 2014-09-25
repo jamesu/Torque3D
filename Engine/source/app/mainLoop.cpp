@@ -69,6 +69,9 @@
 #include "platform/platformVFS.h"
 #endif
 
+#include "lighting/basic/basicLightManager.h"
+#include "lighting/advanced/advancedLightManager.h"
+
 DITTS( F32, gTimeScale, 1.0 );
 DITTS( U32, gTimeAdvance, 0 );
 DITTS( U32, gFrameSkip, 0 );
@@ -231,6 +234,10 @@ void StandardMainLoop::init()
 
    _StringTable::create();
 
+   // jamesu - need to create the light managers here
+   ManagedSingleton< BasicLightManager >::createSingleton();
+   ManagedSingleton< AdvancedLightManager >::createSingleton();
+
    // Set up the resource manager and get some basic file types in it.
    Con::init();
    Platform::initConsole();
@@ -285,6 +292,10 @@ void StandardMainLoop::init()
 
    Con::addVariable( "_forceAllMainThread", TypeBool, &ThreadPool::getForceAllMainThread(), "Force all work items to execute on main thread. turns this into a single-threaded system. Primarily useful to find whether malfunctions are caused by parallel execution or not.\n"
 	   "@ingroup platform" );
+   
+   Con::addVariable("Platform::loadFonts", TypeBool, &GFont::smLoadFonts, "");
+   Con::addVariable("Platform::saveFonts", TypeBool, &GFont::smSaveFonts, "");
+   Con::addVariable("Platform::isDevMode", TypeBool, &Platform::sIsDevMode, "");
 
 #if defined( TORQUE_MINIDUMP ) && defined( TORQUE_RELEASE )
 	Con::addVariable("MiniDump::Dir",	TypeString, &gMiniDumpDir);
@@ -343,6 +354,10 @@ void StandardMainLoop::shutdown()
 #if defined( _XBOX ) || defined( TORQUE_OS_MAC )
    DebugOutputConsumer::destroy();
 #endif
+
+   // jamesu - need to destroy the light managers here
+   ManagedSingleton< BasicLightManager >::deleteSingleton();
+   ManagedSingleton< AdvancedLightManager >::deleteSingleton();
 
    NetStringTable::destroy();
    Con::shutdown();

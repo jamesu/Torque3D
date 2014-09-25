@@ -127,7 +127,7 @@ new ShaderData( AL_LightColorVisualizeShader )
    DXPixelShaderFile  = "shaders/common/lighting/advanced/dbgLightColorVisualizeP.hlsl";
 
    OGLVertexShaderFile = "shaders/common/postFx/postFxV.glsl";
-   OGLPixelShaderFile  = "shaders/common/lighting/advanced/dl/dbgLightColorVisualizeP.glsl";
+   OGLPixelShaderFile  = "shaders/common/lighting/advanced/gl/dbgLightColorVisualizeP.glsl";
    
    samplerNames[0] = "lightInfoBuffer";
    
@@ -162,7 +162,7 @@ new ShaderData( AL_LightSpecularVisualizeShader )
    DXPixelShaderFile  = "shaders/common/lighting/advanced/dbgLightSpecularVisualizeP.hlsl";
 
    OGLVertexShaderFile = "shaders/common/postFx/postFxV.glsl";
-   OGLPixelShaderFile  = "shaders/common/lighting/advanced/dl/dbgLightSpecularVisualizeP.glsl";
+   OGLPixelShaderFile  = "shaders/common/lighting/advanced/gl/dbgLightSpecularVisualizeP.glsl";
    
    samplerNames[0] = "lightInfoBuffer";
    

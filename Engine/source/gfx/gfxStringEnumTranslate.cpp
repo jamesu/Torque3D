@@ -364,7 +364,6 @@ void GFXStringEnumTranslate::init()
    GFX_STRING_ASSIGN_MACRO( GFXStringTextureStageState, GFXTSSTexCoordIndex );
    GFX_STRING_ASSIGN_MACRO( GFXStringTextureStageState, GFXTSSBumpEnvlScale );
    GFX_STRING_ASSIGN_MACRO( GFXStringTextureStageState, GFXTSSBumpEnvlOffset );
-   GFX_STRING_ASSIGN_MACRO( GFXStringTextureStageState, GFXTSSTextureTransformFlags );
    GFX_STRING_ASSIGN_MACRO( GFXStringTextureStageState, GFXTSSColorArg0 );
    GFX_STRING_ASSIGN_MACRO( GFXStringTextureStageState, GFXTSSAlphaArg0 );
    GFX_STRING_ASSIGN_MACRO( GFXStringTextureStageState, GFXTSSResultArg );

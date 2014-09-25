@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -26,7 +27,18 @@
 #include "core/util/preprocessorHelpers.h"
 #include "gfx/gl/gfxGLEnumTranslate.h"
 
-static inline GLenum minificationFilter(U32 minFilter, U32 mipFilter, U32 mipLevels)
+inline U32 getMaxMipmaps(U32 width, U32 height, U32 depth)
+{
+   // replicate D3D behaviour
+   if (!isPow2(width) && !isPow2(height))
+   {
+      return 1;
+   }
+   
+   return getMax( getBinLog2(depth), getMax(getBinLog2(width), getBinLog2(height)));
+}
+
+inline GLenum minificationFilter(U32 minFilter, U32 mipFilter, U32 mipLevels)
 {
    if(mipLevels == 1)
       return GFXGLTextureFilter[minFilter];
@@ -56,13 +68,50 @@ static inline GLenum minificationFilter(U32 minFilter, U32 mipFilter, U32 mipLev
    }
 }
 
+
+// Check if format is compressed format.
+// Even though dxt2/4 are not supported, they are included because they are a compressed format.
+// Assert checks on supported formats are done elsewhere.
+inline bool isCompressedFormat( GFXFormat format )
+{
+   bool compressed = false;
+   if(format == GFXFormatDXT1 || format == GFXFormatDXT2
+		|| format == GFXFormatDXT3
+		|| format == GFXFormatDXT4
+		|| format == GFXFormatDXT5 )
+   {
+      compressed = true;
+   }
+	
+   return compressed;
+}
+
+//Get the surface size of a compressed mip map level - see ddsLoader.cpp
+inline U32 getCompressedSurfaceSize(GFXFormat format,U32 width, U32 height, U32 mipLevel=0 )
+{
+   if(!isCompressedFormat(format))
+      return 0;
+	
+   // Bump by the mip level.
+   height = getMax(U32(1), height >> mipLevel);
+   width = getMax(U32(1), width >> mipLevel);
+	
+   U32 sizeMultiple = 0;
+   if(format == GFXFormatDXT1)
+      sizeMultiple = 8;
+   else
+      sizeMultiple = 16;
+	
+   return getMax(U32(1), width/4) * getMax(U32(1), height/4) * sizeMultiple;
+}
+
 /// Simple class which preserves a given GL integer.
 /// This class determines the integer to preserve on construction and restores 
 /// it on destruction.
 class GFXGLPreserveInteger
 {
 public:
-   typedef void(*BindFn)(GLenum, GLuint);
+   typedef void(STDCALL *BindFn)(GLenum, GLuint);
 
    /// Preserve the integer.
    /// @param binding The binding which should be set on destruction.
@@ -88,24 +137,97 @@ private:
    BindFn mBinder;
 };
 
-/// Helper macro to preserve the current VBO binding.
-#define PRESERVE_VERTEX_BUFFER() \
-GFXGLPreserveInteger TORQUE_CONCAT(preserve_, __LINE__) (GL_ARRAY_BUFFER, GL_ARRAY_BUFFER_BINDING, glBindBuffer)
+// Handy macro for checking the status of a framebuffer.  Framebuffers can fail in
+// all sorts of interesting ways, these are just the most common.  Further, no existing GL profiling
+// tool catches framebuffer errors when the framebuffer is created, so we actually need this.
+#define CHECK_FRAMEBUFFER_STATUS()\
+{\
+GLenum status;\
+status = glCheckFramebufferStatus(GL_FRAMEBUFFER);\
+switch(status) {\
+case GL_FRAMEBUFFER_COMPLETE:\
+break;\
+case GL_FRAMEBUFFER_UNSUPPORTED:\
+AssertFatal(false, "Unsupported FBO");\
+break;\
+case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:\
+AssertFatal(false, "Incomplete FBO Attachment");\
+break;\
+case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:\
+AssertFatal(false, "Incomplete FBO Missing Attachment");\
+break;\
+case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:\
+AssertFatal(false, "Incomplete FBO Draw buffer");\
+break;\
+case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER:\
+AssertFatal(false, "Incomplete FBO Read buffer");\
+break;\
+default:\
+/* programming error; will fail on all hardware */\
+AssertFatal(false, "Something really bad happened with an FBO");\
+}\
+}
 
-/// Helper macro to preserve the current element array binding.
-#define PRESERVE_INDEX_BUFFER() \
-GFXGLPreserveInteger TORQUE_CONCAT(preserve_, __LINE__) (GL_ELEMENT_ARRAY_BUFFER, GL_ELEMENT_ARRAY_BUFFER_BINDING, glBindBuffer)
-
-/// Helper macro to preserve the current 2D texture binding.
-#define PRESERVE_2D_TEXTURE() \
-GFXGLPreserveInteger TORQUE_CONCAT(preserve_, __LINE__) (GL_TEXTURE_2D, GL_TEXTURE_BINDING_2D, glBindTexture)
-
-/// Helper macro to preserve the current 3D texture binding.
-#define PRESERVE_3D_TEXTURE() \
-GFXGLPreserveInteger TORQUE_CONCAT(preserve_, __LINE__) (GL_TEXTURE_3D, GL_TEXTURE_BINDING_3D, glBindTexture)
-
-#define PRESERVE_FRAMEBUFFER() \
-GFXGLPreserveInteger TORQUE_CONCAT(preserve_, __LINE__) (GL_READ_FRAMEBUFFER_EXT, GL_READ_FRAMEBUFFER_BINDING_EXT, glBindFramebufferEXT);\
-GFXGLPreserveInteger TORQUE_CONCAT(preserve2_, __LINE__) (GL_DRAW_FRAMEBUFFER_EXT, GL_DRAW_FRAMEBUFFER_BINDING_EXT, glBindFramebufferEXT)
+class GFXGLVertexDecl : public GFXVertexDecl
+{
+public:
+   typedef struct Element
+   {
+      GLint attrIndex;
+      GLint elementCount; // 1 - 4
+      GLenum type; // GL_FLOAT...
+      GLboolean normalized;
+      GLsizei stride;
+      GLvoid *pointerFirst;
+      U8 streamIdx;
+   } Vertex;
+   
+   GFXGLVertexDecl() {;}
+   virtual ~GFXGLVertexDecl() {;}
+   
+   Vector<Vertex> mElements;
+};
 
 #endif
+
+#ifdef TORQUE_DEBUG_EXTRA
+
+inline void CheckAgainstCode(int code, int glCode, const char* errorName)
+{
+  if (code == glCode)
+  {
+    //AssertFatal(0, errorName);
+  }
+}
+
+#define CHECK_AGAINST_CODE(code, glError) CheckAgainstCode(code, glError, #glError)
+
+inline void CheckGLError()
+{
+  GLenum errorCode = glGetError();
+
+  CHECK_AGAINST_CODE(errorCode, GL_INVALID_VALUE);
+  CHECK_AGAINST_CODE(errorCode, GL_INVALID_ENUM);
+  CHECK_AGAINST_CODE(errorCode, GL_INVALID_OPERATION);
+  CHECK_AGAINST_CODE(errorCode, GL_STACK_OVERFLOW);
+  CHECK_AGAINST_CODE(errorCode, GL_STACK_UNDERFLOW);
+  CHECK_AGAINST_CODE(errorCode, GL_OUT_OF_MEMORY);
+}
+
+#define CHECK_GL_ERROR() CheckGLError()
+
+#else
+
+#define CHECK_GL_ERROR()
+
+#endif
+
+#include "gfx/screenshot.h"
+
+class ScreenShotGL : public ScreenShot
+{
+protected:
+   
+   GBitmap* _captureBackBuffer();
+   
+};

@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -79,10 +80,12 @@ bool GenericConstBufferLayout::set(const ParamDesc& pd, const GFXShaderConstType
    AssertFatal( pd.constType == constType || 
                ( 
                  ( pd.constType == GFXSCT_Float2x2 || 
-                   pd.constType == GFXSCT_Float3x3 || 
+                   pd.constType == GFXSCT_Float3x3 ||
+                   pd.constType == GFXSCT_Float4x3 ||
                    pd.constType == GFXSCT_Float4x4 ) && 
                  ( constType == GFXSCT_Float2x2 || 
-                   constType == GFXSCT_Float3x3 || 
+                   constType == GFXSCT_Float3x3 ||
+                   constType == GFXSCT_Float4x3 ||
                    constType == GFXSCT_Float4x4 )
                ), "Mismatched const type!" );
 
@@ -91,6 +94,7 @@ bool GenericConstBufferLayout::set(const ParamDesc& pd, const GFXShaderConstType
    {
    case GFXSCT_Float2x2 :
    case GFXSCT_Float3x3 :
+   case GFXSCT_Float4x3 :
    case GFXSCT_Float4x4 :
       return setMatrix(pd, constType, size, data, basePointer);
       break;
@@ -263,8 +267,8 @@ GenericConstBuffer::~GenericConstBuffer()
    delete [] mBuffer;
 }
 
-#ifdef TORQUE_DEBUG
 
+#ifdef TORQUE_DEBUG
 void GenericConstBuffer::assertUnassignedConstants( const char *shaderName )
 {
    for ( U32 i=0; i < mWasAssigned.size(); i++ )
@@ -276,9 +280,10 @@ void GenericConstBuffer::assertUnassignedConstants( const char *shaderName )
       mLayout->getDesc( i, pd );
 
       // Assert on the unassigned constant.
-      AssertFatal( false, avar( "The '%s' shader constant in shader '%s' was unassigned!",
-         pd.name.c_str(), shaderName ) );
+      //AssertFatal( false, avar( "The '%s' shader constant in shader '%s' was unassigned!",
+     //    pd.name.c_str(), shaderName ) );
    }
 }
-
 #endif
+
+

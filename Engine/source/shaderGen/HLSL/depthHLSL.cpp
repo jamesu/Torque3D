@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -22,41 +23,45 @@
 
 #include "platform/platform.h"
 #include "shaderGen/HLSL/depthHLSL.h"
+#include "shaderGen/shaderGen.h"
 
 #include "materials/materialFeatureTypes.h"
 #include "materials/materialFeatureData.h"
 
 
-void EyeSpaceDepthOutHLSL::processVert(   Vector<ShaderComponent*> &componentList, 
+void EyeSpaceDepthOut::processVert(   Vector<ShaderComponent*> &componentList, 
                                           const MaterialFeatureData &fd )
 {
-   MultiLine *meta = new MultiLine;
+	
+	MultiLine *meta = new MultiLine;
    output = meta;
 
-   // grab output
+	 // grab output
    ShaderConnector *connectComp = dynamic_cast<ShaderConnector *>( componentList[C_CONNECTOR] );
    Var *outWSEyeVec = connectComp->getElement( RT_TEXCOORD );
-   outWSEyeVec->setName( "wsEyeVec" );
+   outWSEyeVec->setName( "outWSEyeVec" );
    outWSEyeVec->setStructName( "OUT" );
-
-   // grab incoming vert position   
-   Var *wsPosition = new Var( "depthPos", "float3" );
+	
+	
+   // grab incoming vert position
+   Var *wsPosition = new Var( "depthPos", getVector3Name() );
    getWsPosition( componentList, fd.features[MFT_UseInstancing], meta, new DecOp( wsPosition ) );
 
    Var *eyePos = (Var*)LangElement::find( "eyePosWorld" );
    if( !eyePos )
    {
       eyePos = new Var;
-      eyePos->setType("float3");
+      eyePos->setType(getVector3Name());
       eyePos->setName("eyePosWorld");
       eyePos->uniform = true;
       eyePos->constSortPos = cspPass;
    }
 
-   meta->addStatement( new GenOp( "   @ = float4( @.xyz - @, 1 );\r\n", outWSEyeVec, wsPosition, eyePos ) );
+   GenOp* vector4GenOp = new GenOp( ShaderFeatureCommon::getVector4Name() );
+   meta->addStatement( new GenOp( "   @ = @( @.xyz - @, 1 );\r\n", outWSEyeVec, vector4GenOp, wsPosition, eyePos ) );
 }
 
-void EyeSpaceDepthOutHLSL::processPix( Vector<ShaderComponent*> &componentList, 
+void EyeSpaceDepthOut::processPix( Vector<ShaderComponent*> &componentList, 
                                        const MaterialFeatureData &fd )
 {      
    MultiLine *meta = new MultiLine;
@@ -64,15 +69,15 @@ void EyeSpaceDepthOutHLSL::processPix( Vector<ShaderComponent*> &componentList,
    // grab connector position
    ShaderConnector *connectComp = dynamic_cast<ShaderConnector *>( componentList[C_CONNECTOR] );
    Var *wsEyeVec = connectComp->getElement( RT_TEXCOORD );
-   wsEyeVec->setName( "wsEyeVec" );
+   wsEyeVec->setName( "outWSEyeVec" );
    wsEyeVec->setStructName( "IN" );
-   wsEyeVec->setType( "float4" );
+   wsEyeVec->setType( getVector4Name() );
    wsEyeVec->mapsToSampler = false;
    wsEyeVec->uniform = false;
 
    // get shader constants
    Var *vEye = new Var;
-   vEye->setType("float3");
+   vEye->setType(getVector3Name());
    vEye->setName("vEye");
    vEye->uniform = true;
    vEye->constSortPos = cspPass;
@@ -104,12 +109,15 @@ void EyeSpaceDepthOutHLSL::processPix( Vector<ShaderComponent*> &componentList,
    // If there isn't an output conditioner for the pre-pass, than just write
    // out the depth to rgba and return.
    if( !fd.features[MFT_PrePassConditioner] )
-      meta->addStatement( new GenOp( "   @;\r\n", assignColor( new GenOp( "float4(@.rrr,1)", depthOut ), Material::None ) ) );
+   {
+      GenOp* vector4GenOp = new GenOp( ShaderFeatureCommon::getVector4Name() );
+      meta->addStatement( new GenOp( "   @;\r\n", assignColor( new GenOp( "@(@, @, @, @)", vector4GenOp, depthOut, depthOut, depthOut, depthOut ), Material::None ) ) );
+   }
    
    output = meta;
 }
 
-ShaderFeature::Resources EyeSpaceDepthOutHLSL::getResources( const MaterialFeatureData &fd )
+ShaderFeature::Resources EyeSpaceDepthOut::getResources( const MaterialFeatureData &fd )
 {
    Resources temp;
 
@@ -121,49 +129,40 @@ ShaderFeature::Resources EyeSpaceDepthOutHLSL::getResources( const MaterialFeatu
 }
 
 
-void DepthOutHLSL::processVert(  Vector<ShaderComponent*> &componentList, 
+void DepthOut::processVert(  Vector<ShaderComponent*> &componentList, 
                                  const MaterialFeatureData &fd )
 {
-   ShaderConnector *connectComp = dynamic_cast<ShaderConnector *>( componentList[C_CONNECTOR] );
+  ShaderConnector *connectComp = dynamic_cast<ShaderConnector *>( componentList[C_CONNECTOR] );
 
-   // Grab the output vert.
-   Var *outPosition = (Var*)LangElement::find( "hpos" );
+  // Grab our output depth.
+  Var *outDepth = connectComp->getElement( RT_TEXCOORD );
+  outDepth->setName( "depth" );
+  outDepth->setStructName( "OUT" );
+  outDepth->setType( "float" );
 
-   // Grab our output depth.
-   Var *outDepth = connectComp->getElement( RT_TEXCOORD );
-   outDepth->setName( "depth" );
-   outDepth->setStructName( "OUT" );
-   outDepth->setType( "float" );
-
-   output = new GenOp( "   @ = @.z / @.w;\r\n", outDepth, outPosition, outPosition );
+  UsedForDirect3D(Var *outPosition = (Var*)LangElement::find("hpos"); output = new GenOp( "   @ = @.z / @.w;\r\n", outDepth, outPosition, outPosition ));
+  UsedForOpenGL(output = new GenOp( "   @ = gl_Position.z / gl_Position.w;\r\n", outDepth ));
 }
 
-void DepthOutHLSL::processPix(   Vector<ShaderComponent*> &componentList, 
+void DepthOut::processPix(   Vector<ShaderComponent*> &componentList, 
                                  const MaterialFeatureData &fd )
 {
    ShaderConnector *connectComp = dynamic_cast<ShaderConnector *>( componentList[C_CONNECTOR] );
 
    // grab connector position
    Var *depthVar = connectComp->getElement( RT_TEXCOORD );
-   depthVar->setName( "depth" );
+   depthVar->setName( "outDepth" );
    depthVar->setStructName( "IN" );
    depthVar->setType( "float" );
    depthVar->mapsToSampler = false;
    depthVar->uniform = false;
 
-   /*
-   // Expose the depth to the depth format feature
-   Var *depthOut = new Var;
-   depthOut->setType("float");
-   depthOut->setName(getOutputVarName());
-   */
-
-   LangElement *depthOut = new GenOp( "float4( @, 0, 0, 1 )", depthVar );
+   LangElement *depthOut = new GenOp( avar("%s( @, @ * @, 0, 1 )", getVector4Name()), depthVar, depthVar, depthVar );
 
    output = new GenOp( "   @;\r\n", assignColor( depthOut, Material::None ) );
 }
 
-ShaderFeature::Resources DepthOutHLSL::getResources( const MaterialFeatureData &fd )
+ShaderFeature::Resources DepthOut::getResources( const MaterialFeatureData &fd )
 {
    // We pass the depth to the pixel shader.
    Resources temp;

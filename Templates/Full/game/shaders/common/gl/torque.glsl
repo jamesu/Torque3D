@@ -117,7 +117,6 @@ mat3x3 quatToMat( vec4 quat )
    return mat;
 }
 
-
 /// The number of additional substeps we take when refining
 /// the results of the offset parallax mapping function below.
 ///
@@ -130,20 +129,19 @@ mat3x3 quatToMat( vec4 quat )
 
 /// Performs fast parallax offset mapping using 
 /// multiple refinement steps.
-///
-/// @param texMap The texture map whos alpha channel we sample the parallax depth.
+////// @param texMap The texture map whos alpha channel we sample the parallax depth.
 /// @param texCoord The incoming texture coordinate for sampling the parallax depth.
 /// @param negViewTS The negative view vector in tangent space.
 /// @param depthScale The parallax factor used to scale the depth result.
 ///
 vec2 parallaxOffset( sampler2D texMap, vec2 texCoord, vec3 negViewTS, float depthScale )
 {
-   float depth = texture( texMap, texCoord ).a;
+   float depth = texture2D( texMap, texCoord ).a;
    vec2 offset = negViewTS.xy * ( depth * depthScale );
 
    for ( int i=0; i < PARALLAX_REFINE_STEPS; i++ )
    {
-      depth = ( depth + texture( texMap, texCoord + offset ).a ) * 0.5;
+      depth = ( depth + texture2D( texMap, texCoord + offset ).a ) * 0.5;
       offset = negViewTS.xy * ( depth * depthScale );
    }
 
@@ -153,61 +151,59 @@ vec2 parallaxOffset( sampler2D texMap, vec2 texCoord, vec3 negViewTS, float dept
 
 /// The maximum value for 16bit per component integer HDR encoding.
 const float HDR_RGB16_MAX = 100.0;
-/// The maximum value for 10bit per component integer HDR encoding.
-const float HDR_RGB10_MAX = 4.0;
+/// The maximum value for 10bit per component integer HDR encoding.const float HDR_RGB10_MAX = 4.0;
 
 /// Encodes an HDR color for storage into a target.
-vec3 hdrEncode( vec3 _sample )
-{
+vec3 hdrEncode( vec3 sample ){
    #if defined( TORQUE_HDR_RGB16 )
 
-      return _sample / HDR_RGB16_MAX;
+      return sample / HDR_RGB16_MAX;
 
    #elif defined( TORQUE_HDR_RGB10 ) 
 
-      return _sample / HDR_RGB10_MAX;
+      return sample / HDR_RGB10_MAX;
 
    #else
 
       // No encoding.
-      return _sample;
+      return sample;
 
    #endif
 }
 
 /// Encodes an HDR color for storage into a target.
-vec4 hdrEncode( vec4 _sample )
+vec4 hdrEncode( vec4 sample )
 {
-   return vec4( hdrEncode( _sample.rgb ), _sample.a );
+   return vec4( hdrEncode( sample.rgb ), sample.a );
 }
 
 /// Decodes an HDR color from a target.
-vec3 hdrDecode( vec3 _sample )
+vec3 hdrDecode( vec3 sample )
 {
    #if defined( TORQUE_HDR_RGB16 )
 
-      return _sample * HDR_RGB16_MAX;
+      return sample * HDR_RGB16_MAX;
 
    #elif defined( TORQUE_HDR_RGB10 )
 
-      return _sample * HDR_RGB10_MAX;
+      return sample * HDR_RGB10_MAX;
 
    #else
 
       // No encoding.
-      return _sample;
+      return sample;
 
    #endif
 }
 
 /// Decodes an HDR color from a target.
-vec4 hdrDecode( vec4 _sample )
+vec4 hdrDecode( vec4 sample )
 {
-   return vec4( hdrDecode( _sample.rgb ), _sample.a );
+   return vec4( hdrDecode( sample.rgb ), sample.a );
 }
 
 /// Returns the luminance for an HDR pixel.
-float hdrLuminance( vec3 _sample )
+float hdrLuminance( vec3 sample )
 {
    // There are quite a few different ways to
    // calculate luminance from an rgb value.
@@ -220,7 +216,7 @@ float hdrLuminance( vec3 _sample )
    //
    // Max component luminance.
    //
-   //float lum = max( _sample.r, max( _sample.g, _sample.b ) );
+   //float lum = max( sample.r, max( sample.g, sample.b ) );
 
    ////////////////////////////////////////////////////////////////////////////
    // The perceptual relative luminance.
@@ -228,22 +224,27 @@ float hdrLuminance( vec3 _sample )
    // See http://en.wikipedia.org/wiki/Luminance_(relative)
    //
    const vec3 RELATIVE_LUMINANCE = vec3( 0.2126, 0.7152, 0.0722 );
-   float lum = dot( _sample, RELATIVE_LUMINANCE );
+   float lum = dot( sample, RELATIVE_LUMINANCE );
   
    ////////////////////////////////////////////////////////////////////////////
    //
    // The average component luminance.
    //
    //const vec3 AVERAGE_LUMINANCE = vec3( 0.3333, 0.3333, 0.3333 );
-   //float lum = dot( _sample, AVERAGE_LUMINANCE );
+   //float lum = dot( sample, AVERAGE_LUMINANCE );
 
    return lum;
 }
 
 #ifdef TORQUE_PIXEL_SHADER
+
+float mat2d(mat2 m) {
+  return m[0][0] * m[1][1] - m[1][0] * m[0][1] ;
+}
+
 /// Called from the visibility feature to do screen
 /// door transparency for fading of objects.
-void fizzle(vec2 vpos, float visibility)
+void fizzle(vec4 vpos, float visibility)
 {
    // NOTE: The magic values below are what give us 
    // the nice even pattern during the fizzle.
@@ -257,8 +258,8 @@ void fizzle(vec2 vpos, float visibility)
    // I'm sure there are many more patterns here to 
    // discover for different effects.
    
-   mat2x2 m = mat2x2( vpos.x, vpos.y, 0.916, 0.350 );
-   if( (visibility - fract( determinant( m ) )) < 0 ) //if(a < 0) discard;
+   mat2 m = mat2(vpos.x, vpos.y, 0.916, 0.350);
+   if (visibility - fract( mat2d( m ) ) < 0 )
       discard;
 }
 #endif //TORQUE_PIXEL_SHADER
@@ -267,6 +268,6 @@ void fizzle(vec2 vpos, float visibility)
 /// @param condition This should be a bvec[2-4].  If any items is false, condition is considered to fail.
 /// @param color The color that should be outputted if the condition fails.
 /// @note This macro will only work in the void main() method of a pixel shader.
-#define assert(condition, color) { if(!any(condition)) { OUT_FragColor0 = color; return; } }
+#define assert(condition, color) { if(!any(condition)) { gl_FragColor = color; return; } }
 
 #endif // _TORQUE_GLSL_

@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -109,6 +110,9 @@ const char* ShaderGenComponentFactoryHLSL::typeToString( GFXDeclType type )
       case GFXDeclType_Float4:
       case GFXDeclType_Color:
          return "float4";
+      
+	  case GFXDeclType_UByte4:
+         return "uint4";
    }
 }
 
@@ -161,6 +165,16 @@ ShaderComponent* ShaderGenComponentFactoryHLSL::createVertexInputConnector( cons
             var->setName( "texCoord" );
          else
             var->setName( String::ToString( "texCoord%d", element.getSemanticIndex() + 1 ) );
+      }
+      else if ( element.isSemantic( GFXSemantic::BLENDINDICES ) )
+      {
+         var = vertComp->getElement( RT_BLENDINDICES );
+         var->setName( "blendIndices" );
+      }
+      else if ( element.isSemantic( GFXSemantic::BLENDWEIGHT ) )
+      {
+         var = vertComp->getElement( RT_BLENDWEIGHT );
+         var->setName( "blendWeights" );
       }
       else
       {

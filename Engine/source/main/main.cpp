@@ -145,7 +145,7 @@ void GetBasePath(const char** cpath, const char** cname)
 
       FSSpec fss2;
 
-      strcpy(name, &pspec.name[1]);
+      strcpy(name, (char*)&pspec.name[1]);
 
       err = FSMakeFSSpec(pspec.vRefNum, pspec.parID, 0, &fss2);
 
@@ -160,62 +160,64 @@ void GetBasePath(const char** cpath, const char** cname)
 
 int main(int argc, const char **argv)
 {
+   
    void *gameBundle = 0;
    char gameBundleFilename[2049];
-
-   const char* basePath;
-   const char* appName;
-
-   // Get the path to our app binary and the app name
-
-   GetBasePath(&basePath, &appName);
-
-   if (!basePath[0] || !appName[0])
-      return;
-
-   char appNameNoDebug[2049];
-
-   strcpy(appNameNoDebug, appName);
-
-   int i = strlen(appName);
-   while (i > 0)
-   {
-      if (!strcmp(&appName[i], "_DEBUG"))
+   
+   int ret = -1;
+   char basePath[2049];
+   char appName[2049];
+   OSStatus err;
+   
+   CFDictionaryRef appDict;
+   ProcessSerialNumber PSN;
+   err = GetCurrentProcess(&PSN);
+   if(!err){
+      appDict = ProcessInformationCopyDictionary(&PSN, kProcessDictionaryIncludeAllInformationMask);
+      CFStringRef cfBundlePath;
+      CFStringRef cfAppName;
+      bool inBundle = CFDictionaryGetValueIfPresent(appDict, CFSTR("BundlePath"), (const void**)(&cfBundlePath));
+      bool hasName = CFDictionaryGetValueIfPresent(appDict, kCFBundleNameKey, (const void**)(&cfAppName));
+      if(inBundle && hasName)
       {
-         appNameNoDebug[i] = 0;
-         break;
+         CFRetain(cfBundlePath);
+         CFRetain(cfAppName);
+         
+         CFStringGetCString( cfBundlePath, basePath, 2049, kCFStringEncodingASCII );
+         CFStringGetCString( cfAppName, appName, 2049, kCFStringEncodingASCII );
+         
+         int i = strlen(appName);
+         while (i > 0)
+         {
+            if (strstr(&appName[i], "_DEBUG") == &appName[i])
+            {
+               appName[i] = 0;
+               break;
+            }
+            
+            i--;
+         }
+         
+         sprintf(gameBundleFilename, "%s/Contents/Frameworks/%s Bundle.bundle/Contents/MacOS/%s Bundle", basePath, appName, appName);
+         
+         chdir(basePath);
+         chdir("..");
+         gameBundle = dlopen(gameBundleFilename, RTLD_LAZY | RTLD_LOCAL);
+         const char * bundleError = dlerror();
+         
+         
+         CFRelease(cfAppName);
+         CFRelease(cfBundlePath);
+         
+         if (    gameBundle && (torque_macmain = (int (*)(int argc, const char **argv)) dlsym(gameBundle, "torque_macmain")))
+            ret = torque_macmain(argc, argv);
+         else if (bundleError) printf("%sn",bundleError);
+         
       }
-
-      i--;
+      
    }
-
-   sprintf(gameBundleFilename, "%s.app/Contents/Frameworks/%s Bundle.bundle/Contents/MacOS/%s Bundle", appName, appNameNoDebug, appNameNoDebug);
-
-   // first see if the current directory is set properly
-   gameBundle = dlopen(gameBundleFilename, RTLD_LAZY | RTLD_LOCAL);
-
-   if (!gameBundle)
-   {
-      // Couldn't load the game bundle... so, using the path to the bundle binary fix up the cwd
-
-      if (basePath[0]) {
-         chdir( basePath );
-         chdir( "../../../" );
-      }
-
-      // and try again
-      gameBundle = dlopen( gameBundleFilename, RTLD_LAZY | RTLD_LOCAL);
-   }
-
-   if (!gameBundle)
-      return -1;
-
-   torque_macmain = (int (*)(int argc, const char **argv)) dlsym(gameBundle, "torque_macmain");
-
-   if (!torque_macmain)
-      return -1;
-
-   return torque_macmain(argc, argv);
+   
+   return ret;
 }
 
 #endif // __MACOSX

@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -24,7 +25,7 @@
 #define _GFXGLAPPLEFENCE_H_
 
 #include "gfx/gfxFence.h"
-#include "gfx/gl/ggl/ggl.h"
+#include "gfx/gl/tGL/tGL.h"
 
 class GFXGLAppleFence : public GFXFence
 {
@@ -44,6 +45,27 @@ public:
    
 private:
    GLuint mHandle;
+   bool mIssued;
+};
+
+class GFXGLSyncFence : public GFXFence
+{
+public:
+   GFXGLSyncFence(GFXDevice* device);
+   virtual ~GFXGLSyncFence();
+   
+   // GFXFence interface
+   virtual void issue();
+   virtual FenceStatus getStatus() const;
+   virtual void block();
+   
+   // GFXResource interface
+   virtual void zombify();
+   virtual void resurrect();
+   virtual const String describeSelf() const;
+   
+private:
+   GLsync mHandle;
    bool mIssued;
 };
 

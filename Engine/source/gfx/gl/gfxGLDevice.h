@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -23,13 +24,15 @@
 #ifndef _GFXGLDEVICE_H_
 #define _GFXGLDEVICE_H_
 
+//#define BIND_FANCY_VAO
+
 #include "platform/platform.h"
 
 #include "gfx/gfxDevice.h"
 #include "gfx/gfxInit.h"
 
-#ifndef GL_GGL_H
-#include "gfx/gl/ggl/ggl.h"
+#ifndef T_GL_H
+#include "gfx/gl/tGL/tGL.h"
 #endif
 
 #include "windowManager/platformWindow.h"
@@ -41,10 +44,38 @@ class GFXGLVertexBuffer;
 class GFXGLPrimitiveBuffer;
 class GFXGLTextureTarget;
 class GFXGLCubemap;
+class GFXGLVertexDecl;
+class GFXGLShaderConstBuffer;
+class GFXGLVAO;
+class GFXGLShader;
 
 class GFXGLDevice : public GFXDevice
 {
+friend class GFXGLShader;
+
 public:
+   enum GL_AttributeLocation
+   {
+      GL_VertexAttrib_Position = 0,
+      GL_VertexAttrib_Normal,
+      GL_VertexAttrib_Color,
+      GL_VertexAttrib_Tangent,
+      GL_VertexAttrib_TangentW,
+      GL_VertexAttrib_Binormal,
+      GL_VertexAttrib_BlendIndex,
+      GL_VertexAttrib_BlendWeight,
+      GL_VertexAttrib_TexCoord0,
+      GL_VertexAttrib_TexCoord1, // 9
+      GL_VertexAttrib_TexCoord2,
+      GL_VertexAttrib_TexCoord3,
+      GL_VertexAttrib_TexCoord4,
+      GL_VertexAttrib_TexCoord5,
+      GL_VertexAttrib_TexCoord6,
+      GL_VertexAttrib_TexCoord7,
+
+      GL_NumVertexAttributes
+   };
+
    void zombify();
    void resurrect();
    GFXGLDevice(U32 adapterIndex);
@@ -59,9 +90,9 @@ public:
    virtual void deactivate() { }
    virtual GFXAdapterType getAdapterType() { return OpenGL; }
 
-   virtual void enterDebugEvent(ColorI color, const char *name) { }
-   virtual void leaveDebugEvent() { }
-   virtual void setDebugMarker(ColorI color, const char *name) { }
+   virtual void enterDebugEvent(ColorI color, const char *name);
+   virtual void leaveDebugEvent();
+   virtual void setDebugMarker(ColorI color, const char *name);
 
    virtual void enumerateVideoModes();
 
@@ -136,6 +167,10 @@ public:
    ///
    bool supportsAnisotropic() const { return mSupportsAnisotropic; }
    
+   GFXTextureObject* getDefaultDepthTex() const;
+   
+   void _setTempBoundTexture(GLenum typeId, GLuint texId);
+   
 protected:   
    /// Called by GFXDevice to create a device specific stateblock
    virtual GFXStateBlockRef createStateBlockInternal(const GFXStateBlockDesc& desc);
@@ -146,7 +181,7 @@ protected:
    virtual void setShaderConstBufferInternal(GFXShaderConstBuffer* buffer);
 
    virtual void setTextureInternal(U32 textureUnit, const GFXTextureObject*texture);
-   virtual void setCubemapInternal(U32 cubemap, const GFXGLCubemap* texture);
+   virtual void setCubemapInternal(U32 cubemap, GFXGLCubemap* texture);
 
    virtual void setLightInternal(U32 lightStage, const GFXLightInfo light, bool lightEnable);
    virtual void setLightMaterialInternal(const GFXLightMaterial mat);
@@ -161,25 +196,54 @@ protected:
 
    virtual void setMatrix( GFXMatrixType mtype, const MatrixF &mat );
 
+   virtual void updateModelView();
+
    virtual GFXVertexBuffer *allocVertexBuffer(  U32 numVerts, 
                                                 const GFXVertexFormat *vertexFormat,
                                                 U32 vertSize, 
                                                 GFXBufferType bufferType );
    virtual GFXPrimitiveBuffer *allocPrimitiveBuffer( U32 numIndices, U32 numPrimitives, GFXBufferType bufferType );
    
-   // NOTE: The GL device doesn't need a vertex declaration at
-   // this time, but we need to return something to keep the system
-   // from retrying to allocate one on every call.
-   virtual GFXVertexDecl* allocVertexDecl( const GFXVertexFormat *vertexFormat ) 
-   {
-      static GFXVertexDecl decl;
-      return &decl; 
-   }
+   virtual GFXVertexDecl* allocVertexDecl( const GFXVertexFormat *vertexFormat );
 
-   virtual void setVertexDecl( const GFXVertexDecl *decl ) { }
+   virtual void setVertexDecl( const GFXVertexDecl *decl );
 
    virtual void setVertexStream( U32 stream, GFXVertexBuffer *buffer );
    virtual void setVertexStreamFrequency( U32 stream, U32 frequency );
+   
+   virtual void onDrawStateChanged();
+
+   /// For handle with DX9 API texel-to-pixel mapping offset
+   virtual bool hasTexelPixelOffset() const { return false; }
+	
+	virtual void updatePrimitiveBuffer( GFXPrimitiveBuffer *newBuffer );
+
+   virtual void zombifyTexturesAndTargets();
+   virtual void resurrectTexturesAndTargets();
+   
+public:
+   void _setActiveTexture(GLuint texId);
+   
+   void _setVAO(GFXGLVAO *vao, bool dirtyState=true);
+   
+   // Temporarily sets the vertex & index buffers, changing to the root if the vertex or index buffer is different
+   void _setWorkingVertexBuffer(GLuint idx, bool dirtyState=true);
+   void _setWorkingIndexBuffer(GLuint idx, bool dirtyState=true);
+
+   GLuint _getWorkingVertexBuffer() { return mCurrentVertexBufferId; }
+
+   void _setCurrentFBORead(GLuint readId);
+   void _setCurrentFBOWrite(GLuint readId);
+   void _setCurrentFBO(GLuint readWriteId);
+   
+   GLuint _getCurrentFBORead() { return mCurrentFBORead; }
+   GLuint _getCurrentFBOWrite() { return mCurrentFBOWrite; }
+
+   GFXGLVAO *allocVAO(GFXGLVertexBuffer *rootBufffer);
+   GFXGLVAO *getRootVAO();
+   
+   // Activates the root VAO
+   void activateRootVAO();
 
 private:
    typedef GFXDevice Parent;
@@ -190,12 +254,35 @@ private:
    friend class GFXGLPrimitiveBuffer;
    friend class GFXGLVertexBuffer;
 
-   static GFXAdapter::CreateDeviceInstanceDelegate mCreateDeviceInstance; 
+   static GFXAdapter::CreateDeviceInstanceDelegate mCreateDeviceInstance;
+	
+   typedef StrongRefPtr<GFXGLVertexBuffer> GLVBPTR;
+   typedef StrongRefPtr<GFXGLPrimitiveBuffer> GLPBPTR;
+   Vector<GLVBPTR> mVolatileVBList;
+   Vector<GLPBPTR> mVolatilePBList;
+	
+   /// Used to lookup a vertex declaration for the vertex format.
+   /// @see allocVertexDecl
+   typedef Map<String,GFXGLVertexDecl*> VertexDeclMap;
+   VertexDeclMap mVertexDecls;
 
    U32 mAdapterIndex;
+   U32 mDrawInstancesCount;
    
-   StrongRefPtr<GFXGLVertexBuffer> mCurrentVB;
-   StrongRefPtr<GFXGLPrimitiveBuffer> mCurrentPB;
+   GFXShader* mCurrentShader;
+   GLuint mCurrentProgram;
+
+   GLuint mCurrentFBORead;
+   GLuint mCurrentFBOWrite;
+
+   ColorI mLastClearColor;
+   F32 mLastClearZ;
+   U32 mLastClearStencil;
+
+   GFXShaderRef mGenericShader[GS_COUNT];
+   GFXShaderConstBufferRef mGenericShaderBuffer[GS_COUNT];
+   GFXShaderConstHandle *mModelViewProjSC[GS_COUNT];
+   GLuint mCurrentVertexBufferId;
    
    /// Since GL does not have separate world and view matrices we need to track them
    MatrixF m_mCurrentWorld;
@@ -207,31 +294,60 @@ private:
    F32 mPixelShaderVersion;
    
    bool mSupportsAnisotropic;
+   bool mUseFences;
    
    U32 mMaxShaderTextures;
    U32 mMaxFFTextures;
 
    RectI mClip;
+
+   U32 mMaxTRColors;
+
+   char mMatrixMode;
+
+   
+   bool mEnabledVertexAttributes[GL_NumVertexAttributes];
+
+   const GFXGLVertexDecl *mFutureVertexDecl;
+	
+	
+	GFXGLShaderConstBuffer *mInternalConstBufferActive;
    
    GFXGLStateBlockRef mCurrentGLStateBlock;
+	
+	U32 mNumSamplers;
    
    GLenum mActiveTextureType[TEXTURE_STAGE_COUNT];
+   GLuint mActiveTextureId[TEXTURE_STAGE_COUNT];
    
    Vector< StrongRefPtr<GFXGLVertexBuffer> > mVolatileVBs; ///< Pool of existing volatile VBs so we can reuse previously created ones
    Vector< StrongRefPtr<GFXGLPrimitiveBuffer> > mVolatilePBs; ///< Pool of existing volatile PBs so we can reuse previously created ones
+   
+   GFXGLVertexBuffer *mVolatileVB; // current violate vbo
+   
+   // Binding state
+   GLint mCurrentActiveTextureUnit;
+   GFXGLVAO* mCurrentVAO; // NOTE: encapsulates index and vertex buffer state
+   
+   StrongRefPtr<GFXGLVAO> mRootVAO; // Main VAO
+   
+   GFXWindowTargetRef mWindowRT;
+   
+   /// For streaming buffers
+   GFXFence** mFences;
+   S32 mCurrentFence;
 
    GLsizei primCountToIndexCount(GFXPrimitiveType primType, U32 primitiveCount);
    void preDrawPrimitive();
    void postDrawPrimitive(U32 primitiveCount);  
    
-   GFXVertexBuffer* findVolatileVBO(U32 numVerts, const GFXVertexFormat *vertexFormat, U32 vertSize); ///< Returns an existing volatile VB which has >= numVerts and the same vert flags/size, or creates a new VB if necessary
-   GFXPrimitiveBuffer* findVolatilePBO(U32 numIndices, U32 numPrimitives); ///< Returns an existing volatile PB which has >= numIndices, or creates a new PB if necessary
+   GFXGLPrimitiveBuffer* findPBPool( U32 indicesNeeded );
+   virtual GFXGLPrimitiveBuffer* createPBPool();
+
+   GFXGLVertexBuffer* findVBPool( const GFXVertexFormat *vertexFormat, U32 vertsNeeded );
+   virtual GFXGLVertexBuffer* createVBPool( const GFXVertexFormat *vertexFormat, U32 vertSize );
    
-   void initGLState(); ///< Guaranteed to be called after all extensions have been loaded, use to init card profiler, shader version, max samplers, etc.
-   
-   GFXFence* _createPlatformSpecificFence(); ///< If our platform (e.g. OS X) supports a fence extenstion (e.g. GL_APPLE_fence) this will create one, otherwise returns NULL
-   
-   void setPB(GFXGLPrimitiveBuffer* pb); ///< Sets mCurrentPB
+   void initGLState(void* ctx); ///< Guaranteed to be called after all extensions have been loaded, use to init card profiler, shader version, max samplers, etc.
 };
 
 #endif

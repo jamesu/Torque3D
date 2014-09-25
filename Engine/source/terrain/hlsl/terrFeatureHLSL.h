@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -33,7 +34,7 @@
 
 /// A shared base class for terrain features which
 /// includes some helper functions.
-class TerrainFeatHLSL : public ShaderFeatureHLSL
+class TerrainFeatCommon : public ShaderFeatureCommon
 {
 protected:
 
@@ -51,7 +52,7 @@ protected:
 };
 
 
-class TerrainBaseMapFeatHLSL : public TerrainFeatHLSL
+class TerrainBaseMapFeatCommon : public TerrainFeatCommon
 {
 public:
 
@@ -67,7 +68,7 @@ public:
 };
 
 
-class TerrainDetailMapFeatHLSL : public TerrainFeatHLSL
+class TerrainDetailMapFeatCommon : public TerrainFeatCommon
 {
 protected:
 
@@ -76,7 +77,7 @@ protected:
 
 public:
 
-   TerrainDetailMapFeatHLSL();
+   TerrainDetailMapFeatCommon();
 
    virtual void processVert(  Vector<ShaderComponent*> &componentList,
                               const MaterialFeatureData &fd );
@@ -90,7 +91,7 @@ public:
 };
 
 
-class TerrainMacroMapFeatHLSL : public TerrainFeatHLSL
+class TerrainMacroMapFeatCommon : public TerrainFeatCommon
 {
 protected:
 
@@ -99,7 +100,7 @@ protected:
 
 public:
 
-   TerrainMacroMapFeatHLSL();
+   TerrainMacroMapFeatCommon();
 
    virtual void processVert(  Vector<ShaderComponent*> &componentList,
                               const MaterialFeatureData &fd );
@@ -113,7 +114,7 @@ public:
 };
 
 
-class TerrainNormalMapFeatHLSL : public TerrainFeatHLSL
+class TerrainNormalMapFeatCommon : public TerrainFeatCommon
 {
 public:
 
@@ -128,7 +129,7 @@ public:
    virtual String getName() { return "Terrain Normal Texture"; }
 };
 
-class TerrainLightMapFeatHLSL : public TerrainFeatHLSL
+class TerrainLightMapFeatCommon : public TerrainFeatCommon
 {
 public:
 
@@ -141,7 +142,7 @@ public:
 };
 
 
-class TerrainAdditiveFeatHLSL : public TerrainFeatHLSL
+class TerrainAdditiveFeatCommon : public TerrainFeatCommon
 {
 public:
 

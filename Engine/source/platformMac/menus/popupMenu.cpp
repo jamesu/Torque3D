@@ -300,7 +300,7 @@ bool PopupMenu::isItemChecked(S32 pos)
 {
    CharParameter mark;
    GetItemMark(mData->mMenu, pos, &mark);
-   return (mark == checkMark);
+   return (mark == 18); // checkMark
 }
 
 //////////////////////////////////////////////////////////////////////////

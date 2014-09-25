@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -19,6 +20,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 //-----------------------------------------------------------------------------
+
 #ifndef _MISCSHDRDAT_H_
 #define _MISCSHDRDAT_H_
 
@@ -45,6 +47,8 @@ enum RegisterType
    RT_COLOR,
    RT_TEXCOORD,
    RT_VPOS,
+   RT_BLENDINDICES,
+   RT_BLENDWEIGHT,
 };
 
 enum Components

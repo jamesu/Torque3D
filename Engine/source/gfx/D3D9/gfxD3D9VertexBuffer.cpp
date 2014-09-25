@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -22,6 +23,8 @@
 
 #include "platform/platform.h"
 #include "gfx/D3D9/gfxD3D9VertexBuffer.h"
+
+U32 gUsedVolatileVerts = 0;
 
 GFXD3D9VertexBuffer::~GFXD3D9VertexBuffer() 
 {
@@ -73,6 +76,7 @@ void GFXD3D9VertexBuffer::lock(U32 vertexStart, U32 vertexEnd, void **vertexPtr)
          mVolatileBuffer = d->createVBPool( &mVertexFormat, mVertexSize );
 
       vb = mVolatileBuffer->vb;
+      gUsedVolatileVerts += vertexEnd;
 
       // Get our range now...
       AssertFatal(vertexStart == 0,              "Cannot get a subrange on a volatile buffer.");
@@ -82,22 +86,30 @@ void GFXD3D9VertexBuffer::lock(U32 vertexStart, U32 vertexEnd, void **vertexPtr)
       // We created the pool when we requested this volatile buffer, so assume it exists...
       if( mVolatileBuffer->mNumVerts + vertexEnd > MAX_DYNAMIC_VERTS ) 
       {
-#ifdef TORQUE_OS_XENON
+//#ifdef TORQUE_OS_XENON
          AssertFatal( false, "This should never, ever happen. findVBPool should have returned NULL" );
-#else
-         flags |= D3DLOCK_DISCARD;
-#endif
+//#else
+//         flags |= D3DLOCK_DISCARD;
+//#endif
          mVolatileStart = vertexStart  = 0;
          vertexEnd      = vertexEnd;
       }
       else 
       {
-         flags |= D3DLOCK_NOOVERWRITE;
+         // Discard if we are at the start
+         if (mVolatileBuffer->mNumVerts == 0)
+         {
+            flags |= D3DLOCK_DISCARD;
+         }
+         else
+         {
+            flags |= D3DLOCK_NOOVERWRITE;
+         }
          mVolatileStart = vertexStart  = mVolatileBuffer->mNumVerts;
          vertexEnd                    += mVolatileBuffer->mNumVerts;
       }
 
-      mVolatileBuffer->mNumVerts = vertexEnd+1;
+      mVolatileBuffer->mNumVerts = vertexEnd;
 
       mVolatileBuffer->lockedVertexStart = vertexStart;
       mVolatileBuffer->lockedVertexEnd   = vertexEnd;

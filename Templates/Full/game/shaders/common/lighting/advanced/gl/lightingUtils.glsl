@@ -20,7 +20,6 @@
 // IN THE SOFTWARE.
 //-----------------------------------------------------------------------------
 
-
 float attenuate( vec4 lightColor, vec2 attParams, float dist )
 {
 	// We're summing the results of a scaled constant,
@@ -33,6 +32,8 @@ float attenuate( vec4 lightColor, vec2 attParams, float dist )
 	#endif
 }
 
+#define AL_ConstantSpecularPower 12.0f
+
 // Calculate the specular coefficent
 //
 //	pxlToLight - Normalized vector representing direction from the pixel being lit, to the light source, in world space
@@ -41,7 +42,7 @@ float attenuate( vec4 lightColor, vec2 attParams, float dist )
 //	specPwr - Specular exponent
 //	specularScale - A scalar on the specular output used in RGB accumulation.
 //
-float calcSpecular( vec3 pxlToLight, vec3 normal, vec3 pxlToEye, float specPwr, float specularScale )
+float calcSpecular( vec3 pxlToLight, vec3 normal, vec3 pxlToEye)
 {
 #ifdef PHONG_SPECULAR 
    // (R.V)^c
@@ -51,14 +52,8 @@ float calcSpecular( vec3 pxlToLight, vec3 normal, vec3 pxlToEye, float specPwr, 
    float specVal = dot( normal, normalize( pxlToLight + pxlToEye ) );
 #endif
 
-#ifdef ACCUMULATE_LUV
-   return pow( max( specVal, 0.00001f ), specPwr );
-#else
-   // If this is RGB accumulation, than there is no facility for the luminance
-   // of the light to play in to the specular intensity. In LUV, the luminance
-   // of the light color gets rolled into N.L * Attenuation
-   return specularScale * pow( max( specVal, 0.00001f ), specPwr );
-#endif
+   // Return the specular factor.
+   return pow( max( specVal, 0.00001f ), AL_ConstantSpecularPower );
 }
 
 vec3 getDistanceVectorToPlane( vec3 origin, vec3 direction, vec4 plane )

@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -47,6 +48,7 @@
 #include "math/mPolyhedron.h"
 #endif
 
+#include "math/util/frustum.h"
 
 class GFont;
 
@@ -120,10 +122,15 @@ public:
    ///
    /// @{
 
+   void drawBoxOutline(const Point3F &a, const Point3F &b, const ColorF &color = ColorF(1.0f,1.0f,1.0f));
    void drawBox(const Point3F &a, const Point3F &b, const ColorF &color = ColorF(1.0f,1.0f,1.0f));
    void drawLine(const Point3F &a, const Point3F &b, const ColorF &color = ColorF(1.0f,1.0f,1.0f));	
    void drawTri(const Point3F &a, const Point3F &b, const Point3F &c, const ColorF &color = ColorF(1.0f,1.0f,1.0f));
    void drawText(const Point3F& pos, const String& text, const ColorF &color = ColorF(1.0f,1.0f,1.0f));
+
+   // martinJ
+   void drawScreenAlignedTexture(const Point2F& pos, const Point2F& size, const String& textureName);
+   void drawFrustum(const MatrixF &transform, const Frustum &f, const ColorI &c);
 
    /// Render a wireframe view of the given polyhedron.
    void drawPolyhedron( const AnyPolyhedron& polyhedron, const ColorF& color = ColorF( 1.f, 1.f, 1.f ) );
@@ -168,18 +175,26 @@ private:
          Tri,
          Box,
          Line,
-         Text
+         Text,
+         ScreenAlignedTexture,
+         Frustum,
       } type;	   ///< Type of the primitive. The meanings of a,b,c are determined by this.
 
       SimTime dieTime;   ///< Time at which we should remove this from the list.
       bool useZ; ///< If true, do z-checks for this primitive.      
       char mText[256];      // Text to display
+      char mTexture[256]; ///< martinJ the name of the texture to render
+      
+      void* f;
+      MatrixF *m;
 
       DebugPrim *next;
    };
 
 
    FreeListChunker<DebugPrim> mPrimChunker;
+   FreeListChunker<Frustum> mFrustumChunker;
+   FreeListChunker<MatrixF> mTransformChunker;
    DebugPrim *mHead;
 
    bool isFrozen;

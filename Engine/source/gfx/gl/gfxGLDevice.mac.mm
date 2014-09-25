@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -20,14 +21,11 @@
 // IN THE SOFTWARE.
 //-----------------------------------------------------------------------------
 
-// Don't include Apple's GL header
-#define __gl_h_
 // Include our GL header before Apple headers.
-#include "gfx/gl/ggl/ggl.h"
+#include "gfx/gl/tGL/tGL.h"
 
 #include "platform/tmm_off.h"
 #include <Cocoa/Cocoa.h>
-#include <OpenGL/OpenGL.h>
 #include "gfx/gl/gfxGLDevice.h"
 #include "platform/tmm_on.h"
 
@@ -35,6 +33,7 @@
 #include "gfx/gl/gfxGLCardProfiler.h"
 #include "gfx/gl/gfxGLAppleFence.h"
 #include "gfx/gl/gfxGLWindowTarget.h"
+#include "gfx/gl/gfxGLEnumTranslate.h"
 #include "platformMac/macGLUtils.h"
 #include "windowManager/mac/macWindow.h"
 
@@ -112,14 +111,16 @@ void GFXGLDevice::init( const GFXVideoMode &mode, PlatformWindow *window )
       
    NSOpenGLContext* ctx = _createContextForWindow(window, mContext, mPixelFormat);
    [ctx makeCurrentContext];
+	
+	GFXGLEnumTranslate::init();
    
-   loadGLCore();
-   loadGLExtensions(ctx);
-   
-   initGLState();
+   initGLState(ctx);
    
    mInitialized = true;
    deviceInited();
+   
+   const GLint swapInterval = GFXDevice::smDisableVSync ? 0 : 1;
+   CGLSetParameter(CGLGetCurrentContext(), kCGLCPSwapInterval, &swapInterval);
 }
 
 void GFXGLDevice::enumerateAdapters( Vector<GFXAdapter*> &adapterList )
@@ -232,17 +233,10 @@ void GFXGLDevice::enumerateVideoModes()
    }
 }
 
-bool GFXGLDevice::beginSceneInternal() 
-{
-   // Nothing to do here for GL.
-   mCanCurrentlyRender = true;
-   return true;
-}
-
-U32 GFXGLDevice::getTotalVideoMemory()
+U32 GFXMacGetTotalVideoMemory(U32 adapterIndex)
 {
    // Convert our adapterIndex (i.e. our CGDirectDisplayID) into an OpenGL display mask
-   GLuint display = CGDisplayIDToOpenGLDisplayMask((CGDirectDisplayID)mAdapterIndex);
+   GLuint display = CGDisplayIDToOpenGLDisplayMask((CGDirectDisplayID)adapterIndex);
    CGLRendererInfoObj rend;
 #if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_5
    GLint nrend;
@@ -280,78 +274,30 @@ GFXWindowTarget *GFXGLDevice::allocWindowTarget(PlatformWindow *window)
    
    // Allocate the wintarget and create a new context.
    GFXGLWindowTarget *gwt = new GFXGLWindowTarget(window, this);
+   gwt->registerResourceWithDevice(this);
    gwt->mContext = ctx ? ctx : mContext;
 
    // And return...
    return gwt;
 }
 
-GFXFence* GFXGLDevice::_createPlatformSpecificFence()
-{
-   if(!mCardProfiler->queryProfile("GL::APPLE::suppFence"))
-      return NULL;
-   
-   return new GFXGLAppleFence(this);
-}
-
-void GFXGLWindowTarget::makeActive()
-{
-   // If we're supposed to be running fullscreen, but haven't yet set up for it,
-   // do it now.
-   
-   if( !mFullscreenContext && mWindow->getVideoMode().fullScreen )
-   {
-      static_cast< GFXGLDevice* >( mDevice )->zombify();
-      _setupNewMode();
-   }
-      
-   mFullscreenContext ? [(NSOpenGLContext*)mFullscreenContext makeCurrentContext] : [(NSOpenGLContext*)mContext makeCurrentContext];
-}
-
-bool GFXGLWindowTarget::present() 
+void GFXGLWindowTarget::_WindowPresent()
 {
    GFX->updateStates();
-   mFullscreenContext ? [(NSOpenGLContext*)mFullscreenContext flushBuffer] : [(NSOpenGLContext*)mContext flushBuffer];
-   return true;
+   [(NSOpenGLContext*)mContext flushBuffer];
 }
 
 void GFXGLWindowTarget::_teardownCurrentMode()
 {
    GFX->setActiveRenderTarget(this);
-   static_cast<GFXGLDevice*>(mDevice)->zombify();
-   if(mFullscreenContext)
-   {
-      [NSOpenGLContext clearCurrentContext];
-      [(NSOpenGLContext*)mFullscreenContext clearDrawable];
-   }
+   static_cast<GFXGLDevice*>(mDevice)->zombifyTexturesAndTargets();
 }
 
 void GFXGLWindowTarget::_setupNewMode()
 {
-   if(mWindow->getVideoMode().fullScreen && !mFullscreenContext)
-   {
-      // We have to create a fullscreen context.
-      Vector<NSOpenGLPixelFormatAttribute> attributes = _beginPixelFormatAttributesForDisplay(static_cast<MacWindow*>(mWindow)->getDisplay());
-      _addColorAlphaDepthStencilAttributes(attributes, 24, 8, 24, 8);
-      _addFullscreenAttributes(attributes);
-      _endAttributeList(attributes);
-      
-      NSOpenGLPixelFormat* fmt = [[NSOpenGLPixelFormat alloc] initWithAttributes:attributes.address()];
-      mFullscreenContext = [[NSOpenGLContext alloc] initWithFormat:fmt shareContext:nil];
-      [fmt release];
-      [(NSOpenGLContext*)mFullscreenContext setFullScreen];
-      [(NSOpenGLContext*)mFullscreenContext makeCurrentContext];
-      // Restore resources in new context
-      static_cast<GFXGLDevice*>(mDevice)->resurrect();
-      GFX->updateStates(true);
-   }
-   else if(!mWindow->getVideoMode().fullScreen && mFullscreenContext)
-   {
-      [(NSOpenGLContext*)mFullscreenContext release];
-      mFullscreenContext = NULL;
-      [(NSOpenGLContext*)mContext makeCurrentContext];
-      GFX->clear(GFXClearTarget | GFXClearZBuffer | GFXClearStencil, ColorI(0, 0, 0), 1.0f, 0);
-      static_cast<GFXGLDevice*>(mDevice)->resurrect();
-      GFX->updateStates(true);
-   }
+   static_cast<GFXGLDevice*>(mDevice)->resurrectTexturesAndTargets();
+   GFX->updateStates(true);
+   
+   const GLint swapInterval = GFXDevice::smDisableVSync ? 0 : 1;
+   CGLSetParameter(CGLGetCurrentContext(), kCGLCPSwapInterval, &swapInterval);
 }

@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -95,9 +96,17 @@ public:
          { if (((bool)(x))==(bool)0) \
             { if ( ::PlatformAssert::processAssert(::PlatformAssert::Fatal, __FILE__, __LINE__,  y) ) { ::Platform::debugBreak(); } } }
 
+   /*!
+
+      Neat way of including statements required for an assert.
+
+   */
+
+   #define UsedForAssert(x) x
 #else
    #define AssertFatal(x, y)   { TORQUE_UNUSED(x); TORQUE_UNUSED(y); }
    #define AssertWarn(x, y)    { TORQUE_UNUSED(x); TORQUE_UNUSED(y); }
+   #define UsedForAssert(x)
 #endif
 
 /*!

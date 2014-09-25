@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -99,6 +100,7 @@ GFXDevice::GFXDevice()
    mProjectionMatrixDirty = false;
    mViewMatrixDirty = false;
    mTextureMatrixCheckDirty = false;
+   mModelViewMatrixDirty = false;
 
    mViewMatrix.identity();
    mProjectionMatrix.identity();
@@ -165,6 +167,8 @@ GFXDevice::GFXDevice()
    mCanCurrentlyRender = false;
    mInitialized = false;
    
+   mFlipClipRect = false;
+   
    mRTDirty = false;
    mViewport = RectI::Zero;
    mViewportDirty = false;
@@ -184,8 +188,8 @@ GFXDevice::GFXDevice()
    // Add a few system wide shader macros.
    GFXShader::addGlobalMacro( "TORQUE", "1" );
    GFXShader::addGlobalMacro( "TORQUE_VERSION", String::ToString(getVersionNumber()) );
-   #if defined TORQUE_OS_WIN
-      GFXShader::addGlobalMacro( "TORQUE_OS_WIN" );
+   #if defined TORQUE_OS_WIN32
+      GFXShader::addGlobalMacro( "TORQUE_OS_WIN32" );
    #elif defined TORQUE_OS_MAC
       GFXShader::addGlobalMacro( "TORQUE_OS_MAC" );
    #elif defined TORQUE_OS_LINUX
@@ -272,7 +276,8 @@ GFXDevice::~GFXDevice()
 
    // Check for resource leaks
 #ifdef TORQUE_DEBUG
-   AssertFatal( GFXTextureObject::dumpActiveTOs() == 0, "There is a texture object leak, check the log for more details." );
+   // jamesu - disable this for now
+   //AssertFatal( GFXTextureObject::dumpActiveTOs() == 0, "There is a texture object leak, check the log for more details." );
    GFXPrimitiveBuffer::dumpActivePBs();
 #endif
 
@@ -362,6 +367,8 @@ void GFXDevice::updateStates(bool forceSetAll /*=false*/)
       setMatrix( GFXMatrixProjection, mProjectionMatrix );
       setMatrix( GFXMatrixWorld, mWorldMatrix[mWorldStackSize] );
       setMatrix( GFXMatrixView, mViewMatrix );
+      
+      updateModelView();
 
       setVertexDecl( mCurrVertexDecl );
 
@@ -373,13 +380,17 @@ void GFXDevice::updateStates(bool forceSetAll /*=false*/)
 
       if( mCurrentPrimitiveBuffer.isValid() ) // This could be NULL when the device is initalizing
          mCurrentPrimitiveBuffer->prepare();
+      
+      // vertex and primitive buffer has changed
+      onDrawStateChanged();
 
       /// Stateblocks
       if ( mNewStateBlock )
          setStateBlockInternal(mNewStateBlock, true);
       mCurrentStateBlock = mNewStateBlock;
 
-      for(U32 i = 0; i < getNumSamplers(); i++)
+      const U32 samplerCount = getNumSamplers();
+      for(U32 i = 0; i < samplerCount; i++)
       {
          switch (mTexType[i])
          {
@@ -448,6 +459,12 @@ void GFXDevice::updateStates(bool forceSetAll /*=false*/)
       mViewMatrixDirty = false;
    }
 
+   // Update ModelView matrix
+   if ( mModelViewMatrixDirty )
+   {
+      updateModelView();
+      mModelViewMatrixDirty = false;
+   }
 
    if( mTextureMatrixCheckDirty )
    {
@@ -462,12 +479,15 @@ void GFXDevice::updateStates(bool forceSetAll /*=false*/)
 
       mTextureMatrixCheckDirty = false;
    }
+   
+   bool drawStateChanged = false;
 
    // Update the vertex declaration.
    if ( mVertexDeclDirty )
    {
       setVertexDecl( mCurrVertexDecl );
       mVertexDeclDirty = false;
+      drawStateChanged = true;
    }
 
    // Update the vertex buffers.
@@ -477,12 +497,14 @@ void GFXDevice::updateStates(bool forceSetAll /*=false*/)
       {
          setVertexStream( i, mCurrentVertexBuffer[i] );
          mVertexBufferDirty[i] = false;
+         drawStateChanged = true;
       }
 
       if ( mVertexBufferFrequencyDirty[i] )
       {
          setVertexStreamFrequency( i, mVertexBufferFrequency[i] );
          mVertexBufferFrequencyDirty[i] = false;
+         drawStateChanged = true;
       }
    }
 
@@ -494,9 +516,14 @@ void GFXDevice::updateStates(bool forceSetAll /*=false*/)
    // having mCurrentVB properly assigned before the call to setIndices -patw
    if( mPrimitiveBufferDirty )
    {
-      if( mCurrentPrimitiveBuffer.isValid() ) // This could be NULL when the device is initalizing
-         mCurrentPrimitiveBuffer->prepare();
+		updatePrimitiveBuffer(mCurrentPrimitiveBuffer);
       mPrimitiveBufferDirty = false;
+      drawStateChanged = true;
+   }
+   
+   if (drawStateChanged)
+   {
+      onDrawStateChanged();
    }
 
    // NOTE: With state blocks, it's now important to update state before setting textures
@@ -574,7 +601,7 @@ void GFXDevice::setPrimitiveBuffer( GFXPrimitiveBuffer *buffer )
 {
    if( buffer == mCurrentPrimitiveBuffer )
       return;
-   
+	
    mCurrentPrimitiveBuffer = buffer;
    mPrimitiveBufferDirty = true;
    mStateDirty = true;
@@ -808,6 +835,8 @@ inline bool GFXDevice::beginScene()
    return beginSceneInternal();
 }
 
+//------------------------------------------------------------------------------
+
 inline void GFXDevice::endScene()
 {
    AssertFatal( mCanCurrentlyRender == true, "GFXDevice::endScene() - The scene has already ended!" );
@@ -847,7 +876,7 @@ void GFXDevice::setViewport( const RectI &inRect )
    {
       mViewport = rect;
       mViewportDirty = true;
-   }   
+   }
 }
 
 void GFXDevice::pushActiveRenderTarget()
@@ -935,7 +964,7 @@ public:
       if(mWriteToFile)
          mFile.writeLine((const U8*)line);
       else
-         Con::printf(line);
+         Con::printf("%s", line);
    }
 };
 
@@ -998,7 +1027,7 @@ void GFXDevice::listResources(bool unflaggedOnly)
       else if (dynamic_cast<GFXStateBlock*>(walk))
          numStateBlocks++;
       else
-         Con::warnf("Unknown resource: %x", walk);
+         Con::warnf("Unknown resource: %p", walk);
 
       walk = walk->getNextResource();
    }
@@ -1214,6 +1243,12 @@ void GFXDevice::clearResourceFlags()
       walk->clearFlag();
       walk = walk->getNextResource();
    }
+}
+
+void GFXDevice::updatePrimitiveBuffer(GFXPrimitiveBuffer *newBuffer)
+{
+	if( newBuffer ) // This could be NULL when the device is initalizing
+		newBuffer->prepare();
 }
 
 DefineEngineFunction( listGFXResources, void, ( bool unflaggedOnly ), ( false ),

@@ -93,6 +93,7 @@ void ForcedMaterialMeshMgr::render(SceneRenderState * state)
    sgData.init( state );
 
    MeshRenderInst *ri = static_cast<MeshRenderInst*>(mElementList[0].inst);
+	GFXDEBUGEVENT_SCOPE_EX(ForcedMaterialMeshMgr_renderElement, ColorI::GREEN, ri->meshName ? ri->meshName : "MESH");
    setupSGData( ri, sgData );
 
    while (mOverrideInstance->setupPass(state, sgData))

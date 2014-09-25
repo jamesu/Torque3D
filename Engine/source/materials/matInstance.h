@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -19,6 +20,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 //-----------------------------------------------------------------------------
+
 #ifndef _MATINSTANCE_H_
 #define _MATINSTANCE_H_
 
@@ -63,6 +65,7 @@ public:
    virtual void setMaterialParameters(MaterialParameters* param); 
    virtual MaterialParameters* getMaterialParameters();
    virtual MaterialParameterHandle* getMaterialParameterHandle(const String& name);
+   virtual bool hasPass( SceneRenderState *, const SceneData &sgData, U32 passNumber );
    virtual bool setupPass(SceneRenderState *, const SceneData &sgData );
    virtual void setTransforms(const MatrixSet &matrixSet, SceneRenderState *state);
    virtual void setSceneInfo(SceneRenderState *, const SceneData& sgData);
@@ -78,11 +81,13 @@ public:
    virtual U32 getCurPass() { return getMax( mCurPass, 0 ); }
    virtual U32 getCurStageNum();
    virtual RenderPassData *getPass(U32 pass);   
-   virtual const MatStateHint& getStateHint() const;
+   virtual const MatStateHint& getStateHint(U32 passNum = 0) const;
    virtual const GFXVertexFormat* getVertexFormat() const { return mVertexFormat; }
    virtual const FeatureSet& getFeatures() const;
    virtual const FeatureSet& getRequestedFeatures() const { return mFeatureList; }
    virtual void dumpShaderInfo() const;
+   
+   U32 getMaxStages() { return mMaxStages; }
    
 
    ProcessedMaterial *getProcessedMaterial() const { return mProcessedMaterial; }

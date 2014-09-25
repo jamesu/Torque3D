@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -61,21 +62,6 @@ struct GFXSamplerStateDesc
    /// Defaults to zero.
    F32 mipLODBias;
 
-   GFXTextureOp textureColorOp;
-
-   GFXTextureOp alphaOp;
-   GFXTextureArgument alphaArg1;
-   GFXTextureArgument alphaArg2;
-   GFXTextureArgument alphaArg3;
-
-   GFXTextureArgument colorArg1;
-   GFXTextureArgument colorArg2;
-   GFXTextureArgument colorArg3;
-
-   GFXTextureArgument resultArg;
-
-   GFXTextureTransformFlags textureTransform;
-
    GFXSamplerStateDesc();
 
    /// Returns an modulate, wrap, and linear sampled state.
@@ -89,6 +75,17 @@ struct GFXSamplerStateDesc
 
    /// Returns an modulate, clamp, and point sampled state.
    static GFXSamplerStateDesc getClampPoint();
+
+   static bool isDirty(const GFXSamplerStateDesc &a, const GFXSamplerStateDesc &b)
+   {
+	   return !(a.addressModeU == b.addressModeU &&
+		      a.addressModeV == b.addressModeV &&
+		      a.magFilter == b.magFilter &&
+		      a.minFilter == b.minFilter &&
+		      a.mipFilter == b.mipFilter &&
+		      a.maxAnisotropy == b.maxAnisotropy &&
+		      a.mipLODBias == b.mipLODBias);
+   }
 };
 
 /// GFXStateBlockDesc defines a render state, which is then used to create a GFXStateBlock instance.  
@@ -146,9 +143,6 @@ struct GFXStateBlockDesc
    U32 stencilMask;
    U32 stencilWriteMask;
 
-   // FF lighting
-   bool ffLighting;
-
    bool vertexColorEnable;
 
    GFXFillMode fillMode;
@@ -156,7 +150,6 @@ struct GFXStateBlockDesc
    // Sampler states
    bool samplersDefined;
    GFXSamplerStateDesc samplers[TEXTURE_STAGE_COUNT];
-   ColorI textureFactor;
 
    GFXStateBlockDesc();
 

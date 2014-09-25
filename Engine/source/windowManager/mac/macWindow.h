@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -35,8 +36,12 @@
 #include "gfx/gfxStructs.h"
 #endif
 
+class GFXGLDevice;
+
 class MacWindow : public PlatformWindow
 {
+   friend class GFXGLDevice;
+   
 public:
    virtual ~MacWindow();
 
@@ -57,7 +62,7 @@ public:
       // TODO: properly drop out of full screen
       return true;
    }
-   virtual bool isFullscreen() { return mFullscreen; }
+   virtual bool isFullscreen() { return mCurrentMode.fullScreen; }
 
    virtual PlatformWindow * getNextWindow() const;
    
@@ -74,6 +79,7 @@ public:
 
    virtual void setClientExtent( const Point2I newExtent );
    virtual const Point2I getClientExtent();
+   virtual const Point2I getRealClientExtent();
    
    virtual void setBounds( const RectI &newBounds );
    virtual const RectI getBounds() const;
@@ -177,7 +183,6 @@ private:
    MacWindowManager* mOwningWindowManager;
    U32 mSkipMouseEvents;
    
-   bool mFullscreen;
    bool mShouldFullscreen;
    NSDictionary* mDefaultDisplayMode;
    

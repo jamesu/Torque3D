@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -22,6 +23,8 @@
 
 #include "platform/platform.h"
 #include "lighting/advanced/advancedLightBufferConditioner.h"
+#include "shaderGen/HLSL/shaderFeatureHLSL.h"
+#include "shaderGen/shaderGen.h"
 
 #include "shaderGen/shaderOp.h"
 #include "gfx/gfxDevice.h"
@@ -36,10 +39,9 @@ Var *AdvancedLightBufferConditioner::_conditionOutput( Var *unconditionedOutput,
 {
    Var *conditionedOutput = new Var;
 
-   if(GFX->getAdapterType() == OpenGL)
-      conditionedOutput->setType("vec4");
-   else
-      conditionedOutput->setType("float4");
+   const char* vec4Type = ShaderFeatureCommon::getVector4Name();
+   GenOp* vec4GenOp = new GenOp( vec4Type );
+   conditionedOutput->setType(vec4Type);
 
    DecOp *outputDecl = new DecOp(conditionedOutput);
    if(mColorFormat == RGB)
@@ -49,15 +51,15 @@ Var *AdvancedLightBufferConditioner::_conditionOutput( Var *unconditionedOutput,
       // If this is a 16 bit integer format, scale up/down the values. All other
       // formats just write out the full 0..1
       if(getBufferFormat() == GFXFormatR16G16B16A16)
-         meta->addStatement( new GenOp( "   @ = max(4.0, (float4(lightColor, specular) * NL_att + float4(bufferSample.rgb, 0.0)) / 4.0);\r\n", outputDecl ) );
+         meta->addStatement( new GenOp( "   @ = max(4.0, (@(lightColor, specular) * NL_att + @(bufferSample.rgb, 0.0)) / 4.0);\r\n", outputDecl, vec4GenOp, vec4GenOp ) );
       else
-         meta->addStatement( new GenOp( "   @ = float4(lightColor, 0) * NL_att + float4(bufferSample.rgb, specular);\r\n", outputDecl ) );
+         meta->addStatement( new GenOp( "   @ = @(lightColor, 0) * NL_att + @(bufferSample.rgb, specular);\r\n", outputDecl, vec4GenOp, vec4GenOp ) );
    }
    else
    {
       // Input u'v' assumed to be scaled
       conditionedOutput->setName("luvLightInfoOut");
-      meta->addStatement( new GenOp( "   @ = float4( lerp(bufferSample.xy, lightColor.xy, saturate(NL_att / bufferSample.z) * 0.5),\r\n", outputDecl ) );
+      meta->addStatement( new GenOp( "   @ = @( lerp(bufferSample.xy, lightColor.xy, saturate(NL_att / bufferSample.z) * 0.5),\r\n", outputDecl, vec4GenOp ) );
       meta->addStatement( new GenOp( "               bufferSample.z + NL_att, bufferSample.w + saturate(specular * NL_att) );\r\n" ) );
    }
 
@@ -66,19 +68,21 @@ Var *AdvancedLightBufferConditioner::_conditionOutput( Var *unconditionedOutput,
 
 Var *AdvancedLightBufferConditioner::_unconditionInput( Var *conditionedInput, MultiLine *meta )
 {
+   GenOp* vec3GenOp = new GenOp( ShaderFeatureCommon::getVector3Name() );
+
    if(mColorFormat == RGB)
    {
       if(getBufferFormat() == GFXFormatR16G16B16A16)
          meta->addStatement( new GenOp( "   lightColor = @.rgb * 4.0;\r\n", conditionedInput ) );
       else
          meta->addStatement( new GenOp( "   lightColor = @.rgb;\r\n", conditionedInput ) );
-      meta->addStatement( new GenOp( "   NL_att = dot(@.rgb, float3(0.3576, 0.7152, 0.1192));\r\n", conditionedInput ) );
+      meta->addStatement( new GenOp( "   NL_att = dot(@.rgb, @(0.3576, 0.7152, 0.1192));\r\n", conditionedInput, vec3GenOp ) );
    }
    else
    {
       meta->addStatement( new GenOp( "   // TODO: This clamps HDR values.\r\n" ) );
       meta->addStatement( new GenOp( "   NL_att = @.b;\r\n", conditionedInput ) );
-      meta->addStatement( new GenOp( "   lightColor = DecodeLuv(float3(saturate(NL_att), @.rg * 0.62));\r\n", conditionedInput ) );
+      meta->addStatement( new GenOp( "   lightColor = DecodeLuv(@(saturate(NL_att), @.rg * 0.62));\r\n", conditionedInput, vec3GenOp ) );
    }
    meta->addStatement( new GenOp( "   specular = @.a;\r\n", conditionedInput ) );
 
@@ -142,7 +146,8 @@ Var *AdvancedLightBufferConditioner::printMethodHeader( MethodType methodType, c
          meta->addStatement( new GenOp( "      -1.0217f,   1.9777f,    0.0439f,\r\n" ) );
          meta->addStatement( new GenOp( "      0.0753f,    -0.2543f,   1.1892f\r\n" ) );
          meta->addStatement( new GenOp( "   };\r\n" ) );
-         meta->addStatement( new GenOp( "   return mul(XYZ2RGB, XYZ);\r\n" ) );
+         UsedForDirect3D(meta->addStatement( new GenOp( "   return mul(XYZ2RGB, XYZ);\r\n" ) ));
+         UsedForOpenGL(meta->addStatement( new GenOp( "   return XYZ2RGB * XYZ;\r\n" ) ));
          meta->addStatement( new GenOp( "}\r\n\r\n" ) );
       }
       else

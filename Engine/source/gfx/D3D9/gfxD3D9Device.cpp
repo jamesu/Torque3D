@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -37,7 +38,12 @@
 #  include "windowManager/win32/win32Window.h"
 #endif
 
-D3DXFNTable GFXD3D9Device::smD3DX;
+#include "materials/shaderData.h"
+
+// martinJ
+#include "gfx/D3D9/gfxD3D9Timer.h"
+
+extern U32 gUsedVolatileVerts;
 
 GFXD3D9Device::GFXD3D9Device( LPDIRECT3D9 d3d, U32 index ) 
 {
@@ -83,6 +89,15 @@ GFXD3D9Device::GFXD3D9Device( LPDIRECT3D9 d3d, U32 index )
 
    mOcclusionQuerySupported = false;
 
+   for(int i = 0; i < GS_COUNT; ++i)
+      mModelViewProjSC[i] = NULL;
+
+#ifdef ENABLE_GPU_TIMERS
+   // martinJ
+   mTimersSupported = false;
+   mTimerFrequency = 0;
+#endif//ENABLE_GPU_TIMERS
+
    // Set up the Enum translation tables
    GFXD3D9EnumTranslate::init();
 
@@ -90,6 +105,8 @@ GFXD3D9Device::GFXD3D9Device( LPDIRECT3D9 d3d, U32 index )
    mD3DEx = NULL;
    mD3DDeviceEx = NULL;
 #endif
+
+   mCurrentShaderId = 0;
 }
 
 //-----------------------------------------------------------------------------
@@ -144,35 +161,54 @@ GFXD3D9Device::~GFXD3D9Device()
 //------------------------------------------------------------------------------
 inline void GFXD3D9Device::setupGenericShaders( GenericShaderType type /* = GSColor */ )
 {
-#ifdef WANT_TO_SIMULATE_UI_ON_360
-   if( mGenericShader[GSColor] == NULL )
-   {
-      mGenericShader[GSColor] =           createShader( "shaders/common/genericColorV.hlsl", 
-         "shaders/common/genericColorP.hlsl", 
-         2.f );
+	AssertFatal(type != GSTargetRestore, ""); //not used
 
-      mGenericShader[GSModColorTexture] = createShader( "shaders/common/genericModColorTextureV.hlsl", 
-         "shaders/common/genericModColorTextureP.hlsl", 
-         2.f );
+	if(mGenericShader[GSColor] == NULL)
+	{
+		ShaderData *shaderData;
 
-      mGenericShader[GSAddColorTexture] = createShader( "shaders/common/genericAddColorTextureV.hlsl", 
-         "shaders/common/genericAddColorTextureP.hlsl", 
-         2.f );
-   }
+		shaderData = new ShaderData();
+		shaderData->setField("DXVertexShaderFile", "shaders/common/fixedFunction/colorV.hlsl");
+		shaderData->setField("DXPixelShaderFile", "shaders/common/fixedFunction/colorP.hlsl");
+		shaderData->setField("pixVersion", "2.0");
+		shaderData->registerObject();
+		mGenericShader[GSColor] = shaderData->getShader();
+		mGenericShaderBuffer[GSColor] = mGenericShader[GSColor]->allocConstBuffer();
+		mModelViewProjSC[GSColor] = mGenericShader[GSColor]->getShaderConstHandle("$modelView");
 
-   mGenericShader[type]->process();
+		shaderData = new ShaderData();
+		shaderData->setField("DXVertexShaderFile", "shaders/common/fixedFunction/modColorTextureV.hlsl");
+		shaderData->setField("DXPixelShaderFile", "shaders/common/fixedFunction/modColorTextureP.hlsl");
+		shaderData->setField("pixVersion", "2.0");
+		shaderData->registerObject();
+		mGenericShader[GSModColorTexture] = shaderData->getShader();
+		mGenericShaderBuffer[GSModColorTexture] = mGenericShader[GSModColorTexture]->allocConstBuffer();
+		mModelViewProjSC[GSModColorTexture] = mGenericShader[GSModColorTexture]->getShaderConstHandle("$modelView");
 
-   MatrixF world, view, proj;
-   mWorldMatrix[mWorldStackSize].transposeTo( world );
-   mViewMatrix.transposeTo( view );
-   mProjectionMatrix.transposeTo( proj );
+		shaderData = new ShaderData();
+		shaderData->setField("DXVertexShaderFile", "shaders/common/fixedFunction/addColorTextureV.hlsl");
+		shaderData->setField("DXPixelShaderFile", "shaders/common/fixedFunction/addColorTextureP.hlsl");
+		shaderData->setField("pixVersion", "2.0");
+		shaderData->registerObject();
+		mGenericShader[GSAddColorTexture] = shaderData->getShader();
+		mGenericShaderBuffer[GSAddColorTexture] = mGenericShader[GSAddColorTexture]->allocConstBuffer();
+		mModelViewProjSC[GSAddColorTexture] = mGenericShader[GSAddColorTexture]->getShaderConstHandle("$modelView");
 
-   mTempMatrix = world * view * proj;
+		shaderData = new ShaderData();
+		shaderData->setField("DXVertexShaderFile", "shaders/common/fixedFunction/textureV.hlsl");
+		shaderData->setField("DXPixelShaderFile", "shaders/common/fixedFunction/textureP.hlsl");
+		shaderData->setField("pixVersion", "2.0");
+		shaderData->registerObject();
+		mGenericShader[GSTexture] = shaderData->getShader();
+		mGenericShaderBuffer[GSTexture] = mGenericShader[GSTexture]->allocConstBuffer();
+		mModelViewProjSC[GSTexture] = mGenericShader[GSTexture]->getShaderConstHandle("$modelView");
+	}
 
-   setVertexShaderConstF( VC_WORLD_PROJ, (F32 *)&mTempMatrix, 4 );
-#else
-   disableShaders();
-#endif
+	MatrixF tempMatrix = mProjectionMatrix * mViewMatrix * mWorldMatrix[mWorldStackSize];
+	mGenericShaderBuffer[type]->setSafe(mModelViewProjSC[type], tempMatrix);
+
+	setShader(mGenericShader[type]);
+	setShaderConstBuffer(mGenericShaderBuffer[type]);
 }
 
 //-----------------------------------------------------------------------------
@@ -241,6 +277,8 @@ bool GFXD3D9Device::beginSceneInternal()
    HRESULT hr = mD3DDevice->BeginScene();
    D3D9Assert(hr, "GFXD3D9Device::beginSceneInternal - failed to BeginScene");
    mCanCurrentlyRender = SUCCEEDED(hr);
+   gUsedVolatileVerts = 0;
+
    return mCanCurrentlyRender;      
 }
 
@@ -250,6 +288,18 @@ void GFXD3D9Device::endSceneInternal()
 {
    mD3DDevice->EndScene();
    mCanCurrentlyRender = false;
+
+   //Con::printf("Volatile verts this frame: %u", gUsedVolatileVerts);
+
+   for( U32 i=0; i<mVolatileVBList.size(); i++ )
+   {
+      if( mVolatileVBList[i]->mClearAtFrameEnd )
+      {
+         mVolatileVBList[i]->mNumVerts = 0;
+         mVolatileVBList[i]->mClearAtFrameEnd = false;
+         //Con::printf(">>Reset buffer %u", i);
+      }
+   }
 }
 
 void GFXD3D9Device::_updateRenderTargets()
@@ -488,11 +538,26 @@ GFXD3D9VertexBuffer* GFXD3D9Device::findVBPool( const GFXVertexFormat *vertexFor
 {
    PROFILE_SCOPE( GFXD3D9Device_findVBPool );
 
+   U32 waitingOnBufferCount = 0;
+
    // Verts needed is ignored on the base device, 360 is different
    for( U32 i=0; i<mVolatileVBList.size(); i++ )
-      if( mVolatileVBList[i]->mVertexFormat.isEqual( *vertexFormat ) )
-         return mVolatileVBList[i];
+   {
+      if( mVolatileVBList[i]->mVertexFormat.isEqual( *vertexFormat ) && !mVolatileVBList[i]->mClearAtFrameEnd )
+      {
+         if (vertsNeeded < MAX_DYNAMIC_VERTS - mVolatileVBList[i]->mNumVerts)
+         {
+            return mVolatileVBList[i];
+         }
+         else
+         {
+            mVolatileVBList[i]->mClearAtFrameEnd = true;
+            waitingOnBufferCount++;
+         }
+      }
+   }
 
+   //Con::printf(">>No buff available with verts %u (%u used)", vertsNeeded, waitingOnBufferCount);
    return NULL;
 }
 
@@ -516,7 +581,7 @@ GFXD3D9VertexBuffer * GFXD3D9Device::createVBPool( const GFXVertexFormat *vertex
    // Requesting it will allocate it.
    vertexFormat->getDecl();
 
-   //   Con::printf("Created buff with type %x", vertFlags);
+   //Con::printf(">>Created buff %u %x (%s)", mVolatileVBList.size()-1, newBuff.getPointer(), newBuff->describeSelf().c_str());
 
    D3D9Assert( mD3DDevice->CreateVertexBuffer( vertSize * MAX_DYNAMIC_VERTS, 
 #ifdef TORQUE_OS_XENON
@@ -692,6 +757,7 @@ GFXShader* GFXD3D9Device::createShader()
 {
    GFXD3D9Shader* shader = new GFXD3D9Shader();
    shader->registerResourceWithDevice( this );
+   shader->mId = mCurrentShaderId++;
    return shader;
 }
 
@@ -749,7 +815,7 @@ GFXPrimitiveBuffer * GFXD3D9Device::allocPrimitiveBuffer(   U32 numIndices,
    switch(bufferType)
    {
    case GFXBufferTypeStatic:
-      pool = isD3D9Ex() ? D3DPOOL_DEFAULT : D3DPOOL_MANAGED;
+      pool = D3DPOOL_MANAGED;
       break;
 
    case GFXBufferTypeDynamic:
@@ -817,7 +883,7 @@ GFXVertexBuffer * GFXD3D9Device::allocVertexBuffer(   U32 numVerts,
    switch(bufferType)
    {
    case GFXBufferTypeStatic:
-      pool = isD3D9Ex() ? D3DPOOL_DEFAULT : D3DPOOL_MANAGED;
+      pool = D3DPOOL_MANAGED;
       break;
 
    case GFXBufferTypeDynamic:
@@ -903,6 +969,12 @@ GFXVertexDecl* GFXD3D9Device::allocVertexDecl( const GFXVertexFormat *vertexForm
          vd[i].Usage = D3DDECLUSAGE_TANGENT;
       else if ( element.isSemantic( GFXSemantic::BINORMAL ) )
          vd[i].Usage = D3DDECLUSAGE_BINORMAL;
+      else if ( element.isSemantic( GFXSemantic::BLENDINDICES ) ) {
+		// vd[i].Type = D3DDECLTYPE_UBYTE4;
+         vd[i].Usage = D3DDECLUSAGE_BLENDINDICES;
+	  }
+      else if ( element.isSemantic( GFXSemantic::BLENDWEIGHT ) )
+         vd[i].Usage = D3DDECLUSAGE_BLENDWEIGHT;
       else
       {
          // Anything that falls thru to here will be a texture coord.
@@ -956,98 +1028,17 @@ void GFXD3D9Device::setTextureInternal( U32 textureUnit, const GFXTextureObject 
 //-----------------------------------------------------------------------------
 void GFXD3D9Device::setLightInternal(U32 lightStage, const GFXLightInfo light, bool lightEnable)
 {
-#ifndef TORQUE_OS_XENON
-   if(!lightEnable)
-   {
-      mD3DDevice->LightEnable(lightStage, false);
-      return;
-   }
-   D3DLIGHT9 d3dLight;
-   switch (light.mType)
-   {
-   case GFXLightInfo::Ambient:
-      AssertFatal(false, "Instead of setting an ambient light you should set the global ambient color.");
-      return;
-   case GFXLightInfo::Vector:
-      d3dLight.Type = D3DLIGHT_DIRECTIONAL;
-      break;
-
-   case GFXLightInfo::Point:
-      d3dLight.Type = D3DLIGHT_POINT;
-      break;
-
-   case GFXLightInfo::Spot:      
-      d3dLight.Type = D3DLIGHT_SPOT;
-      break;
-
-   default :
-      AssertFatal(false, "Unknown light type!");
-   };
-
-   dMemcpy(&d3dLight.Diffuse, &light.mColor, sizeof(light.mColor));
-   dMemcpy(&d3dLight.Ambient, &light.mAmbient, sizeof(light.mAmbient));
-   dMemcpy(&d3dLight.Specular, &light.mColor, sizeof(light.mColor));
-   dMemcpy(&d3dLight.Position, &light.mPos, sizeof(light.mPos));
-   dMemcpy(&d3dLight.Direction, &light.mDirection, sizeof(light.mDirection));
-
-   d3dLight.Range = light.mRadius;
-
-   d3dLight.Falloff = 1.0;
-
-   d3dLight.Attenuation0 = 1.0f;
-   d3dLight.Attenuation1 = 0.1f;
-   d3dLight.Attenuation2 = 0.0f;
-
-   d3dLight.Theta = light.mInnerConeAngle;
-   d3dLight.Phi = light.mOuterConeAngle;
-
-   mD3DDevice->SetLight(lightStage, &d3dLight);
-   mD3DDevice->LightEnable(lightStage, true); 
-#endif
+// FFP ONLY
 }
 
 void GFXD3D9Device::setLightMaterialInternal(const GFXLightMaterial mat)
 {
-#ifndef TORQUE_OS_XENON
-   D3DMATERIAL9 d3dmat;
-   dMemset(&d3dmat, 0, sizeof(D3DMATERIAL9));
-   D3DCOLORVALUE col;
-
-   col.r = mat.ambient.red;
-   col.g = mat.ambient.green;
-   col.b = mat.ambient.blue;
-   col.a = mat.ambient.alpha;
-   d3dmat.Ambient = col;
-
-   col.r = mat.diffuse.red;
-   col.g = mat.diffuse.green;
-   col.b = mat.diffuse.blue;
-   col.a = mat.diffuse.alpha;
-   d3dmat.Diffuse = col;
-
-   col.r = mat.specular.red;
-   col.g = mat.specular.green;
-   col.b = mat.specular.blue;
-   col.a = mat.specular.alpha;
-   d3dmat.Specular = col;
-
-   col.r = mat.emissive.red;
-   col.g = mat.emissive.green;
-   col.b = mat.emissive.blue;
-   col.a = mat.emissive.alpha;
-   d3dmat.Emissive = col;
-
-   d3dmat.Power = mat.shininess;
-   mD3DDevice->SetMaterial(&d3dmat);
-#endif
+// FFP ONLY
 }
 
 void GFXD3D9Device::setGlobalAmbientInternal(ColorF color)
 {
-#ifndef TORQUE_OS_XENON
-   mD3DDevice->SetRenderState(D3DRS_AMBIENT,
-      D3DCOLOR_COLORVALUE(color.red, color.green, color.blue, color.alpha));
-#endif
+// FFP ONLY
 }
 
 //------------------------------------------------------------------------------
@@ -1137,9 +1128,48 @@ GFXOcclusionQuery* GFXD3D9Device::createOcclusionQuery()
    return query;
 }
 
+// martinJ
+#ifdef ENABLE_GPU_TIMERS
+
+GFXTimer* GFXD3D9Device::createTimer()
+{
+  if (supportsTimers())
+  {
+    GFXD3D9Timer* gfxTimer = new GFXD3D9Timer();
+    gfxTimer->registerResourceWithDevice(this);
+    gfxTimer->resurrect();
+    return gfxTimer;
+  }
+
+  return NULL;
+}
+
+U64 GFXD3D9Device::getTimerFrequency()
+{
+  return mTimerFrequency;
+}
+
+bool GFXD3D9Device::supportsTimers()
+{
+  return mTimersSupported;
+}
+
+#endif ENABLE_GPU_TIMERS
+
 GFXCubemap * GFXD3D9Device::createCubemap()
 {
    GFXD3D9Cubemap* cube = new GFXD3D9Cubemap();
    cube->registerResourceWithDevice(this);
    return cube;
+}
+
+void GFXD3D9Device::updateModelView()
+{
+   // NOP
+}
+
+//-----------------------------------------------------------------------------
+
+void GFXD3D9Device::onDrawStateChanged()
+{
 }

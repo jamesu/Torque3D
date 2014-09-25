@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -20,16 +21,14 @@
 // IN THE SOFTWARE.
 //-----------------------------------------------------------------------------
 
-#ifndef _PIXSPECULAR_HLSL_H_
-#define _PIXSPECULAR_HLSL_H_
+#ifndef _PIXSPECULAR_H_
+#define _PIXSPECULAR_H_
 
-#ifndef _SHADERGEN_HLSL_SHADERFEATUREHLSL_H_
 #include "shaderGen/HLSL/shaderFeatureHLSL.h"
-#endif
 
 
 /// A per-pixel specular feature.
-class PixelSpecularHLSL : public ShaderFeatureHLSL
+class PixelSpecular : public ShaderFeatureCommon
 {
 protected:
 
@@ -37,7 +36,8 @@ protected:
 
 public:
 
-   PixelSpecularHLSL();
+   PixelSpecular();
+   PixelSpecular(bool includeLightingDependancy);
 
    virtual void processVert( Vector<ShaderComponent*> &componentList,
                              const MaterialFeatureData &fd );
@@ -53,8 +53,9 @@ public:
    }
 };
 
+
 /// A texture source for the PixSpecular feature
-class SpecularMapHLSL : public ShaderFeatureHLSL
+class SpecularMap : public ShaderFeatureCommon
 {
 
 public:
@@ -72,6 +73,9 @@ public:
    {
       return "Specular Map";
    }
+
+   static const char* specularSamplerName;
 };
 
-#endif // _PIXSPECULAR_HLSL_H_
+
+#endif // _PIXSPECULAR_H_

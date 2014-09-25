@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -21,7 +22,7 @@
 //-----------------------------------------------------------------------------
 
 #include "platform/platform.h"
-#include "terrain/hlsl/terrFeatureHLSL.h"
+#include "terrain/HLSL/terrFeatureHLSL.h"
 
 #include "terrain/terrFeatureTypes.h"
 #include "materials/materialFeatureTypes.h"
@@ -32,27 +33,7 @@
 #include "shaderGen/featureMgr.h"
 #include "core/module.h"
 
-
-MODULE_BEGIN( TerrainFeatHLSL )
-
-   MODULE_INIT_AFTER( ShaderGenFeatureMgr )
-
-   MODULE_INIT
-   {
-      FEATUREMGR->registerFeature( MFT_TerrainBaseMap, new TerrainBaseMapFeatHLSL );
-      FEATUREMGR->registerFeature( MFT_TerrainParallaxMap, new NamedFeatureHLSL( "Terrain Parallax Texture" ) );   
-      FEATUREMGR->registerFeature( MFT_TerrainDetailMap, new TerrainDetailMapFeatHLSL );
-      FEATUREMGR->registerFeature( MFT_TerrainNormalMap, new TerrainNormalMapFeatHLSL );
-      FEATUREMGR->registerFeature( MFT_TerrainMacroMap, new TerrainMacroMapFeatHLSL );
-      FEATUREMGR->registerFeature( MFT_TerrainLightMap, new TerrainLightMapFeatHLSL );
-      FEATUREMGR->registerFeature( MFT_TerrainSideProject, new NamedFeatureHLSL( "Terrain Side Projection" ) );
-      FEATUREMGR->registerFeature( MFT_TerrainAdditive, new TerrainAdditiveFeatHLSL );
-   }
-
-MODULE_END;
-
-
-Var* TerrainFeatHLSL::_getUniformVar( const char *name, const char *type, ConstantSortPosition csp )
+Var* TerrainFeatCommon::_getUniformVar( const char *name, const char *type, ConstantSortPosition csp )
 {
    Var *theVar = (Var*)LangElement::find( name );
    if ( !theVar )
@@ -67,7 +48,7 @@ Var* TerrainFeatHLSL::_getUniformVar( const char *name, const char *type, Consta
    return theVar;
 }
 
-Var* TerrainFeatHLSL::_getInDetailCoord( Vector<ShaderComponent*> &componentList )
+Var* TerrainFeatCommon::_getInDetailCoord( Vector<ShaderComponent*> &componentList )
 {
    String name( String::ToString( "detCoord%d", getProcessIndex() ) );
    Var *inDet = (Var*)LangElement::find( name );
@@ -79,14 +60,14 @@ Var* TerrainFeatHLSL::_getInDetailCoord( Vector<ShaderComponent*> &componentList
       inDet = connectComp->getElement( RT_TEXCOORD );
       inDet->setName( name );
       inDet->setStructName( "IN" );
-      inDet->setType( "float4" );
+      inDet->setType( getVector4Name() );
       inDet->mapsToSampler = true;
    }
 
    return inDet;
 }
 
-Var* TerrainFeatHLSL::_getInMacroCoord( Vector<ShaderComponent*> &componentList )
+Var* TerrainFeatCommon::_getInMacroCoord( Vector<ShaderComponent*> &componentList )
 {
    String name( String::ToString( "macroCoord%d", getProcessIndex() ) );
    Var *inDet = (Var*)LangElement::find( name );
@@ -98,14 +79,14 @@ Var* TerrainFeatHLSL::_getInMacroCoord( Vector<ShaderComponent*> &componentList 
       inDet = connectComp->getElement( RT_TEXCOORD );
       inDet->setName( name );
       inDet->setStructName( "IN" );
-      inDet->setType( "float4" );
+      inDet->setType( getVector4Name() );
       inDet->mapsToSampler = true;
    }
 
    return inDet;
 }
 
-Var* TerrainFeatHLSL::_getNormalMapTex()
+Var* TerrainFeatCommon::_getNormalMapTex()
 {
    String name( String::ToString( "normalMap%d", getProcessIndex() ) );
    Var *normalMap =  (Var*)LangElement::find( name );
@@ -123,7 +104,7 @@ Var* TerrainFeatHLSL::_getNormalMapTex()
    return normalMap;
 }
 
-Var* TerrainFeatHLSL::_getDetailIdStrengthParallax()
+Var* TerrainFeatCommon::_getDetailIdStrengthParallax()
 {
    String name( String::ToString( "detailIdStrengthParallax%d", getProcessIndex() ) );
 
@@ -131,7 +112,7 @@ Var* TerrainFeatHLSL::_getDetailIdStrengthParallax()
    if ( !detailInfo )
    {
       detailInfo = new Var;
-      detailInfo->setType( "float3" );
+      detailInfo->setType( getVector3Name() );
       detailInfo->setName( name );
       detailInfo->uniform = true;
       detailInfo->constSortPos = cspPotentialPrimitive;
@@ -140,7 +121,7 @@ Var* TerrainFeatHLSL::_getDetailIdStrengthParallax()
    return detailInfo;
 }
 
-Var* TerrainFeatHLSL::_getMacroIdStrengthParallax()
+Var* TerrainFeatCommon::_getMacroIdStrengthParallax()
 {
    String name( String::ToString( "macroIdStrengthParallax%d", getProcessIndex() ) );
 
@@ -148,7 +129,7 @@ Var* TerrainFeatHLSL::_getMacroIdStrengthParallax()
    if ( !detailInfo )
    {
       detailInfo = new Var;
-      detailInfo->setType( "float3" );
+      detailInfo->setType( getVector3Name() );
       detailInfo->setName( name );
       detailInfo->uniform = true;
       detailInfo->constSortPos = cspPotentialPrimitive;
@@ -158,7 +139,7 @@ Var* TerrainFeatHLSL::_getMacroIdStrengthParallax()
 }
 
 
-void TerrainBaseMapFeatHLSL::processVert( Vector<ShaderComponent*> &componentList, 
+void TerrainBaseMapFeatCommon::processVert( Vector<ShaderComponent*> &componentList, 
                                           const MaterialFeatureData &fd )
 {
    MultiLine *meta = new MultiLine;
@@ -171,7 +152,7 @@ void TerrainBaseMapFeatHLSL::processVert( Vector<ShaderComponent*> &componentLis
       if ( !inPos )
          inPos = (Var*)LangElement::find( "position" );
 
-      inTex = new Var( "texCoord", "float3" );
+      inTex = new Var( "texCoord", getVector3Name() );
 
       Var *oneOverTerrainSize = _getUniformVar( "oneOverTerrainSize", "float", cspPass );
 
@@ -185,7 +166,7 @@ void TerrainBaseMapFeatHLSL::processVert( Vector<ShaderComponent*> &componentLis
       // So instead i fixed this by flipping the base and detail
       // coord y scale to compensate when rendering.
       //
-      meta->addStatement( new GenOp( "   @ = @.xyz * float3( @, @, -@ );\r\n", 
+      meta->addStatement( new GenOp( avar("   @ = @.xyz * %s( @, @, -@ );\r\n", getVector3Name()),
          new DecOp( inTex ), inPos, oneOverTerrainSize, oneOverTerrainSize, oneOverTerrainSize ) );
    }
 
@@ -195,7 +176,7 @@ void TerrainBaseMapFeatHLSL::processVert( Vector<ShaderComponent*> &componentLis
    Var *outTex = connectComp->getElement( RT_TEXCOORD );
    outTex->setName( "outTexCoord" );
    outTex->setStructName( "OUT" );
-   outTex->setType( "float3" );
+   outTex->setType( getVector3Name() );
    outTex->mapsToSampler = true;
    meta->addStatement( new GenOp( "   @.xy = @.xy;\r\n", outTex, inTex ) );
 
@@ -206,7 +187,7 @@ void TerrainBaseMapFeatHLSL::processVert( Vector<ShaderComponent*> &componentLis
    {
       Var *inNormal = (Var*)LangElement::find( "normal" );
       meta->addStatement( 
-         new GenOp( "   @.z = pow( abs( dot( normalize( float3( @.x, @.y, 0 ) ), float3( 0, 1, 0 ) ) ), 10.0 );\r\n", 
+         new GenOp( avar("   @.z = pow( abs( dot( normalize( %s( @.x, @.y, 0 ) ), %s( 0, 1, 0 ) ) ), 10.0 );\r\n", getVector3Name()),
             outTex, inNormal, inNormal ) );
    }
    else
@@ -220,17 +201,17 @@ void TerrainBaseMapFeatHLSL::processVert( Vector<ShaderComponent*> &componentLis
    // optimize away this code.
    //
    Var *inTangentZ = getVertTexCoord( "tcTangentZ" );
-   Var *inTanget = new Var( "T", "float3" );
+   Var *inTanget = new Var( "T", getVector3Name() );
    Var *squareSize = _getUniformVar( "squareSize", "float", cspPass );
-   meta->addStatement( new GenOp( "   @ = normalize( float3( @, 0, @ ) );\r\n", 
+   meta->addStatement( new GenOp( avar("   @ = normalize( %s( @, 0, @ ) );\r\n", getVector3Name()),
       new DecOp( inTanget ), squareSize, inTangentZ ) );
 }
 
-void TerrainBaseMapFeatHLSL::processPix(  Vector<ShaderComponent*> &componentList, 
+void TerrainBaseMapFeatCommon::processPix(  Vector<ShaderComponent*> &componentList, 
                                           const MaterialFeatureData &fd )
 {
    // grab connector texcoord register
-   Var *texCoord = getInTexCoord( "texCoord", "float3", true, componentList );
+   Var *texCoord = getInTexCoord( "texCoord", getVector3Name(), true, componentList );
 
    // We do nothing more if this is a prepass.
    if ( fd.features.hasFeature( MFT_PrePassConditioner ) )
@@ -247,15 +228,15 @@ void TerrainBaseMapFeatHLSL::processPix(  Vector<ShaderComponent*> &componentLis
    MultiLine *meta = new MultiLine;
 
    Var *baseColor = new Var;
-   baseColor->setType( "float4" );
+   baseColor->setType( getVector4Name() );
    baseColor->setName( "baseColor" );
-   meta->addStatement( new GenOp( "   @ = tex2D( @, @.xy );\r\n", new DecOp( baseColor ), diffuseMap, texCoord ) );
+   meta->addStatement( new GenOp( avar("   @ = %s( @, @.xy );\r\n", getTexture2DFunction()), new DecOp( baseColor ), diffuseMap, texCoord ) );
    meta->addStatement( new GenOp( "   @;\r\n", assignColor( baseColor, Material::Mul ) ) );
 
    output = meta;
 }
 
-ShaderFeature::Resources TerrainBaseMapFeatHLSL::getResources( const MaterialFeatureData &fd )
+ShaderFeature::Resources TerrainBaseMapFeatCommon::getResources( const MaterialFeatureData &fd )
 {
    Resources res; 
    res.numTexReg = 1;
@@ -267,16 +248,15 @@ ShaderFeature::Resources TerrainBaseMapFeatHLSL::getResources( const MaterialFea
    return res;
 }
 
-TerrainDetailMapFeatHLSL::TerrainDetailMapFeatHLSL()
-   :  mTorqueDep( "shaders/common/torque.hlsl" ),
-      mTerrainDep( "shaders/common/terrain/terrain.hlsl" )
-      
+TerrainDetailMapFeatCommon::TerrainDetailMapFeatCommon()
+   : mTorqueDep( GFX->getAdapterType() == OpenGL ? "shaders/common/gl/torque.glsl" : "shaders/common/torque.hlsl" ),
+     mTerrainDep( GFX->getAdapterType() == OpenGL ? "shaders/common/terrain/terrain.glsl" : "shaders/common/terrain/terrain.hlsl" )
 {
    addDependency( &mTorqueDep );
    addDependency( &mTerrainDep );
 }
 
-void TerrainDetailMapFeatHLSL::processVert(  Vector<ShaderComponent*> &componentList, 
+void TerrainDetailMapFeatCommon::processVert(  Vector<ShaderComponent*> &componentList, 
                                              const MaterialFeatureData &fd )
 {
    const U32 detailIndex = getProcessIndex();
@@ -292,7 +272,7 @@ void TerrainDetailMapFeatHLSL::processVert(  Vector<ShaderComponent*> &component
       inPos = (Var*)LangElement::find( "position" );
 
    // Get the object space eye position.
-   Var *eyePos = _getUniformVar( "eyePos", "float3", cspPotentialPrimitive );
+   Var *eyePos = _getUniformVar( "eyePos", getVector3Name(), cspPotentialPrimitive );
 
    MultiLine *meta = new MultiLine;
 
@@ -311,8 +291,8 @@ void TerrainDetailMapFeatHLSL::processVert(  Vector<ShaderComponent*> &component
       Var *outNegViewTS = connectComp->getElement( RT_TEXCOORD );
       outNegViewTS->setName( "outNegViewTS" );
       outNegViewTS->setStructName( "OUT" );
-      outNegViewTS->setType( "float3" );
-      meta->addStatement( new GenOp( "   @ = mul( @, float3( @ - @.xyz ) );\r\n", 
+      outNegViewTS->setType( getVector3Name() );
+      meta->addStatement( new GenOp( avar("   @ = mul( @, %s( @ - @.xyz ) );\r\n", getVector3Name()),
          outNegViewTS, objToTangentSpace, eyePos, inPos ) );
    }
 
@@ -333,12 +313,12 @@ void TerrainDetailMapFeatHLSL::processVert(  Vector<ShaderComponent*> &component
    Var *outTex = connectComp->getElement( RT_TEXCOORD );
    outTex->setName( String::ToString( "detCoord%d", detailIndex ) );
    outTex->setStructName( "OUT" );
-   outTex->setType( "float4" );
+   outTex->setType( getVector4Name() );
    outTex->mapsToSampler = true;
 
    // Get the detail scale and fade info.
    Var *detScaleAndFade = new Var;
-   detScaleAndFade->setType( "float4" );
+   detScaleAndFade->setType( getVector4Name() );
    detScaleAndFade->setName( String::ToString( "detailScaleAndFade%d", detailIndex ) );
    detScaleAndFade->uniform = true;
    detScaleAndFade->constSortPos = cspPotentialPrimitive;
@@ -350,7 +330,7 @@ void TerrainDetailMapFeatHLSL::processVert(  Vector<ShaderComponent*> &component
    // its scale is flipped to correct for the non negative y
    // in texCoord.
    //
-   // See TerrainBaseMapFeatHLSL::processVert().
+   // See TerrainBaseMapFeatCommon::processVert().
    //
    meta->addStatement( new GenOp( "   @.xyz = @ * @.xyx;\r\n", outTex, inTex, detScaleAndFade ) );
 
@@ -361,7 +341,7 @@ void TerrainDetailMapFeatHLSL::processVert(  Vector<ShaderComponent*> &component
    output = meta;
 }
 
-void TerrainDetailMapFeatHLSL::processPix(   Vector<ShaderComponent*> &componentList, 
+void TerrainDetailMapFeatCommon::processPix(   Vector<ShaderComponent*> &componentList, 
                                              const MaterialFeatureData &fd )
 {
    const U32 detailIndex = getProcessIndex();
@@ -382,10 +362,10 @@ void TerrainDetailMapFeatHLSL::processPix(   Vector<ShaderComponent*> &component
          inNegViewTS = connectComp->getElement( RT_TEXCOORD );
          inNegViewTS->setName( "outNegViewTS" );
          inNegViewTS->setStructName( "IN" );
-         inNegViewTS->setType( "float3" );
+         inNegViewTS->setType( getVector3Name() );
       }
 
-      negViewTS = new Var( "negViewTS", "float3" );
+      negViewTS = new Var( "negViewTS", getVector3Name() );
       meta->addStatement( new GenOp( "   @ = normalize( @ );\r\n", new DecOp( negViewTS ), inNegViewTS ) );
    }
 
@@ -394,7 +374,7 @@ void TerrainDetailMapFeatHLSL::processPix(   Vector<ShaderComponent*> &component
    if ( !layerSample )
    {
       layerSample = new Var;
-      layerSample->setType( "float4" );
+      layerSample->setType( getVector4Name() );
       layerSample->setName( "layerSample" );
 
       // Get the layer texture var
@@ -406,7 +386,7 @@ void TerrainDetailMapFeatHLSL::processPix(   Vector<ShaderComponent*> &component
       layerTex->constNum = Var::getTexUnitNum();
 
       // Read the layer texture to get the samples.
-      meta->addStatement( new GenOp( "   @ = round( tex2D( @, @.xy ) * 255.0f );\r\n", 
+      meta->addStatement( new GenOp( avar("   @ = round( %s( @, @.xy ) * 255.0f );\r\n", getTexture2DFunction()),
                                        new DecOp( layerSample ), layerTex, inTex ) );
    }
 
@@ -487,7 +467,7 @@ void TerrainDetailMapFeatHLSL::processPix(   Vector<ShaderComponent*> &component
    if ( !detailColor )
    {
       detailColor = new Var;
-      detailColor->setType( "float4" );
+      detailColor->setType( getVector4Name() );
       detailColor->setName( "detailColor" );
       meta->addStatement( new GenOp( "   @;\r\n", new DecOp( detailColor ) ) );
    }
@@ -518,12 +498,12 @@ void TerrainDetailMapFeatHLSL::processPix(   Vector<ShaderComponent*> &component
    //
    if ( fd.features.hasFeature( MFT_TerrainSideProject, detailIndex ) )
    {
-      meta->addStatement( new GenOp( "      @ = ( lerp( tex2D( @, @.yz ), tex2D( @, @.xz ), @.z ) * 2.0 ) - 1.0;\r\n", 
+      meta->addStatement( new GenOp( avar("      @ = ( lerp( %s( @, @.yz ), %s( @, @.xz ), @.z ) * 2.0 ) - 1.0;\r\n", getTexture2DFunction(), getTexture2DFunction()),
                                                 detailColor, detailMap, inDet, detailMap, inDet, inTex ) );
    }
    else
    {
-      meta->addStatement( new GenOp( "      @ = ( tex2D( @, @.xy ) * 2.0 ) - 1.0;\r\n", 
+      meta->addStatement( new GenOp( avar("      @ = ( %s( @, @.xy ) * 2.0 ) - 1.0;\r\n", getTexture2DFunction()),
                                        detailColor, detailMap, inDet ) );
    }
 
@@ -541,7 +521,7 @@ void TerrainDetailMapFeatHLSL::processPix(   Vector<ShaderComponent*> &component
    output = meta;
 }
 
-ShaderFeature::Resources TerrainDetailMapFeatHLSL::getResources( const MaterialFeatureData &fd )
+ShaderFeature::Resources TerrainDetailMapFeatCommon::getResources( const MaterialFeatureData &fd )
 {
    Resources res;
 
@@ -576,9 +556,9 @@ ShaderFeature::Resources TerrainDetailMapFeatHLSL::getResources( const MaterialF
 }
 
 
-TerrainMacroMapFeatHLSL::TerrainMacroMapFeatHLSL()
-   :  mTorqueDep( "shaders/common/torque.hlsl" ),
-      mTerrainDep( "shaders/common/terrain/terrain.hlsl" )
+TerrainMacroMapFeatCommon::TerrainMacroMapFeatCommon()
+   :  mTorqueDep( "shaders/common/torque.Common" ),
+      mTerrainDep( "shaders/common/terrain/terrain.Common" )
       
 {
    addDependency( &mTorqueDep );
@@ -586,7 +566,7 @@ TerrainMacroMapFeatHLSL::TerrainMacroMapFeatHLSL()
 }
 
 
-void TerrainMacroMapFeatHLSL::processVert(  Vector<ShaderComponent*> &componentList, 
+void TerrainMacroMapFeatCommon::processVert(  Vector<ShaderComponent*> &componentList, 
                                              const MaterialFeatureData &fd )
 {
    const U32 detailIndex = getProcessIndex();
@@ -602,7 +582,7 @@ void TerrainMacroMapFeatHLSL::processVert(  Vector<ShaderComponent*> &componentL
       inPos = (Var*)LangElement::find( "position" );
 
    // Get the object space eye position.
-   Var *eyePos = _getUniformVar( "eyePos", "float3", cspPotentialPrimitive );
+   Var *eyePos = _getUniformVar( "eyePos", getVector3Name(), cspPotentialPrimitive );
 
    MultiLine *meta = new MultiLine;
 
@@ -623,12 +603,12 @@ void TerrainMacroMapFeatHLSL::processVert(  Vector<ShaderComponent*> &componentL
    Var *outTex = connectComp->getElement( RT_TEXCOORD );
    outTex->setName( String::ToString( "macroCoord%d", detailIndex ) );
    outTex->setStructName( "OUT" );
-   outTex->setType( "float4" );
+   outTex->setType( getVector4Name() );
    outTex->mapsToSampler = true;
 
    // Get the detail scale and fade info.
    Var *detScaleAndFade = new Var;
-   detScaleAndFade->setType( "float4" );
+   detScaleAndFade->setType( getVector4Name() );
    detScaleAndFade->setName( String::ToString( "macroScaleAndFade%d", detailIndex ) );
    detScaleAndFade->uniform = true;
    detScaleAndFade->constSortPos = cspPotentialPrimitive;
@@ -644,7 +624,7 @@ void TerrainMacroMapFeatHLSL::processVert(  Vector<ShaderComponent*> &componentL
 }
 
 
-void TerrainMacroMapFeatHLSL::processPix(   Vector<ShaderComponent*> &componentList, 
+void TerrainMacroMapFeatCommon::processPix(   Vector<ShaderComponent*> &componentList, 
                                              const MaterialFeatureData &fd )
 {
    const U32 detailIndex = getProcessIndex();
@@ -665,10 +645,10 @@ void TerrainMacroMapFeatHLSL::processPix(   Vector<ShaderComponent*> &componentL
          inNegViewTS = connectComp->getElement( RT_TEXCOORD );
          inNegViewTS->setName( "outNegViewTS" );
          inNegViewTS->setStructName( "IN" );
-         inNegViewTS->setType( "float3" );
+         inNegViewTS->setType( getVector3Name() );
       }
 
-      negViewTS = new Var( "negViewTS", "float3" );
+      negViewTS = new Var( "negViewTS", getVector3Name() );
       meta->addStatement( new GenOp( "   @ = normalize( @ );\r\n", new DecOp( negViewTS ), inNegViewTS ) );
    }
 
@@ -677,7 +657,7 @@ void TerrainMacroMapFeatHLSL::processPix(   Vector<ShaderComponent*> &componentL
    if ( !layerSample )
    {
       layerSample = new Var;
-      layerSample->setType( "float4" );
+      layerSample->setType( getVector4Name() );
       layerSample->setName( "layerSample" );
 
       // Get the layer texture var
@@ -689,7 +669,7 @@ void TerrainMacroMapFeatHLSL::processPix(   Vector<ShaderComponent*> &componentL
       layerTex->constNum = Var::getTexUnitNum();
 
       // Read the layer texture to get the samples.
-      meta->addStatement( new GenOp( "   @ = round( tex2D( @, @.xy ) * 255.0f );\r\n", 
+      meta->addStatement( new GenOp( avar("   @ = round( %s( @, @.xy ) * 255.0f );\r\n", getTexture2DFunction()),
                                        new DecOp( layerSample ), layerTex, inTex ) );
    }
 
@@ -759,7 +739,7 @@ void TerrainMacroMapFeatHLSL::processPix(   Vector<ShaderComponent*> &componentL
    if ( !detailColor )
    {
       detailColor = new Var;
-      detailColor->setType( "float4" );
+      detailColor->setType( getVector4Name() );
       detailColor->setName( "macroColor" );
       meta->addStatement( new GenOp( "   @;\r\n", new DecOp( detailColor ) ) );
    }
@@ -788,12 +768,12 @@ void TerrainMacroMapFeatHLSL::processPix(   Vector<ShaderComponent*> &componentL
    //
    if ( fd.features.hasFeature( MFT_TerrainSideProject, detailIndex ) )
    {
-      meta->addStatement( new GenOp( "      @ = ( lerp( tex2D( @, @.yz ), tex2D( @, @.xz ), @.z ) * 2.0 ) - 1.0;\r\n", 
+      meta->addStatement( new GenOp( avar("      @ = ( lerp( %s( @, @.yz ), %s( @, @.xz ), @.z ) * 2.0 ) - 1.0;\r\n", getTexture2DFunction(), getTexture2DFunction()),
                                                 detailColor, detailMap, inDet, detailMap, inDet, inTex ) );
    }
    else
    {
-      meta->addStatement( new GenOp( "      @ = ( tex2D( @, @.xy ) * 2.0 ) - 1.0;\r\n", 
+      meta->addStatement( new GenOp( avar("      @ = ( %s( @, @.xy ) * 2.0 ) - 1.0;\r\n", getTexture2DFunction()),
                                        detailColor, detailMap, inDet ) );
    }
 
@@ -814,7 +794,7 @@ void TerrainMacroMapFeatHLSL::processPix(   Vector<ShaderComponent*> &componentL
 
 
 
-ShaderFeature::Resources TerrainMacroMapFeatHLSL::getResources( const MaterialFeatureData &fd )
+ShaderFeature::Resources TerrainMacroMapFeatCommon::getResources( const MaterialFeatureData &fd )
 {
    Resources res;
 
@@ -837,7 +817,7 @@ ShaderFeature::Resources TerrainMacroMapFeatHLSL::getResources( const MaterialFe
    return res;
 }
 
-void TerrainNormalMapFeatHLSL::processVert(  Vector<ShaderComponent*> &componentList, 
+void TerrainNormalMapFeatCommon::processVert(  Vector<ShaderComponent*> &componentList, 
                                              const MaterialFeatureData &fd )
 {
    // We only need to process normals during the prepass.
@@ -853,7 +833,7 @@ void TerrainNormalMapFeatHLSL::processVert(  Vector<ShaderComponent*> &component
    output = meta;
 }
 
-void TerrainNormalMapFeatHLSL::processPix(   Vector<ShaderComponent*> &componentList, 
+void TerrainNormalMapFeatCommon::processPix(   Vector<ShaderComponent*> &componentList, 
                                              const MaterialFeatureData &fd )
 {
    // We only need to process normals during the prepass.
@@ -864,14 +844,14 @@ void TerrainNormalMapFeatHLSL::processPix(   Vector<ShaderComponent*> &component
 
    Var *viewToTangent = getInViewToTangent( componentList );
 
-   // This var is read from GBufferConditionerHLSL and 
+   // This var is read from GBufferConditionerCommon and 
    // used in the prepass output.
    Var *gbNormal = (Var*)LangElement::find( "gbNormal" );
    if ( !gbNormal )
    {
       gbNormal = new Var;
       gbNormal->setName( "gbNormal" );
-      gbNormal->setType( "float3" );
+      gbNormal->setType( getVector3Name() );
       meta->addStatement( new GenOp( "   @ = @[2];\r\n", new DecOp( gbNormal ), viewToTangent ) );
    }
 
@@ -901,16 +881,16 @@ void TerrainNormalMapFeatHLSL::processPix(   Vector<ShaderComponent*> &component
    LangElement *texOp;
    if ( fd.features.hasFeature( MFT_TerrainSideProject, normalIndex ) )
    {
-      texOp = new GenOp( "lerp( tex2D( @, @.yz ), tex2D( @, @.xz ), @.z )", 
+      texOp = new GenOp( avar("lerp( %s( @, @.yz ), %s( @, @.xz ), @.z )", getTexture2DFunction(), getTexture2DFunction()),
          normalMap, inDet, normalMap, inDet, inTex );
    }
    else
-      texOp = new GenOp( "tex2D(@, @.xy)", normalMap, inDet );
+      texOp = new GenOp( avar("%s(@, @.xy)", getTexture2DFunction()), normalMap, inDet );
 
    // create bump normal
    Var *bumpNorm = new Var;
    bumpNorm->setName( "bumpNormal" );
-   bumpNorm->setType( "float4" );
+   bumpNorm->setType( getVector4Name() );
 
    LangElement *bumpNormDecl = new DecOp( bumpNorm );
    meta->addStatement( expandNormalMap( texOp, bumpNormDecl, bumpNorm, fd ) );
@@ -932,7 +912,7 @@ void TerrainNormalMapFeatHLSL::processPix(   Vector<ShaderComponent*> &component
    output = meta;
 }
 
-ShaderFeature::Resources TerrainNormalMapFeatHLSL::getResources( const MaterialFeatureData &fd )
+ShaderFeature::Resources TerrainNormalMapFeatCommon::getResources( const MaterialFeatureData &fd )
 {
    Resources res;
 
@@ -952,7 +932,7 @@ ShaderFeature::Resources TerrainNormalMapFeatHLSL::getResources( const MaterialF
    return res;
 }
 
-void TerrainLightMapFeatHLSL::processPix( Vector<ShaderComponent*> &componentList, 
+void TerrainLightMapFeatCommon::processPix( Vector<ShaderComponent*> &componentList, 
                                           const MaterialFeatureData &fd )
 {
    // grab connector texcoord register
@@ -979,15 +959,15 @@ void TerrainLightMapFeatHLSL::processPix( Vector<ShaderComponent*> &componentLis
    Var *lightMask = (Var*)LangElement::find( "lightMask" );
    if ( !lightMask )
    {
-      lightMask = new Var( "lightMask", "float4" );
-      meta->addStatement( new GenOp( "   @ = 1;\r\n", new DecOp( lightMask ) ) );
+      lightMask = new Var( "lightMask", getVector4Name() );
+      meta->addStatement( new GenOp( avar("   @ = %s(1);\r\n", getVector4Name()), new DecOp( lightMask ) ) );
    }
 
-   meta->addStatement( new GenOp( "   @[0] = tex2D( @, @.xy ).r;\r\n", lightMask, lightMap, inTex ) );
+   meta->addStatement( new GenOp( avar("   @[0] = %s( @, @.xy ).r;\r\n", getTexture2DFunction()), lightMask, lightMap, inTex ) );
    output = meta;
 }
 
-ShaderFeature::Resources TerrainLightMapFeatHLSL::getResources( const MaterialFeatureData &fd )
+ShaderFeature::Resources TerrainLightMapFeatCommon::getResources( const MaterialFeatureData &fd )
 {
    Resources res; 
    res.numTex = 1;
@@ -995,7 +975,7 @@ ShaderFeature::Resources TerrainLightMapFeatHLSL::getResources( const MaterialFe
 }
 
 
-void TerrainAdditiveFeatHLSL::processPix( Vector<ShaderComponent*> &componentList, 
+void TerrainAdditiveFeatCommon::processPix( Vector<ShaderComponent*> &componentList, 
                                           const MaterialFeatureData &fd )
 {
    Var *color = (Var*) LangElement::find( "col" );

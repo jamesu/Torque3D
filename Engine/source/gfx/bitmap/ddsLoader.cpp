@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -30,11 +31,14 @@
 #include "core/stream/fileStream.h"
 #include "gfx/bitmap/gBitmap.h"
 #include "console/engineAPI.h"
+#include "squish/squish.h"
 
 
+bool DDSFile::smMakeDummyMips = false;
 
 S32 DDSFile::smActiveCopies = 0;
 U32 DDSFile::smDropMipCount = 0;
+bool DDSFile::smDebugMipIndexes = false;
 
 // These were copied from the DX9 docs. The names are changed
 // from the "real" defines since not all platforms have them.
@@ -148,7 +152,7 @@ U32 DDSFile::getSurfacePitch( U32 mipLevel ) const
       }
 
       // Maybe need to be DWORD aligned?
-      U32 align = getMax(U32(1), getWidth(mipLevel)/4) * sizeMultiple;
+      U32 align = getMax(U32(1), (getWidth(mipLevel)+3)/4) * sizeMultiple;
       align += 3; align >>=2; align <<=2;
       return align;
 
@@ -186,7 +190,7 @@ U32 DDSFile::getSurfaceSize( U32 height, U32 width, U32 mipLevel ) const
          break;
       }
 
-      return getMax(U32(1), width/4) * getMax(U32(1), height/4) * sizeMultiple;
+      return getMax(U32(1), (width + 3)/4) * getMax(U32(1), (height + 3)/4) * sizeMultiple;
    }
    else
    {
@@ -544,6 +548,61 @@ bool DDSFile::readHeader(Stream &s)
    return true;
 }
 
+typedef struct DebugMip_s {
+	U32 minSize;
+	ColorI debugColor;
+} DebugMip_t;
+
+static DebugMip_t gDebugColors[] = {
+	{4096, ColorI(255,0,0)},  // red
+	{2048, ColorI(0,255,0)},  // green
+	{1024, ColorI(0,0,255)},  // blue
+	{512, ColorI(0,255,255)}, // turquoise
+	{256, ColorI(255,255,0)}, // yellow
+	{128, ColorI(255,0,255)}, // pink
+	{64, ColorI(255,128,128)},// light red
+	{32, ColorI(128,255,128)},// light green
+	{16, ColorI(255,255,255)},// white
+	{8, ColorI(128,128,128)}, // gray
+	{4, ColorI(64,64,64)},
+	{2, ColorI(32,32,32)},
+	{1, ColorI(16,16,16)}
+};
+
+static void fillDebugColor(U32 width, U32 height, U32 numPixels, U8 *dest)
+{
+	ColorI debugCol = ColorI(16,16,16);
+	for (int i=0; i<sizeof(gDebugColors) / sizeof(DebugMip_t); i++)
+	{
+		if (width >= gDebugColors[i].minSize || height >= gDebugColors[i].minSize)
+		{
+			debugCol = gDebugColors[i].debugColor;
+			break;
+		}
+	}
+
+	for (int i=0; i<numPixels; i += 4)
+	{
+		*dest++ = debugCol.blue;
+		*dest++ = debugCol.green;
+		*dest++ = debugCol.red;
+		*dest++ = 255;
+	}
+}
+
+static void fillDebugColorIndexes(U32 idx, U32 numPixels, U8 *dest)
+{
+	ColorI debugCol = gDebugColors[idx].debugColor;
+
+	for (int i=0; i<numPixels; i += 4)
+	{
+		*dest++ = debugCol.blue;
+		*dest++ = debugCol.green;
+		*dest++ = debugCol.red;
+		*dest++ = 255;
+	}
+}
+
 bool DDSFile::read(Stream &s, U32 dropMipCount)
 {
    if( !readHeader(s) || mMipMapCount == 0 )
@@ -551,51 +610,125 @@ bool DDSFile::read(Stream &s, U32 dropMipCount)
       Con::errorf("DDSFile::read - error reading header!");
       return false;
    }
-
+   
    // If we're droping mips then make sure we have enough.
    dropMipCount = getMin( dropMipCount, mMipMapCount - 1 );
 
-   // At this point we know what sort of image we contain. So we should
-   // allocate some buffers, and read it in.
-
-   // How many surfaces are we talking about?
-   if(mFlags.test(CubeMapFlag))
+   if (smMakeDummyMips)
    {
-      mSurfaces.setSize( Cubemap_Surface_Count );
+	   mFormat = GFXFormatR8G8B8X8;
+	   mBytesPerPixel = 4;
+	   mFlags.clear(CompressedData);
+	   mFlags.set(RGBData);
 
-      for ( U32 i=0; i < Cubemap_Surface_Count; i++ )
-      {
-         // Does the cubemap contain this surface?
-         if ( mFlags.test( CubeMap_PosX_Flag + ( i << 1 ) ) )
-            mSurfaces[i] = new SurfaceData();
-         else
-         {
-            mSurfaces[i] = NULL;
-            continue;
-         }
+	   // At this point we know what sort of image we contain. So we should
+	   // allocate some buffers, and read it in.
 
-         // Load all the mips.
-         for(S32 l=0; l<mMipMapCount; l++)
-            mSurfaces[i]->readNextMip(this, s, mHeight, mWidth, l, l < dropMipCount );
-      }
+	   // How many surfaces are we talking about?
+	   if(mFlags.test(CubeMapFlag))
+	   {
+		  mSurfaces.setSize( Cubemap_Surface_Count );
 
-   }
-   else if (mFlags.test(VolumeFlag))
-   {
-      // Do something with volume
+		  for ( U32 i=0; i < Cubemap_Surface_Count; i++ )
+		  {
+			 // Does the cubemap contain this surface?
+			 if ( mFlags.test( CubeMap_PosX_Flag + ( i << 1 ) ) )
+				mSurfaces[i] = new SurfaceData();
+			 else
+			 {
+				mSurfaces[i] = NULL;
+				continue;
+			 }
+
+			 // Load all the mips.
+			 for(S32 l=0; l<mMipMapCount; l++)
+			 {
+			   if (l < dropMipCount)
+				   continue;
+			   U32 size = getSurfaceSize(mHeight, mWidth, l);
+
+			   U8 *pixData = new U8[size];
+			   if (DDSFile::smDebugMipIndexes)
+				   fillDebugColorIndexes(l, size, pixData);
+			   else
+				   fillDebugColor(getWidth(l), getHeight(l), size, pixData);
+			   mSurfaces[i]->mMips.push_back(pixData);
+			 }
+		  }
+
+	   }
+	   else if (mFlags.test(VolumeFlag))
+	   {
+		  // Do something with volume
+	   }
+	   else
+	   {
+		  // It's a plain old texture.
+
+		  // First allocate a SurfaceData to stick this in.
+		  mSurfaces.push_back(new SurfaceData());
+		  
+			 for(S32 l=0; l<mMipMapCount; l++)
+			 {
+			   if (l < dropMipCount)
+				   continue;
+			   U32 size = getSurfaceSize(mHeight, mWidth, l);
+
+			   U8 *pixData = new U8[size];
+			   if (DDSFile::smDebugMipIndexes)
+				   fillDebugColorIndexes(l, size, pixData);
+			   else
+				   fillDebugColor(getWidth(l), getHeight(l), size, pixData);
+			   mSurfaces[0]->mMips.push_back(pixData);
+			 }
+		  // Ok, we're done.
+	   }
+	   return true;
    }
    else
    {
-      // It's a plain old texture.
+	   // At this point we know what sort of image we contain. So we should
+	   // allocate some buffers, and read it in.
 
-      // First allocate a SurfaceData to stick this in.
-      mSurfaces.push_back(new SurfaceData());
+	   // How many surfaces are we talking about?
+	   if(mFlags.test(CubeMapFlag))
+	   {
+		  mSurfaces.setSize( Cubemap_Surface_Count );
 
-      // Load however many mips there are.
-      for(S32 i=0; i<mMipMapCount; i++)
-         mSurfaces.last()->readNextMip(this, s, mHeight, mWidth, i, i < dropMipCount);
+		  for ( U32 i=0; i < Cubemap_Surface_Count; i++ )
+		  {
+			 // Does the cubemap contain this surface?
+			 if ( mFlags.test( CubeMap_PosX_Flag + ( i << 1 ) ) )
+				mSurfaces[i] = new SurfaceData();
+			 else
+			 {
+				mSurfaces[i] = NULL;
+				continue;
+			 }
 
-      // Ok, we're done.
+			 // Load all the mips.
+			 for(S32 l=0; l<mMipMapCount; l++)
+				mSurfaces[i]->readNextMip(this, s, mHeight, mWidth, l, l < dropMipCount );
+		  }
+
+	   }
+	   else if (mFlags.test(VolumeFlag))
+	   {
+		  // Do something with volume
+	   }
+	   else
+	   {
+		  // It's a plain old texture.
+
+		  // First allocate a SurfaceData to stick this in.
+		  mSurfaces.push_back(new SurfaceData());
+
+		  // Load however many mips there are.
+		  for(S32 i=0; i<mMipMapCount; i++)
+			 mSurfaces.last()->readNextMip(this, s, mHeight, mWidth, i, i < dropMipCount);
+
+		  // Ok, we're done.
+	   }
    }
 
    // If we're dropping mips then fix up the stats.
@@ -913,6 +1046,127 @@ DDSFile *DDSFile::createDDSFileFromGBitmap( const GBitmap *gbmp )
 
    return ret;
 }
+
+//------------------------------------------------------------------------------
+
+bool DDSFile::decompressToGBitmap(GBitmap *dest)
+{
+   // TBD: do we support other formats?
+   if(mFormat != GFXFormatDXT1 && mFormat != GFXFormatDXT3 && mFormat != GFXFormatDXT5)
+      return false;
+   
+   dest->allocateBitmapWithMips(getWidth(), getHeight(), getMipLevels(), GFXFormatR8G8B8A8);
+   
+   // Decompress and copy mips...
+   
+   U32 numMips = getMipLevels();
+   
+   for(U32 i = 0; i < numMips; i++)
+   {
+      U8 *addr = dest->getAddress(0,0,i);
+      const U8 *mipBuffer = mSurfaces[0]->mMips[i];
+      U32 squishFlag = squish::kDxt1 | squish::kColourRangeFit;
+      U32 blockSize = 4;
+      switch (mFormat)
+      {
+         case GFXFormatDXT3:
+            squishFlag = squish::kDxt3;
+            blockSize = 1;
+            break;
+         case GFXFormatDXT5:
+            squishFlag = squish::kDxt5;
+            blockSize = 4;
+            break;
+         default:
+            break;
+      }
+      
+      squish::DecompressImage(addr, getWidth(i), getHeight(i), mSurfaces[0]->mMips[i], squishFlag);
+   }
+   
+   return true;
+}
+
+//------------------------------------------------------------------------------
+
+bool DDSFile::encodeGBitmap(GBitmap *src, GFXFormat destFormat)
+{
+   // Sanity check
+   if( src->mBytesPerPixel != 4 )
+   {
+      AssertFatal( false, "Squish wants 32-bit source data" );
+      return false;
+   }
+   
+   // Build flags, start with fast compress
+   U32 squishFlags = squish::kColourRangeFit;
+   U32 bpp = 4;
+   DDSFile out;
+   out.mFormat = destFormat;
+   out.mFlags.set(CompressedData);
+   
+   // Flag which format we are using
+   switch( destFormat )
+   {
+      case GFXFormatDXT1:
+         squishFlags |= squish::kDxt1;
+         break;
+         
+      case GFXFormatDXT2:
+      case GFXFormatDXT3:
+         squishFlags |= squish::kDxt3;
+         break;
+         
+      case GFXFormatDXT4:
+      case GFXFormatDXT5:
+         squishFlags |= squish::kDxt5;
+         break;
+         
+      default:
+         AssertFatal( false, "Assumption failed" );
+         return false;
+         break;
+   }
+   
+   // If this has alpha, set the flag
+   if( src->getFormat() == GFXFormatR8G8B8A8 )
+      squishFlags |= squish::kWeightColourByAlpha;
+   
+   // Create new bitmap data
+   U32 size = 0;
+   U32 destMipLevelOffsets[GBitmap::c_maxMipLevels];
+   dMemset(destMipLevelOffsets, '\0', sizeof(destMipLevelOffsets));
+   
+   for (int i=0; i<src->mNumMipLevels; i++)
+   {
+      destMipLevelOffsets[i] = size;
+      size += out.getSurfaceSize(src->mWidth, src->mHeight, i);
+   }
+   
+   U8 *newBits = new U8[size];
+   U8 *ptr = newBits;
+   
+   for (int i=0; i<src->mNumMipLevels; i++)
+   {
+      PROFILE_START(SQUISH_DXT_GBITMAP_COMPRESS);
+      const U8 *srcBits = src->getWritableBits(i);
+      squish::CompressImage(srcBits, src->getWidth(i), src->getHeight(i), ptr, squishFlags);
+      ptr += out.getSurfaceSize(src->mWidth, src->mHeight, i);
+      PROFILE_END();
+   }
+   
+   src->mInternalFormat = destFormat;
+   src->mByteSize = size;
+   src->mBytesPerPixel = bpp;
+   dMemcpy(src->mMipLevelOffsets, destMipLevelOffsets, sizeof(destMipLevelOffsets));
+   
+   delete[] src->mBits;
+   src->mBits = newBits;
+   
+   return true;
+}
+
+//------------------------------------------------------------------------------
 
 DefineEngineFunction( getActiveDDSFiles, S32, (),,
    "Returns the count of active DDSs files in memory.\n"

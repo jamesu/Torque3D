@@ -22,21 +22,21 @@
 
 #include "hlslCompat.glsl"
 
-in vec4 vPosition;
-in vec3 vNormal;
-in vec3 vBinormal;
-in vec3 vTangent;
-in vec2 vTexCoord0;
+attribute vec4 vPosition;
+attribute vec3 vNormal;
+attribute vec3 vBinormal;
+attribute vec3 vTangent;
+attribute vec2 vTexCoord0;
 
-out vec4 texCoord12;
+varying vec4 texCoord12;
 #define OUT_texCoord12 texCoord12
-out vec4 texCoord34;
+varying vec4 texCoord34;
 #define OUT_texCoord34 texCoord34
-out vec3 vLightTS; // light vector in tangent space, denormalized
+varying vec3 vLightTS; // light vector in tangent space, denormalized
 #define OUT_vLightTS vLightTS
-out vec3 vViewTS;  // view vector in tangent space, denormalized
+varying vec3 vViewTS;  // view vector in tangent space, denormalized
 #define OUT_vViewTS vViewTS
-out float worldDist;
+varying float worldDist;
 #define OUT_worldDist worldDist
 
 //-----------------------------------------------------------------------------
@@ -85,7 +85,7 @@ void main()
    vec3 vBinormalWS = -IN_binormal;
    
    // Compute position in world space:
-   vec4 vPositionWS = IN_pos + vec4( eyePosWorld, 1 ); //tMul( IN_pos, objTrans );
+   vec4 vPositionWS = IN_pos + vec4( eyePosWorld, 1 ); //mul( IN_pos, objTrans );
 
    // Compute and output the world view vector (unnormalized):
    vec3 vViewWS = eyePosWorld - vPositionWS.xyz;
@@ -101,6 +101,4 @@ void main()
    OUT_vViewTS  = mWorldToTangent * vViewWS;
 
    OUT_worldDist = clamp( pow( max( IN_pos.z, 0 ), 2 ), 0.0, 1.0 );
-
-   correctSSP(gl_Position);
 }

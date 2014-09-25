@@ -128,9 +128,14 @@ float4 main( FarFrustumQuadConnectP IN,
                   shadowCoordY.z > -0.99 && shadowCoordY.z < 0.99 && 
                   farPlaneDists.z < 1.0 )
          finalMask = float4(0, 0, 1, 0);
+
+      else if (   shadowCoordX.w > -0.99 && shadowCoordX.w < 0.99 && 
+                  shadowCoordY.w > -0.99 && shadowCoordY.w < 0.99 && 
+                  farPlaneDists.w < 1.0 )
+         finalMask = float4(0, 0, 0, 1);
          
       else
-         finalMask = float4(0, 0, 0, 1);
+         finalMask = float4(0, 0, 0, 0);
          
 
       #ifdef PSSM_DEBUG_RENDER

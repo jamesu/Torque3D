@@ -33,7 +33,7 @@
 class GFXShaderConstHandle;
 
 
-class WindDeformationHLSL : public ShaderFeatureHLSL
+class WindDeformationHLSL : public ShaderFeatureCommon
 {
 protected:
 

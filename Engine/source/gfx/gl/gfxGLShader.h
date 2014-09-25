@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -25,7 +26,7 @@
 
 #include "core/util/refBase.h"
 #include "gfx/gfxShader.h"
-#include "gfx/gl/ggl/ggl.h"
+#include "gfx/gl/tGL/tGL.h"
 #include "core/util/tSignal.h"
 #include "core/util/tDictionary.h"
 
@@ -61,8 +62,7 @@ public:
    virtual const String describeSelf() const;
    /// @}      
 
-   /// Activates this shader in the GL context.
-   void useProgram();
+   GLuint getProgram() const { return mProgram; }
    
 protected:
 
@@ -78,6 +78,7 @@ protected:
    void clearShaders();
    void initConstantDescs();
    void initHandles();
+   void _buildInstancingShaderConstantHandles();
    void setConstantsFromBuffer(GFXGLShaderConstBuffer* buffer);
    
    static char* _handleIncludes( const Torque::Path &path, FileStream *s );

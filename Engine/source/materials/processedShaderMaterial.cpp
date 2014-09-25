@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -40,6 +41,7 @@
 #include "materials/matTextureTarget.h"
 #include "gfx/util/screenspace.h"
 #include "math/util/matrixSet.h"
+#include "console/consoleTypes.h"
 
 // We need to include customMaterialDefinition for ShaderConstHandles::init
 #include "materials/customMaterialDefinition.h"
@@ -171,7 +173,7 @@ bool ProcessedShaderMaterial::init( const FeatureSet &features,
    mMaxStages = getNumStages(); 
    mVertexFormat = vertexFormat;
    mFeatures.clear();
-   mStateHint.clear();
+   mStateHintList.clear();
    SAFE_DELETE(mInstancingState);
 
    for( U32 i=0; i<mMaxStages; i++ )
@@ -195,7 +197,14 @@ bool ProcessedShaderMaterial::init( const FeatureSet &features,
    _initMaterialParameters();
    mDefaultParameters =  allocMaterialParameters();
    setMaterialParameters( mDefaultParameters, 0 );
-   mStateHint.init( this );   
+   
+   U32 numPasses = mPasses.size();
+   mStateHintList.setSize(numPasses);
+   for( U32 i=0; i<numPasses; i++ )
+   {
+      mStateHintList[i].init( this, i );
+   }
+   
 
    // Enable instancing if we have it.
    if ( mFeatures.hasFeature( MFT_UseInstancing ) )
@@ -221,6 +230,7 @@ bool ProcessedShaderMaterial::init( const FeatureSet &features,
          {
             rpd->mTexSlot[0].texTarget = texTarget;
             rpd->mTexType[0] = Material::TexTarget;
+            rpd->mTexSlot[0].samplerName = StringTable->insert("diffuseMap");
          }
       }
 
@@ -305,7 +315,7 @@ void ProcessedShaderMaterial::_determineFeatures(  U32 stageNum,
          fd.features.addFeature( MFT_IsTranslucent );
          fd.features.addFeature( MFT_ForwardShading );
       }
-   }
+      }
 
    // TODO: This sort of sucks... BL should somehow force this
    // feature on from the outside and not this way.
@@ -355,7 +365,7 @@ void ProcessedShaderMaterial::_determineFeatures(  U32 stageNum,
 
    if (  lastStage && 
          (  !gClientSceneGraph->usePostEffectFog() ||
-            fd.features.hasFeature( MFT_IsTranslucent ) ||
+        fd.features.hasFeature( MFT_IsTranslucent ) ||
             fd.features.hasFeature( MFT_ForwardShading )) )
       fd.features.addFeature( MFT_Fog );
 
@@ -494,7 +504,7 @@ bool ProcessedShaderMaterial::_createPasses( MaterialFeatureData &stageFeatures,
    ShaderRenderPassData passData;
    U32 texIndex = 0;
 
-   for( U32 i=0; i < FEATUREMGR->getFeatureCount(); i++ )
+   for( U32 i=0, featureCount = FEATUREMGR->getFeatureCount(); i < featureCount; i++ )
    {
       const FeatureInfo &info = FEATUREMGR->getAt( i );
       if ( !stageFeatures.features.hasFeature( *info.type ) ) 
@@ -515,6 +525,8 @@ bool ProcessedShaderMaterial::_createPasses( MaterialFeatureData &stageFeatures,
 
       passData.mNumTexReg += numTexReg;
       passData.mFeatureData.features.addFeature( *info.type );
+
+      U32 oldTexNumber = texIndex;
       info.feature->setTexData( mStages[stageNum], stageFeatures, passData, texIndex );
 
       // Add pass if tex units are maxed out
@@ -525,6 +537,9 @@ bool ProcessedShaderMaterial::_createPasses( MaterialFeatureData &stageFeatures,
          _setPassBlendOp( info.feature, passData, texIndex, stageFeatures, stageNum, features );
       }
    }
+
+   for(int i = 0; i < texIndex; i++)
+	   AssertFatal(passData.mTexSlot[ i ].samplerName && passData.mTexSlot[ i ].samplerName[0] != '\0',"Sampler name not set");
 
    const FeatureSet &passFeatures = passData.mFeatureData.codify();
    if ( passFeatures.isNotEmpty() )
@@ -586,9 +601,23 @@ bool ProcessedShaderMaterial::_addPass( ShaderRenderPassData &rpd,
    // Copy over features
    rpd.mFeatureData.materialFeatures = fd.features;
 
+   Vector<String> samplers;
+   samplers.setSize(Material::MAX_TEX_PER_PASS);
+   char samplerBuf[64];
+   for(int i = 0; i < Material::MAX_TEX_PER_PASS; ++i)
+   {
+	   if (rpd.mTexSlot[i].samplerName && rpd.mTexSlot[i].samplerName[0] != '$' && rpd.mTexSlot[i].samplerName[0] != '\0')
+	  {
+		dSprintf(samplerBuf, sizeof(samplerBuf), "$%s", rpd.mTexSlot[i].samplerName);
+		samplers[i] = samplerBuf;
+	  }
+	  else
+		samplers[i] = rpd.mTexSlot[i].samplerName;
+   }
+
    // Generate shader
    GFXShader::setLogging( true, true );
-   rpd.shader = SHADERGEN->getShader( rpd.mFeatureData, mVertexFormat, &mUserMacros );
+   rpd.shader = SHADERGEN->getShader( rpd.mFeatureData, mVertexFormat, &mUserMacros, samplers );
    if( !rpd.shader )
       return false;
    rpd.shaderHandles.init( rpd.shader );   
@@ -599,6 +628,30 @@ bool ProcessedShaderMaterial::_addPass( ShaderRenderPassData &rpd,
  
    ShaderRenderPassData *newPass = new ShaderRenderPassData( rpd );
    mPasses.push_back( newPass );
+
+   //initSamplerHandles
+   ShaderConstHandles *handles = _getShaderConstHandles( mPasses.size()-1 );
+   AssertFatal(handles,"");
+   for(int i = 0; i < rpd.mNumTex; i++)
+   { 
+	  if(!rpd.mTexSlot[i].samplerName || rpd.mTexSlot[i].samplerName[0] == '\0')
+      {
+         handles->mTexHandlesSC[i] = newPass->shader->getShaderConstHandle( String::EmptyString );
+         handles->mRTParamsSC[i] = newPass->shader->getShaderConstHandle( String::EmptyString );
+         continue;
+      }
+
+      String samplerName = rpd.mTexSlot[i].samplerName;
+      if( !samplerName.startsWith("$"))
+         samplerName.insert(0, "$");
+
+      GFXShaderConstHandle *handle = newPass->shader->getShaderConstHandle( samplerName ); 
+
+      handles->mTexHandlesSC[i] = handle;
+      handles->mRTParamsSC[i] = newPass->shader->getShaderConstHandle( String::ToString( "$rtParams%d", handle->getSamplerRegister() ) ); 
+      
+      AssertFatal( handle,"");
+   }
 
    // Give each active feature a chance to create specialized shader consts.
    for( U32 i=0; i < FEATUREMGR->getFeatureCount(); i++ )
@@ -651,7 +704,18 @@ void ProcessedShaderMaterial::_setPassBlendOp( ShaderFeature *sf,
          }
       }
    }
-} 
+}
+
+bool ProcessedShaderMaterial::hasPass(SceneRenderState * state, const SceneData &sgData, U32 passNumber )
+{
+   return passNumber < mPasses.size();
+}
+
+U32 ProcessedShaderMaterial::getPassShaderId(U32 passId) const
+{
+   ShaderRenderPassData* rpd = _getRPD(passId);
+   return rpd->shader ? rpd->shader->getId() : 0;
+}
 
 //
 // Runtime / rendering
@@ -688,7 +752,7 @@ bool ProcessedShaderMaterial::setupPass( SceneRenderState *state, const SceneDat
    }
    else
    {
-      GFX->disableShaders();
+      GFX->setupGenericShaders(GFXDevice::GSModColorTexture);
       GFX->setShaderConstBuffer(NULL);
    } 
 
@@ -706,15 +770,17 @@ void ProcessedShaderMaterial::setTextureStages( SceneRenderState *state, const S
    ShaderConstHandles *handles = _getShaderConstHandles(pass);
 
    // Set all of the textures we need to render the give pass.
-#ifdef TORQUE_DEBUG
    AssertFatal( pass<mPasses.size(), "Pass out of bounds" );
-#endif
 
    RenderPassData *rpd = mPasses[pass];
    GFXShaderConstBuffer* shaderConsts = _getShaderConstBuffer(pass);
    NamedTexTarget *texTarget;
-   GFXTextureObject *texObject; 
-
+   GFXTextureObject *texObject;
+   
+   // jamesu - clear all unset textures for GL
+   for (int i=rpd->mNumTex; i<TEXTURE_STAGE_COUNT; i++)
+      GFX->setTexture( i, NULL );
+   
    for( U32 i=0; i<rpd->mNumTex; i++ )
    {
       U32 currTexFlag = rpd->mTexType[i];
@@ -799,7 +865,7 @@ void ProcessedShaderMaterial::_setTextureTransforms(const U32 pass)
    {   
       MatrixF texMat( true );
 
-      mMaterial->updateTimeBasedParams();
+        mMaterial->updateTimeBasedParams();
       F32 waveOffset = _getWaveOffset( pass ); // offset is between 0.0 and 1.0
 
       // handle scroll anim type
@@ -882,7 +948,7 @@ void ProcessedShaderMaterial::_setTextureTransforms(const U32 pass)
          Point3F texOffset = texMat.getPosition();
          texOffset.x += offset;
          texMat.setPosition( texOffset );
-      }
+         }
 
       GFXShaderConstBuffer* shaderConsts = _getShaderConstBuffer(pass);
       shaderConsts->setSafe(handles->mTexMatSC, texMat);
@@ -942,7 +1008,7 @@ F32 ProcessedShaderMaterial::_getWaveOffset( U32 stage )
          break;
       }
 
-   }
+      }
 
    return 0.0;
 }
@@ -1204,6 +1270,8 @@ void ProcessedShaderMaterial::setBuffers( GFXVertexBufferHandleBase *vertBuffer,
    dMemcpy( dest, mInstancingState->getBuffer(), instFormat->getSizeInBytes() * instCount );
    instVB.unlock();
 
+   //Con::printf("START DRAWING FROM Instancing buffer volatile pos == %u, vertSize == %u SRC == %x", instVB->mVolatileStart, instVB->mVertexSize, mInstancingState->getBuffer());
+
    // Set the instance vb for streaming.
    GFX->setVertexBuffer( instVB, 1, 1 );
 
@@ -1241,7 +1309,7 @@ MaterialParameterHandle* ProcessedShaderMaterial::getMaterialParameterHandle(con
    {
       if (mParameterHandles[i]->getName().equal(name))
          return mParameterHandles[i];
-   }
+      }
    
    // If we didn't find it, we have to add it to support shader reloading.
 

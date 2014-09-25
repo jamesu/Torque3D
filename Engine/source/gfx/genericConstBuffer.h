@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -189,8 +190,9 @@ public:
    inline void set( const GenericConstBufferLayout::ParamDesc& pd, const MatrixF& mat, const GFXShaderConstType matrixType )
    {
       AssertFatal(   matrixType == GFXSCT_Float2x2 || 
-                     matrixType == GFXSCT_Float3x3 || 
-                     matrixType == GFXSCT_Float4x4, 
+                     matrixType == GFXSCT_Float3x3 ||
+                     matrixType == GFXSCT_Float4x3 ||
+                     matrixType == GFXSCT_Float4x4,
          "GenericConstBuffer::set() - Invalid matrix type!" );
 
       internalSet( pd, matrixType, sizeof(MatrixF), &mat );
@@ -199,7 +201,8 @@ public:
    inline void set( const GenericConstBufferLayout::ParamDesc& pd, const MatrixF* mat, const U32 arraySize, const GFXShaderConstType matrixType )
    {
       AssertFatal(   matrixType == GFXSCT_Float2x2 || 
-                     matrixType == GFXSCT_Float3x3 || 
+                     matrixType == GFXSCT_Float3x3 ||
+                     matrixType == GFXSCT_Float4x3 ||
                      matrixType == GFXSCT_Float4x4, 
          "GenericConstBuffer::set() - Invalid matrix type!" );
 

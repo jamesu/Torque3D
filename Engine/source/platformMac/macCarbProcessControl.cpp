@@ -21,7 +21,6 @@
 //-----------------------------------------------------------------------------
 
 #include "platformMac/platformMacCarb.h"
-#include "platform/event.h"
 #include "core/util/journal/process.h"
 #include "console/console.h"
 

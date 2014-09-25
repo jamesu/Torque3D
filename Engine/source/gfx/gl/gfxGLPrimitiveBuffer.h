@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -25,10 +26,20 @@
 
 #include "gfx/gfxPrimitiveBuffer.h"
 
+#ifndef _GFXGLBUFFERSTORAGE_H_
+#include "gfx/gl/gfxGLBufferStorage.h"
+#endif
+
+class GFXLVAO;
+
 /// This is a primitive buffer (index buffer to GL users) which uses VBOs.
 class GFXGLPrimitiveBuffer : public GFXPrimitiveBuffer
 {
+   friend class GFXGLVAO;
+   friend class GFXGLDevice;
 public:
+   GFXGLPrimitiveBuffer() : GFXPrimitiveBuffer(NULL, 0, 0, GFXBufferTypeDynamic), mClearAtFrameEnd(false) {;}
+
 	GFXGLPrimitiveBuffer(GFXDevice *device, U32 indexCount, U32 primitiveCount, GFXBufferType bufferType);
 	~GFXGLPrimitiveBuffer();
 
@@ -37,17 +48,21 @@ public:
 	virtual void prepare();  ///< binds the buffer
    virtual void finish(); ///< We're done with this buffer
 
-	virtual void* getBuffer(); ///< returns NULL
-
    // GFXResource interface
    virtual void zombify();
    virtual void resurrect();
    
-private:
-	/// Handle to our GL buffer object
-	GLuint mBuffer;
+   virtual void onFenceMarked(U32 fenceId);
+   virtual void onFenceDone(U32 fenceId);
+   virtual U32 getStorageIndicesFree();
    
-   U8* mZombieCache;
+   inline GLuint getHandle() { return mStorage->getHandle(); }
+
+   void dispose();
+   bool mClearAtFrameEnd;
+   
+private:
+   StrongRefPtr<GFXGLBufferStorage> mStorage;
 };
 
 #endif

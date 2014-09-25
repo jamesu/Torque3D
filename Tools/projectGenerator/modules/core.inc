@@ -140,6 +140,8 @@ switch( T3D_Generator::$platform )
       addEngineSrcDir( 'gfx/D3D9' );
       addEngineSrcDir( 'gfx/D3D9/pc' );
       addEngineSrcDir( 'shaderGen/HLSL' );
+      addEngineSrcDir( 'gfx/gl' );
+      addEngineSrcDir( 'gfx/gl/tGL' );
       break;
    case "360":
       addEngineSrcDir( 'gfx/D3D9' );
@@ -148,22 +150,15 @@ switch( T3D_Generator::$platform )
       addEngineSrcDir( 'shaderGen/360' );
       break;
    case "mac":
-      addEngineSrcDir( 'gfx/gl/ggl/mac' );
-
-      // GFX - GGL
       addEngineSrcDir( 'gfx/gl' );
-      addEngineSrcDir( 'gfx/gl/ggl' );
-      addEngineSrcDir( 'gfx/gl/ggl/generated' );
-      addEngineSrcDir( 'shaderGen/GLSL' );
+      addEngineSrcDir( 'gfx/gl/tGL' );
+      addEngineSrcDir( 'shaderGen/HLSL' );
       break;
    case "linux":
    case "linux_dedicated":
-      //addEngineSrcDir( 'gfx/gl/ggl/x11' ); // This one is not yet implemented!
-      // GFX - GGL
       addEngineSrcDir( 'gfx/gl' );
-      addEngineSrcDir( 'gfx/gl/ggl' );
-      addEngineSrcDir( 'gfx/gl/ggl/generated' );
-      addEngineSrcDir( 'shaderGen/GLSL' );
+      addEngineSrcDir( 'gfx/gl/tGL' );
+      addEngineSrcDir( 'shaderGen/HLSL' );
       break;
    case "ps3":
       addEngineSrcDir( 'gfx/gl/ggl/ps3' );

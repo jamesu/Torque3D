@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -160,6 +161,10 @@ private:
 
    /// Index remapping
    S32             mRemapTable[65536];
+
+public:
+   static bool smLoadFonts;
+   static bool smSaveFonts;
 };
 
 inline U32 GFont::getCharXIncrement(const UTF16 in_charIndex)

@@ -30,6 +30,7 @@
 #include "sim/actionMap.h"
 
 class Win32WindowManager;
+class GFXGLDevice;
 
 /// Implementation of a window on Win32.
 class Win32Window : public PlatformWindow
@@ -37,6 +38,7 @@ class Win32Window : public PlatformWindow
    friend class Win32WindowManager;
    friend class GFXPCD3D9Device;
    friend class GFXPCD3D9WindowTarget;
+   friend class GFXGLDevice;
    friend class GFXD3D8WindowTarget;
 
 public:
@@ -175,6 +177,7 @@ public:
    // Window Client Area Extent
    virtual void setClientExtent( const Point2I newExtent );
    virtual const Point2I getClientExtent();
+   virtual const Point2I getRealClientExtent();
   
    // Window Bounds
    virtual void setBounds(const RectI &newBounds);

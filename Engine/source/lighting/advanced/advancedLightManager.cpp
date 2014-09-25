@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -48,16 +49,13 @@ ImplementEnumType( ShadowType,
    { ShadowType_CubeMap,                  "CubeMap" },
 EndImplementEnumType;
 
-
-AdvancedLightManager AdvancedLightManager::smSingleton;
-
-
 AdvancedLightManager::AdvancedLightManager()
    :  LightManager( "Advanced Lighting", "ADVLM" )
 {
    mLightBinManager = NULL;
    mLastShader = NULL;
    mAvailableSLInterfaces = NULL;
+   mLastConstants = NULL;
 }
 
 AdvancedLightManager::~AdvancedLightManager()
@@ -77,10 +75,8 @@ bool AdvancedLightManager::isCompatible() const
 {
    // TODO: We need at least 3.0 shaders at the moment
    // but this should be relaxed to 2.0 soon.
-   if ( GFX->getPixelShaderVersion() < 3.0 )
+   if ( GFX->getAdapterType() == Direct3D9 && GFX->getPixelShaderVersion() < 3.0 )
       return false;
-
-   // TODO: Test for the necessary texture formats!
 
    return true;
 }

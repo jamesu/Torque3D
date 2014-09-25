@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -24,15 +25,16 @@
 #define _GFXGLTEXTUREOBJECT_H
 
 #include "gfx/gfxTextureObject.h"
-#include "gfx/gl/ggl/ggl.h"
+#include "gfx/gl/tGL/tGL.h"
+#include "gfx/gfxStateBlock.h"
 
 class GFXGLDevice;
 
-class GFXGLTextureObject : public GFXTextureObject 
+class GFXGLTextureObject : public GFXTextureObject
 {
 public:
-   GFXGLTextureObject(GFXDevice * aDevice, GFXTextureProfile *profile); 
-   virtual ~GFXGLTextureObject();
+   GFXGLTextureObject(GFXDevice * aDevice, GFXTextureProfile *profile);
+   ~GFXGLTextureObject();
    
    void release();
    
@@ -40,39 +42,43 @@ public:
    inline GLenum getBinding() const { return mBinding; }
    inline GLuint getBuffer() const { return mBuffer; }
    
-   inline bool isZombie() const { return mIsZombie; }
-
+   inline GLuint* getHandlePtr() { return &mHandle; }
+   inline GLuint* getBufferPtr() { return &mBuffer; }
+	
    /// Binds the texture to the given texture unit
    /// and applies the current sampler state because GL tracks
    /// filtering and wrapper per object, while GFX tracks per sampler.
-   void bind(U32 textureUnit) const;
+   void bind(U32 textureUnit);
    
    /// @return An array containing the texture data
    /// @note You are responsible for deleting the returned data! (Use delete[])
    U8* getTextureData();
-
+	
    virtual F32 getMaxUCoord() const;
    virtual F32 getMaxVCoord() const;
-   
-   void reloadFromCache(); ///< Reloads texture from zombie cache, used by GFXGLTextureManager to resurrect the texture.
    
 #ifdef TORQUE_DEBUG
    virtual void pureVirtualCrash() {}
 #endif
-
+	
    /// Get/set data from texture (for dynamic textures and render targets)
    /// @attention DO NOT READ FROM THE RETURNED RECT! It is not guaranteed to work and may incur significant performance penalties.
    virtual GFXLockedRect* lock(U32 mipLevel = 0, RectI *inRect = NULL);
    virtual void unlock(U32 mipLevel = 0 );
-
+	
    virtual bool copyToBmp(GBitmap *); ///< Not implemented
    
    bool mIsNPoT2;
-
+	
    // GFXResource interface
    virtual void zombify();
    virtual void resurrect();
    virtual const String describeSelf() const;
+	
+   void initSamplerState(const GFXSamplerStateDesc &ssd);
+   
+   inline void setSamplerState(const GFXSamplerStateDesc &newState) { mSampler = newState; }
+   inline GFXSamplerStateDesc& getSamplerState() { return mSampler; }
    
 private:
    friend class GFXGLTextureManager;
@@ -80,20 +86,26 @@ private:
    /// Internal GL object
    GLuint mHandle;
    GLuint mBuffer;
-
+   bool mNeedInitSamplerState;
+   GFXSamplerStateDesc mSampler;
    GLenum mBinding;
    
    U32 mBytesPerTexel;
    GFXLockedRect mLockedRect;
    RectI mLockedRectRect;
-
+	
    /// Pointer to owner device
    GFXGLDevice* mGLDevice;
-   
-   bool mIsZombie;
-   U8* mZombieCache;
+   bool mIsManaged;
    
    void copyIntoCache();
+	
+   //FrameAllocator
+   U32 mFrameAllocatorMark;
+#if TORQUE_DEBUG
+   U32 mFrameAllocatorMarkGuard;
+#endif
+   U8 *mFrameAllocatorPtr;
 };
 
 #endif

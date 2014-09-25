@@ -26,8 +26,6 @@
 #include "platform/tmm_off.h"
 
 #include <d3d9.h>
-#include <d3dx9core.h>
-#include <d3dx9tex.h>
 
 VideoFrameGrabberD3D9::VideoFrameGrabberD3D9()
 {

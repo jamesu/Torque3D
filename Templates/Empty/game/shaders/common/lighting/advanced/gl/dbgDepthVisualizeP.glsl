@@ -20,15 +20,15 @@
 // IN THE SOFTWARE.
 //-----------------------------------------------------------------------------
 
-#include "../../../gl/hlslCompat.glsl"
 #include "shadergen:/autogenConditioners.h"
 
-in vec2 uv0;
+varying vec2 uv0;
 uniform sampler2D prepassBuffer;
-uniform sampler1D depthViz;
+uniform sampler2D depthViz;
 
 void main()
 {
    float depth = prepassUncondition( prepassBuffer, uv0 ).w;
-   OUT_FragColor0 = vec4( texture( depthViz, depth ).rgb, 1.0 );
+   vec4 depthColor = vec4(depth, 0, 0, 1);// texture1D(depthViz, vec2(depth));
+   gl_FragColor = vec4( depthColor.rgb, 1 );
 }

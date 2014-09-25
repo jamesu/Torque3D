@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -166,12 +167,6 @@ PlatformWindow *MacWindowManager::createWindow(GFXDevice *device, const GFXVideo
 {
    MacWindow* window = new MacWindow(getNextId(), getEngineProductString(), mode.resolution);
    _addWindow(window);
-   
-   // Set the video mode on the window
-   window->setVideoMode(mode);
-
-   // Make sure our window is shown and drawn to.
-   window->show();
 
    // Bind the window to the specified device.
    if(device)
@@ -185,6 +180,11 @@ PlatformWindow *MacWindowManager::createWindow(GFXDevice *device, const GFXVideo
    {
       Con::warnf("MacWindowManager::createWindow - created a window with no device!");
    }
+   
+   // Set the video mode on the window
+   window->setVideoMode(mode);
+   
+   window->show();
 
    return window;
 }

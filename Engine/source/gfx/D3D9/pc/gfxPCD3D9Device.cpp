@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -323,6 +324,9 @@ void GFXPCD3D9Device::enumerateVideoModes()
    }
 }
 
+DLibraryRef gCompilerDllRef;
+#define D3DX_SDK_VERSION 43
+
 //-----------------------------------------------------------------------------
 // Initialize - create window, device, etc
 //-----------------------------------------------------------------------------
@@ -330,7 +334,14 @@ void GFXPCD3D9Device::init( const GFXVideoMode &mode, PlatformWindow *window /* 
 {
    AssertFatal(window, "GFXPCD3D9Device::init - must specify a window!");
 
-   initD3DXFnTable();
+   // By loading the compiler DLL once ourselves we keep it from
+   // ever unloading it which makes shader compiling faster.
+   //
+   if (!gCompilerDllRef)
+   {
+	   String compilerVersion = String::ToString( "D3DCompiler_%u.dll", D3DX_SDK_VERSION );
+	   gCompilerDllRef = OsLoadLibrary( compilerVersion );
+   }
 
    Win32Window *win = dynamic_cast<Win32Window*>( window );
    AssertISV( win, "GFXD3D9Device::init - got a non Win32Window window passed in! Did DX go crossplatform?" );
@@ -475,6 +486,12 @@ void GFXPCD3D9Device::init( const GFXVideoMode &mode, PlatformWindow *window /* 
       Con::errorf( "   Forced pix version: %f", mPixVersion );
    }
 
+   if (mPixVersion < 3.0f)
+   {
+      Platform::AlertOK("DirectX Error!", "Pixel shader version 3 or above is required to run Endzone.");
+      Platform::forceShutdown(1);
+   }
+
    U8 *vertPtr = (U8*) &caps.VertexShaderVersion;
    F32 vertVersion = vertPtr[1] + vertPtr[0] * 0.1;
    Con::printf( "   Vert version detected: %f", vertVersion );
@@ -492,7 +509,7 @@ void GFXPCD3D9Device::init( const GFXVideoMode &mode, PlatformWindow *window /* 
    else if ( mPixVersion > 0.0f )
       mNumSamplers = 4;
    else
-      mNumSamplers = caps.MaxSimultaneousTextures;      
+      mNumSamplers = caps.MaxSimultaneousTextures;   
 
    // This shouldn't happen until SM5 or some other
    // radical change in GPU hardware occurs.
@@ -508,10 +525,11 @@ void GFXPCD3D9Device::init( const GFXVideoMode &mode, PlatformWindow *window /* 
    // detect occlusion query support
    if (SUCCEEDED(mD3DDevice->CreateQuery( D3DQUERYTYPE_OCCLUSION, NULL )))
 	   mOcclusionQuerySupported = true;
-      
-   Con::printf( "   Hardware occlusion query detected: %s", mOcclusionQuerySupported ? "Yes" : "No" );      
 
-   Con::printf( "   Using Direct3D9Ex: %s", isD3D9Ex() ? "Yes" : "No" );
+   for(int i = 0; i < GS_COUNT; ++i)
+      mModelViewProjSC[i] = NULL;
+      
+   Con::printf( "   Hardware occlusion query detected: %s", mOcclusionQuerySupported ? "Yes" : "No" );
    
    mCardProfiler = new GFXD3D9CardProfiler(mAdapterIndex);
    mCardProfiler->init();
@@ -524,7 +542,26 @@ void GFXPCD3D9Device::init( const GFXVideoMode &mode, PlatformWindow *window /* 
 
    // Grab the depth-stencil...
    SAFE_RELEASE(mDeviceDepthStencil);
-   D3D9Assert(mD3DDevice->GetDepthStencilSurface(&mDeviceDepthStencil), "GFXD3D9Device::init - couldn't grab reference to device's depth-stencil surface.");  
+   D3D9Assert(mD3DDevice->GetDepthStencilSurface(&mDeviceDepthStencil), "GFXD3D9Device::init - couldn't grab reference to device's depth-stencil surface.");
+
+#ifdef ENABLE_GPU_TIMERS
+   // martinJ - detect time stamp and time stamp frequency support
+   if (SUCCEEDED(mD3DDevice->CreateQuery( D3DQUERYTYPE_TIMESTAMP, NULL )) && SUCCEEDED(mD3DDevice->CreateQuery( D3DQUERYTYPE_TIMESTAMPFREQ, NULL )))
+   {
+     IDirect3DQuery9* query;
+     if (SUCCEEDED(mD3DDevice->CreateQuery( D3DQUERYTYPE_TIMESTAMPFREQ, &query )))
+     {
+       query->Issue(D3DISSUE_END);
+       if (SUCCEEDED(query->GetData(&mTimerFrequency, sizeof(mTimerFrequency), D3DGETDATA_FLUSH)))
+       {
+         mTimersSupported = true;
+         query->Release();
+       }
+     }
+   }
+   GFXTimerManager::getInstance().addCallback();
+   GFXTimerManager::getInstance().registerResourceWithDevice(this);
+#endif//ENABLE_GPU_TIMERS
 
    mInitialized = true;
 
@@ -566,9 +603,7 @@ void GFXPCD3D9Device::setDebugMarker(ColorI color, const char *name)
 
 void GFXPCD3D9Device::setMatrix( GFXMatrixType mtype, const MatrixF &mat ) 
 {
-   mat.transposeTo( mTempMatrix );
-
-   mD3DDevice->SetTransform( (_D3DTRANSFORMSTATETYPE)mtype, (D3DMATRIX *)&mTempMatrix );
+	// FFP only
 }
 
 //-----------------------------------------------------------------------------

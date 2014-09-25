@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -28,7 +29,7 @@
 
 const MatStateHint MatStateHint::Default( "Default" );
 
-void MatStateHint::init( const ProcessedMaterial *mat )
+void MatStateHint::init( const ProcessedMaterial *mat, const U32 passNum )
 {
    PROFILE_SCOPE( MatStateHint_init );
 
@@ -42,14 +43,16 @@ void MatStateHint::init( const ProcessedMaterial *mat )
    // are different by their properties are the same.
    //
    const Material *material = mat->getMaterial();
+   
+   mShaderId = mat->getPassShaderId(passNum);
+   
+   // jamesu - this is needed since shader materials don't describe their pass info
    mState += String::ToString( "Material: '%s', %d\n", material->getName(), material->getId() );
    
    // Go thru each pass and write its state into
    // the string in the most compact but uniquely
    // identifiable way.
-   U32 passes = mat->getNumPasses();
-   for ( U32 i=0; i < passes; i++ )
-      mState += mat->getPass( i )->describeSelf();
+   mState += mat->getPass( passNum )->describeSelf();
 
    // Finally intern the state string for
    // fast pointer comparisions.

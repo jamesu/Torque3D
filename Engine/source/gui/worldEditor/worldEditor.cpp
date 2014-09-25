@@ -1465,7 +1465,6 @@ void WorldEditor::renderSplinePath(SimPath::Path *path)
       desc.setCullMode( GFXCullNone );
       desc.setBlend( true, GFXBlendSrcAlpha, GFXBlendInvSrcAlpha);
       desc.samplersDefined = true;
-      desc.samplers[0].textureColorOp = GFXTOPDisable;
 
       mSplineSB = GFX->createStateBlock( desc );
    }

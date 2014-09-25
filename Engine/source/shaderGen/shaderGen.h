@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -19,6 +20,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 //-----------------------------------------------------------------------------
+
 #ifndef _SHADERGEN_H_
 #define _SHADERGEN_H_
 
@@ -155,7 +157,7 @@ public:
                         Vector<GFXShaderMacro> &macros );
 
    // Returns a shader that implements the features listed by dat.
-   GFXShader* getShader( const MaterialFeatureData &dat, const GFXVertexFormat *vertexFormat, const Vector<GFXShaderMacro> *macros );
+   GFXShader* getShader( const MaterialFeatureData &dat, const GFXVertexFormat *vertexFormat, const Vector<GFXShaderMacro> *macros, const Vector<String> &samplers );
 
    // This will delete all of the procedural shaders that we have.  Used to regenerate shaders when
    // the ShaderFeatures have changed (due to lighting system change, or new plugin)
@@ -226,6 +228,8 @@ protected:
    static const char* getSingletonName() { return "ShaderGen"; }   
 };
 
+#define UsedForOpenGL(A) if (GFX->getAdapterType() == OpenGL) { A; }
+#define UsedForDirect3D(A) if (GFX->getAdapterType() == Direct3D9) { A; }
 
 /// Returns the ShaderGen singleton.
 #define SHADERGEN ManagedSingleton<ShaderGen>::instance()

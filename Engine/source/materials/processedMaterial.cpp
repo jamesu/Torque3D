@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -30,8 +31,9 @@
 #include "materials/materialManager.h"
 #include "scene/sceneRenderState.h"
 #include "gfx/gfxPrimitiveBuffer.h"
-#include "gfx/gfxTextureManager.h"
 #include "gfx/sim/cubemapData.h"
+#include "gfx/bitmap/ddsFile.h"
+#include "gfx/gfxTextureManager.h"
 
 RenderPassData::RenderPassData()
 {
@@ -186,15 +188,12 @@ void ProcessedMaterial::_initStateBlockTemplates(GFXStateBlockDesc& stateTranslu
    _setBlendState(mMaterial->mTranslucentBlendOp, stateTranslucent);
    stateTranslucent.zDefined = true;
    stateTranslucent.zWriteEnable = mMaterial->mTranslucentZWrite;   
+   stateTranslucent.zEnable = mMaterial->mTranslucentZTest;
    stateTranslucent.alphaDefined = true;
    stateTranslucent.alphaTestEnable = mMaterial->mAlphaTest;
    stateTranslucent.alphaTestRef = mMaterial->mAlphaRef;
    stateTranslucent.alphaTestFunc = GFXCmpGreaterEqual;
    stateTranslucent.samplersDefined = true;
-   stateTranslucent.samplers[0].textureColorOp = GFXTOPModulate;
-   stateTranslucent.samplers[0].alphaOp = GFXTOPModulate;   
-   stateTranslucent.samplers[0].alphaArg1 = GFXTATexture;
-   stateTranslucent.samplers[0].alphaArg2 = GFXTADiffuse;   
 
    // Glow   
    stateGlow.zDefined = true;
@@ -234,6 +233,21 @@ void ProcessedMaterial::_initPassStateBlock( RenderPassData *rpd, GFXStateBlockD
       result.alphaTestFunc = GFXCmpGreaterEqual;
    }
 
+   
+   if (mMaterial->mStencilTestEnabled[rpd->mStageNum])
+   {
+     result.stencilDefined = true;
+     result.stencilEnable = true;
+     result.stencilFailOp = mMaterial->mStencilFail[rpd->mStageNum];
+     result.stencilZFailOp = mMaterial->mStencilZFail[rpd->mStageNum];
+     result.stencilPassOp = mMaterial->mStencilPass[rpd->mStageNum];
+     result.stencilFunc = mMaterial->mStencilFunc[rpd->mStageNum];
+     result.stencilRef = mMaterial->mStencilRef[rpd->mStageNum];
+     result.stencilMask = mMaterial->mStencilMask[rpd->mStageNum];
+     result.stencilWriteMask = mMaterial->mStencilWriteMask[rpd->mStageNum];
+
+   }
+
    result.samplersDefined = true;
    NamedTexTarget *texTarget;
 
@@ -249,7 +263,6 @@ void ProcessedMaterial::_initPassStateBlock( RenderPassData *rpd, GFXStateBlockD
       {
          default:
          {
-            result.samplers[i].textureColorOp = GFXTOPModulate;
             result.samplers[i].addressModeU = GFXAddressWrap;
             result.samplers[i].addressModeV = GFXAddressWrap;
 
@@ -281,7 +294,9 @@ void ProcessedMaterial::_initPassStateBlock( RenderPassData *rpd, GFXStateBlockD
          {
             texTarget = mPasses[0]->mTexSlot[i].texTarget;
             if ( texTarget )
+			{
                texTarget->setupSamplerState( &result.samplers[i] );
+			}
             break;
          }
       }
@@ -291,7 +306,7 @@ void ProcessedMaterial::_initPassStateBlock( RenderPassData *rpd, GFXStateBlockD
    // zbuffer, so we don't have to by default.
    // The prepass can't write to the backbuffer's zbuffer in OpenGL.
    if (  MATMGR->getPrePassEnabled() && 
-         !GFX->getAdapterType() == OpenGL && 
+         //!GFX->getAdapterType() == OpenGL &&
          !mFeatures.hasFeature(MFT_ForwardShading))
       result.setZReadWrite( result.zEnable, false );
 
@@ -317,12 +332,15 @@ void ProcessedMaterial::_initRenderStateStateBlocks( RenderPassData *rpd )
 
       if (i & RenderPassData::STATE_REFLECT)
          stateFinal.addDesc(stateReflect);
-      if (i & RenderPassData::STATE_TRANSLUCENT)
-         stateFinal.addDesc(stateTranslucent);
       if (i & RenderPassData::STATE_GLOW)
          stateFinal.addDesc(stateGlow);
 
       stateFinal.addDesc(statePass);
+
+      // martinJ - Moved from before stateFinal.addDesc(statePass);. the material blend mode was being overridden by the statePass.
+      // There may be unknown side effects to this change.
+      if (i & RenderPassData::STATE_TRANSLUCENT)
+        stateFinal.addDesc(stateTranslucent);
 
       if (i & RenderPassData::STATE_WIREFRAME)
          stateFinal.fillMode = GFXFillWireframe;

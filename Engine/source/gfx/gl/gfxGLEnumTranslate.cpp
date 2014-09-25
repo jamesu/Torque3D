@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -43,7 +44,8 @@ void GFXGLEnumTranslate::init()
    // Buffer types
    GFXGLBufferType[GFXBufferTypeStatic] = GL_STATIC_DRAW;
    GFXGLBufferType[GFXBufferTypeDynamic] = GL_DYNAMIC_DRAW;
-   GFXGLBufferType[GFXBufferTypeVolatile] = GL_STREAM_DRAW;
+   GFXGLBufferType[GFXBufferTypeVolatile] = GL_DYNAMIC_DRAW;
+   GFXGLBufferType[GFXBufferTypeVolatileInternal] = GL_DYNAMIC_DRAW;
 
    // Primitives
    GFXGLPrimType[GFXPointList] = GL_POINTS;
@@ -122,7 +124,7 @@ void GFXGLEnumTranslate::init()
    GFXGLTextureInternalFormat[GFXFormatL8] = GL_LUMINANCE8;
    GFXGLTextureInternalFormat[GFXFormatR5G6B5] = GL_RGB5_A1;  // OpenGL has no R5G6B5 format.
    GFXGLTextureInternalFormat[GFXFormatR5G5B5A1] = GL_RGB5_A1;
-   GFXGLTextureInternalFormat[GFXFormatR5G5B5X1] = GL_RGB5_A1;
+   GFXGLTextureInternalFormat[GFXFormatR5G5B5X1] = GL_RGB5;
    GFXGLTextureInternalFormat[GFXFormatL16] = GL_LUMINANCE16;
    GFXGLTextureInternalFormat[GFXFormatR16F] = GL_ZERO;
    GFXGLTextureInternalFormat[GFXFormatD16] = GL_DEPTH_COMPONENT;
@@ -135,7 +137,7 @@ void GFXGLEnumTranslate::init()
    GFXGLTextureInternalFormat[GFXFormatR10G10B10A2] = GL_ZERO;
    GFXGLTextureInternalFormat[GFXFormatD32] = GL_DEPTH_COMPONENT32;
    GFXGLTextureInternalFormat[GFXFormatD24X8] = GL_DEPTH_COMPONENT24;
-   GFXGLTextureInternalFormat[GFXFormatD24S8] = GL_DEPTH_COMPONENT24;
+   GFXGLTextureInternalFormat[GFXFormatD24S8] = GL_DEPTH24_STENCIL8_EXT;
    GFXGLTextureInternalFormat[GFXFormatR16G16B16A16] = GL_ZERO;
    GFXGLTextureInternalFormat[GFXFormatR16G16B16A16F] = GL_ZERO;
    GFXGLTextureInternalFormat[GFXFormatR32G32B32A32F] = GL_ZERO;
@@ -154,19 +156,19 @@ void GFXGLEnumTranslate::init()
    GFXGLTextureFormat[GFXFormatR16F] = GL_ZERO;
    GFXGLTextureFormat[GFXFormatD16] = GL_DEPTH_COMPONENT;
    GFXGLTextureFormat[GFXFormatR8G8B8] = GL_RGB;
-   GFXGLTextureFormat[GFXFormatR8G8B8A8] = GL_BGRA;
-   GFXGLTextureFormat[GFXFormatR8G8B8X8] = GL_BGRA;
+   GFXGLTextureFormat[GFXFormatR8G8B8A8] = GL_RGBA;
+   GFXGLTextureFormat[GFXFormatR8G8B8X8] = GL_RGBA;
    GFXGLTextureFormat[GFXFormatR32F] = GL_RGBA;
    GFXGLTextureFormat[GFXFormatR16G16] = GL_RGBA;
    GFXGLTextureFormat[GFXFormatR16G16F] = GL_ZERO;
    GFXGLTextureFormat[GFXFormatR10G10B10A2] = GL_RGBA;
    GFXGLTextureFormat[GFXFormatD32] = GL_DEPTH_COMPONENT;
    GFXGLTextureFormat[GFXFormatD24X8] = GL_DEPTH_COMPONENT;
-   GFXGLTextureFormat[GFXFormatD24S8] = GL_DEPTH_COMPONENT;
+   GFXGLTextureFormat[GFXFormatD24S8] = GL_DEPTH_STENCIL_EXT;
    GFXGLTextureFormat[GFXFormatR16G16B16A16] = GL_RGBA;
    GFXGLTextureFormat[GFXFormatR16G16B16A16F] = GL_RGBA;
    GFXGLTextureFormat[GFXFormatR32G32B32A32F] = GL_RGBA;
-   GFXGLTextureFormat[GFXFormatDXT1] = GL_RGBA;
+   GFXGLTextureFormat[GFXFormatDXT1] = GL_RGB;
    GFXGLTextureFormat[GFXFormatDXT2] = GL_ZERO;
    GFXGLTextureFormat[GFXFormatDXT3] = GL_RGBA;
    GFXGLTextureFormat[GFXFormatDXT4] = GL_ZERO;
@@ -175,8 +177,8 @@ void GFXGLEnumTranslate::init()
    GFXGLTextureType[GFXFormatA8] = GL_UNSIGNED_BYTE;
    GFXGLTextureType[GFXFormatL8] = GL_UNSIGNED_BYTE;
    GFXGLTextureType[GFXFormatR5G6B5] = GL_UNSIGNED_BYTE;
-   GFXGLTextureType[GFXFormatR5G5B5A1] = GL_UNSIGNED_BYTE;
-   GFXGLTextureType[GFXFormatR5G5B5X1] = GL_UNSIGNED_BYTE;
+   GFXGLTextureType[GFXFormatR5G5B5A1] = GL_UNSIGNED_SHORT_5_5_5_1;
+   GFXGLTextureType[GFXFormatR5G5B5X1] = GL_UNSIGNED_SHORT_5_5_5_1;
    GFXGLTextureType[GFXFormatL16] = GL_UNSIGNED_SHORT;
    GFXGLTextureType[GFXFormatR16F] = GL_ZERO;
    GFXGLTextureType[GFXFormatD16] = GL_UNSIGNED_SHORT;
@@ -186,10 +188,10 @@ void GFXGLEnumTranslate::init()
    GFXGLTextureType[GFXFormatR32F] = GL_FLOAT;
    GFXGLTextureType[GFXFormatR16G16] = GL_UNSIGNED_SHORT;
    GFXGLTextureType[GFXFormatR16G16F] = GL_FLOAT;
-   GFXGLTextureType[GFXFormatR10G10B10A2] = GL_UNSIGNED_SHORT;
-   GFXGLTextureType[GFXFormatD32] = GL_UNSIGNED_BYTE;
-   GFXGLTextureType[GFXFormatD24X8] = GL_UNSIGNED_BYTE;
-   GFXGLTextureType[GFXFormatD24S8] = GL_UNSIGNED_BYTE;
+   GFXGLTextureType[GFXFormatR10G10B10A2] = GL_UNSIGNED_INT_10_10_10_2;
+   GFXGLTextureType[GFXFormatD32] = GL_UNSIGNED_INT;
+   GFXGLTextureType[GFXFormatD24X8] = GL_UNSIGNED_INT;
+   GFXGLTextureType[GFXFormatD24S8] = GL_UNSIGNED_INT_24_8;
    GFXGLTextureType[GFXFormatR16G16B16A16] = GL_UNSIGNED_SHORT;
    GFXGLTextureType[GFXFormatR16G16B16A16F] = GL_FLOAT;
    GFXGLTextureType[GFXFormatR32G32B32A32F] = GL_FLOAT;
@@ -198,6 +200,72 @@ void GFXGLEnumTranslate::init()
    GFXGLTextureType[GFXFormatDXT3] = GL_UNSIGNED_BYTE;
    GFXGLTextureType[GFXFormatDXT4] = GL_ZERO;
    GFXGLTextureType[GFXFormatDXT5] = GL_UNSIGNED_BYTE;
+	
+   if( true )
+   {
+      GFXGLTextureInternalFormat[GFXFormatR32F] = GL_R32F;
+      GFXGLTextureFormat[GFXFormatR32F] = GL_RED;
+      GFXGLTextureType[GFXFormatR32F] = GL_FLOAT;
+		
+      GFXGLTextureInternalFormat[GFXFormatR32G32B32A32F] = GL_RGBA32F_ARB;
+      GFXGLTextureFormat[GFXFormatR32G32B32A32F] = GL_RGBA;
+      GFXGLTextureType[GFXFormatR32G32B32A32F] = GL_FLOAT;
+		
+      if( gglHasExtension(ARB_texture_rg) )
+      {
+         GFXGLTextureInternalFormat[GFXFormatR16F] = GL_R16F;
+         GFXGLTextureFormat[GFXFormatR16F] = GL_RED;
+         GFXGLTextureType[GFXFormatR16F] = GL_HALF_FLOAT_ARB;
+			
+         GFXGLTextureInternalFormat[GFXFormatR16G16F] = GL_RG16F;
+         GFXGLTextureFormat[GFXFormatR16G16F] = GL_RG;
+         GFXGLTextureType[GFXFormatR16G16F] = GL_HALF_FLOAT_ARB;
+			
+         GFXGLTextureInternalFormat[GFXFormatR16G16B16A16F] = GL_RGBA16F_ARB;
+         GFXGLTextureFormat[GFXFormatR16G16B16A16F] = GL_RGBA;
+         GFXGLTextureType[GFXFormatR16G16B16A16F] = GL_HALF_FLOAT_ARB;
+      }
+      else
+      {
+         GFXGLTextureInternalFormat[GFXFormatR16F] = GL_R32F;
+         GFXGLTextureFormat[GFXFormatR16F] = GL_RED;
+         GFXGLTextureType[GFXFormatR16F] = GL_FLOAT;
+			
+         GFXGLTextureInternalFormat[GFXFormatR16G16F] = GL_RG32F;
+         GFXGLTextureFormat[GFXFormatR16G16F] = GL_RG;
+         GFXGLTextureType[GFXFormatR16G16F] = GL_FLOAT;
+			
+         GFXGLTextureInternalFormat[GFXFormatR16G16B16A16F] = GL_RGBA32F_ARB;
+         GFXGLTextureFormat[GFXFormatR16G16B16A16F] = GL_RGBA;
+         GFXGLTextureType[GFXFormatR16G16B16A16F] = GL_FLOAT;
+      }
+   }
+	
+   if( gglHasExtension(ARB_ES2_compatibility) )
+   {
+      GFXGLTextureInternalFormat[GFXFormatR5G6B5] = GL_RGB5_A1;
+      GFXGLTextureFormat[GFXFormatR5G6B5] = GL_RGBA;
+      GFXGLTextureType[GFXFormatR5G6B5] = GL_UNSIGNED_SHORT_5_5_5_1;
+   }
+   else
+   {
+      GFXGLTextureInternalFormat[GFXFormatR5G6B5] = GL_RGB565;
+      GFXGLTextureFormat[GFXFormatR5G6B5] = GL_RGB;
+      GFXGLTextureType[GFXFormatR5G6B5] = GL_UNSIGNED_SHORT_5_6_5;
+   }
+	
+   if( gglHasExtension(ARB_texture_rg) )
+   {
+      GFXGLTextureInternalFormat[GFXFormatR16G16] = GL_RG16;
+      GFXGLTextureFormat[GFXFormatR16G16] = GL_RG;
+      GFXGLTextureType[GFXFormatR16G16] = GL_UNSIGNED_SHORT;
+   }
+   else
+   {
+      GFXGLTextureInternalFormat[GFXFormatR16G16] = GL_RGBA16;
+      GFXGLTextureFormat[GFXFormatR16G16] = GL_RGBA;
+      GFXGLTextureType[GFXFormatR16G16] = GL_UNSIGNED_SHORT;
+   }
 
    // Cull
    GFXGLCullMode[GFXCullNone] = GL_BACK;

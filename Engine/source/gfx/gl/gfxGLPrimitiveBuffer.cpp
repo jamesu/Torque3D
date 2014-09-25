@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -22,95 +23,106 @@
 
 #include "gfx/gl/gfxGLDevice.h"
 #include "gfx/gl/gfxGLPrimitiveBuffer.h"
+#include "gfx/gl/gfxGLVertexBuffer.h"
 #include "gfx/gl/gfxGLEnumTranslate.h"
 
-#include "gfx/gl/ggl/ggl.h"
+#include "gfx/gl/tGL/tGL.h"
 #include "gfx/gl/gfxGLUtils.h"
 
 GFXGLPrimitiveBuffer::GFXGLPrimitiveBuffer(GFXDevice *device, U32 indexCount, U32 primitiveCount, GFXBufferType bufferType) :
-GFXPrimitiveBuffer(device, indexCount, primitiveCount, bufferType), mZombieCache(NULL) 
+GFXPrimitiveBuffer(device, indexCount, primitiveCount, bufferType)
 {
-   PRESERVE_INDEX_BUFFER();
-	// Generate a buffer and allocate the needed memory
-	glGenBuffers(1, &mBuffer);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mBuffer);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexCount * sizeof(U16), NULL, GFXGLBufferType[bufferType]);
+   mStorage = mBufferType != GFXBufferTypeVolatile ? GFXGLBufferStorage::createBuffer(mDevice, GL_ELEMENT_ARRAY_BUFFER, bufferType, indexCount * sizeof(U16)) : NULL;
 }
 
 GFXGLPrimitiveBuffer::~GFXGLPrimitiveBuffer()
 {
-	// This is heavy handed, but it frees the buffer memory
-	glDeleteBuffersARB(1, &mBuffer);
-   
-   if( mZombieCache )
-      delete [] mZombieCache;
+   mStorage = NULL;
 }
 
 void GFXGLPrimitiveBuffer::lock(U32 indexStart, U32 indexEnd, void **indexPtr)
 {
-	// Preserve previous binding
-   PRESERVE_INDEX_BUFFER();
-   
-   // Bind ourselves and map
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mBuffer);
-   glBufferData(GL_ELEMENT_ARRAY_BUFFER, mIndexCount * sizeof(U16), NULL, GFXGLBufferType[mBufferType]);
-   
-   // Offset the buffer to indexStart
-	*indexPtr = (void*)((U8*)glMapBuffer(GL_ELEMENT_ARRAY_BUFFER, GL_WRITE_ONLY) + (indexStart * sizeof(U16)));
+   U32 indexCount = (indexStart == 0 && indexEnd == 0) ? mIndexCount : (indexEnd - indexStart);
+   U32 lockStart = indexStart * sizeof(U16);
+
+   if (mBufferType == GFXBufferTypeVolatile)
+   {
+      GFXGLPrimitiveBuffer *volatileBuffer = static_cast<GFXGLDevice*>(getOwningDevice())->findPBPool(indexCount);
+      if( !volatileBuffer )
+         volatileBuffer = static_cast<GFXGLDevice*>(getOwningDevice())->createPBPool();
+
+      mStorage = volatileBuffer->mStorage;
+      mVolatileStart = lockStart = mStorage->map(0, indexCount * sizeof(U16), indexPtr) / sizeof(U16);
+      volatileBuffer->mIndexCount += indexCount;
+   }
+   else
+   {
+      mStorage->map(indexStart * sizeof(U16), indexCount * sizeof(U16), indexPtr);
+   }
 }
 
 void GFXGLPrimitiveBuffer::unlock()
 {
-	// Preserve previous binding
-   PRESERVE_INDEX_BUFFER();
-   
-   // Bind ourselves and unmap
-   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mBuffer);
-	bool res = glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
-   AssertFatal(res, "GFXGLPrimitiveBuffer::unlock - shouldn't fail!");
+   mStorage->unmap();
 }
 
 void GFXGLPrimitiveBuffer::prepare()
 {
-	// Bind
-	static_cast<GFXGLDevice*>(mDevice)->setPB(this);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mBuffer);
+   static_cast<GFXGLDevice*>(getOwningDevice())->_setWorkingIndexBuffer(mStorage->getHandle(), false);
 }
 
 void GFXGLPrimitiveBuffer::finish()
 {
-   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-}
-
-GLvoid* GFXGLPrimitiveBuffer::getBuffer()
-{
-	// NULL specifies no offset into the hardware buffer
-	return (GLvoid*)NULL;
+   static_cast<GFXGLDevice*>(getOwningDevice())->_setWorkingIndexBuffer(0, false);
 }
 
 void GFXGLPrimitiveBuffer::zombify()
 {
-   if(mZombieCache)
-      return;
-      
-   mZombieCache = new U8[mIndexCount * sizeof(U16)];
-   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mBuffer);
-   glGetBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, mIndexCount * sizeof(U16), mZombieCache);
-   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-   glDeleteBuffers(1, &mBuffer);
-   mBuffer = 0;
 }
 
 void GFXGLPrimitiveBuffer::resurrect()
 {
-   if(!mZombieCache)
-      return;
-   
-   glGenBuffers(1, &mBuffer);
-   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mBuffer);
-   glBufferData(GL_ELEMENT_ARRAY_BUFFER, mIndexCount * sizeof(U16), mZombieCache, GFXGLBufferType[mBufferType]);
-   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-   
-   delete[] mZombieCache;
-   mZombieCache = NULL;
+}
+
+void GFXGLPrimitiveBuffer::onFenceMarked(U32 fenceId)
+{
+   if (mStorage)
+   {
+      mStorage->onFenceMarked(fenceId);
+   }
+}
+
+void GFXGLPrimitiveBuffer::onFenceDone(U32 fenceId)
+{
+   if (mStorage)
+   {
+      mStorage->onFenceDone(fenceId);
+   }
+}
+
+U32 GFXGLPrimitiveBuffer::getStorageIndicesFree()
+{
+   if (mBufferType == GFXBufferTypeVolatile)
+   {
+      if (mStorage)
+      {
+         return mStorage->getBytesFree() / sizeof(U16);
+      }
+      else
+      {
+         return MAX_DYNAMIC_VERTS;
+      }
+   }
+   else
+   {
+      return mIndexCount;
+   }
+}
+
+void GFXGLPrimitiveBuffer::dispose()
+{
+   if (mStorage)
+   {
+      mStorage->dispose();
+   }
 }

@@ -20,7 +20,6 @@
 // IN THE SOFTWARE.
 //-----------------------------------------------------------------------------
 
-
 #ifndef TORQUE_SHADERGEN
 
 // These are the uniforms used by most lighting shaders.
@@ -79,7 +78,7 @@ void compute4Lights( vec3 wsView,
    for ( i = 0; i < 3; i++ )
       lightVectors[i] = wsPosition[i] - inLightPos[i];
 
-   vec4 squareDists = vec4(0);
+   vec4 squareDists = vec4(0, 0, 0, 0);
    for ( i = 0; i < 3; i++ )
       squareDists += lightVectors[i] * lightVectors[i];
 
@@ -94,11 +93,11 @@ void compute4Lights( vec3 wsView,
    //
    // We normalize the result a little later.
    //
-   vec4 nDotL = vec4(0);
+   vec4 nDotL = vec4(0, 0, 0, 0);
    for ( i = 0; i < 3; i++ )
       nDotL += lightVectors[i] * -wsNormal[i];
 
-   vec4 rDotL = vec4(0);
+   vec4 rDotL = vec4(0, 0, 0, 0);
    #ifndef TORQUE_BL_NOSPECULAR
 
       // We're using the Phong specular reflection model
@@ -128,7 +127,7 @@ void compute4Lights( vec3 wsView,
    // Unless we have some extremely large point lights
    // i don't believe the precision loss will matter.
    //
-   half4 correction = half4(inversesqrt( squareDists ));
+   vec4 correction = pow( squareDists, vec4(-0.5, -0.5, -0.5, -0.5) );
    nDotL = saturate( nDotL * correction );
    rDotL = clamp( rDotL * correction, 0.00001, 1.0 );
 
@@ -146,7 +145,7 @@ void compute4Lights( vec3 wsView,
       // The spotlight attenuation factor.  This is really
       // fast for what it does... 6 instructions for 4 spots.
 
-      vec4 spotAtten = vec4(0);
+      vec4 spotAtten = vec4(0, 0, 0, 0);
       for ( i = 0; i < 3; i++ )
          spotAtten += lightVectors[i] * inLightSpotDir[i];
 
@@ -162,7 +161,7 @@ void compute4Lights( vec3 wsView,
    vec4 intensity = nDotL * atten;
 
    // Combine the light colors for output.
-   outDiffuse = vec4(0);
+   outDiffuse = vec4(0, 0, 0, 0);
    for ( i = 0; i < 4; i++ )
       outDiffuse += intensity[i] * inLightColor[i];
 

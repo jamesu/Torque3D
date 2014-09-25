@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -37,14 +38,26 @@
 #include "gfx/util/screenspace.h"
 #include "lighting/advanced/advancedLightBinManager.h"
 
+static Vector<String> smTerrainSamplerNames;
+Vector<TerrainCellMaterial*> TerrainCellMaterial::smAllMaterials;
 
 AFTER_MODULE_INIT( MaterialManager )
 {
    Con::NotifyDelegate callabck( &TerrainCellMaterial::_updateDefaultAnisotropy );
    Con::addVariableNotify( "$pref::Video::defaultAnisotropy", callabck );
-}
 
-Vector<TerrainCellMaterial*> TerrainCellMaterial::smAllMaterials;
+   smTerrainSamplerNames.push_back("$baseTexMap");
+   smTerrainSamplerNames.push_back("$layerTex");   
+   smTerrainSamplerNames.push_back("$macrolayerTex");   
+   smTerrainSamplerNames.push_back("$lightMapTex");
+   smTerrainSamplerNames.push_back("$lightInfoBuffer");
+   for(int i = 0; i < 3; ++i)
+   {
+      smTerrainSamplerNames.push_back(avar("$normalMap%d",i));
+      smTerrainSamplerNames.push_back(avar("$detailMap%d",i));
+      smTerrainSamplerNames.push_back(avar("$macroMap%d",i));
+   }
+}
 
 TerrainCellMaterial::TerrainCellMaterial()
    :  mCurrPass( 0 ),
@@ -460,7 +473,7 @@ bool TerrainCellMaterial::_createPass( Vector<MaterialInfo*> *materials,
          const bool logErrors = matCount == 1;
          GFXShader::setLogging( logErrors, true );
 
-         pass->shader = SHADERGEN->getShader( featureData, getGFXVertexFormat<TerrVertex>(), NULL );
+         pass->shader = SHADERGEN->getShader( featureData, getGFXVertexFormat<TerrVertex>(), NULL, smTerrainSamplerNames );
       }
 
       // If we got a shader then we can continue.
@@ -531,7 +544,7 @@ bool TerrainCellMaterial::_createPass( Vector<MaterialInfo*> *materials,
    // We also write the zbuffer if we're using OpenGL, because in OpenGL the prepass
    // cannot share the same zbuffer as the backbuffer.
    desc.setZReadWrite( true,  !MATMGR->getPrePassEnabled() || 
-                              GFX->getAdapterType() == OpenGL ||
+                              //GFX->getAdapterType() == OpenGL ||
                               prePassMat ||
                               reflectMat );
 

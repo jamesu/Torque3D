@@ -31,7 +31,7 @@ void MacCursorController::setCursorPosition(S32 x, S32 y)
    if(!macWindow || !macWindow->isVisible())
       return;
       
-   CGPoint pt = { x, y };
+   CGPoint pt = { (CGFloat)x, (CGFloat)y };
    CGWarpMouseCursorPosition(pt);
    
    macWindow->_skipAnotherMouseEvent();

@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -39,6 +40,8 @@ public:
    ProcessedCustomMaterial(Material &mat);
    ~ProcessedCustomMaterial();
 
+   virtual U32 getPassShaderId(U32 passNumber) const;
+   virtual bool hasPass( SceneRenderState * state, const SceneData &sgData, U32 passNumber );
    virtual bool setupPass(SceneRenderState *, const SceneData& sgData, U32 pass);
    virtual bool init( const FeatureSet &features, const GFXVertexFormat *vertexFormat, const MatFeaturesDelegate &featuresDelegate );   
    virtual void setTextureStages(SceneRenderState *, const SceneData &sgData, U32 pass );

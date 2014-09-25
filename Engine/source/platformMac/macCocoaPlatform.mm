@@ -65,9 +65,9 @@ bool Platform::getUserIsAdministrator()
 
 #pragma mark ---- Cosmetic ----
 //-----------------------------------------------------------------------------
-bool Platform::displaySplashWindow()
+bool Platform::displaySplashWindow( String path )
 {
-    return false;
+   return false;
 }
 
 bool Platform::closeSplashWindow()

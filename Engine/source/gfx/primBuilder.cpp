@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -19,6 +20,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 //-----------------------------------------------------------------------------
+
 #include "primBuilder.h"
 #include "gfxDevice.h"
 #include "console/console.h"
@@ -180,7 +182,18 @@ void end( bool useGenericShaders )
    }
 
    if ( useGenericShaders )
-      GFX->setupGenericShaders( GFXDevice::GSModColorTexture );
+   {
+	   GFXStateBlock *currentBlock = GFX->getStateBlock();
+	   if (currentBlock && currentBlock->getDesc().samplersDefined)
+	   {
+		   if (currentBlock->getDesc().vertexColorEnable)
+			   GFX->setupGenericShaders( GFXDevice::GSModColorTexture );
+		   else
+			   GFX->setupGenericShaders( GFXDevice::GSTexture );
+	   }
+	   else
+		   GFX->setupGenericShaders( GFXDevice::GSColor );
+   }
 
    const GFXVertexPCT *srcVerts = mTempVertBuff.address();
    U32 numVerts = mCurVertIndex;

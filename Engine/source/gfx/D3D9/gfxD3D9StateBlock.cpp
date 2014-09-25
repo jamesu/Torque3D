@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -135,46 +136,8 @@ void GFXD3D9StateBlock::activate(GFXD3D9StateBlock* oldState)
    SD(stencilMask, D3DRS_STENCILMASK);
    SD(stencilWriteMask, D3DRS_STENCILWRITEMASK);
    SDD(fillMode, D3DRS_FILLMODE, GFXD3D9FillMode[mDesc.fillMode]);
-#if !defined(TORQUE_OS_XENON)
-   SD(ffLighting, D3DRS_LIGHTING);
-   SD(vertexColorEnable, D3DRS_COLORVERTEX);
-
-   static DWORD swzTemp;
-   getOwningDevice()->getDeviceSwizzle32()->ToBuffer( &swzTemp, &mDesc.textureFactor, sizeof(ColorI) );
-   SDD(textureFactor, D3DRS_TEXTUREFACTOR, swzTemp);
-#endif
 #undef SD
 #undef SDD
-
-
-   // NOTE: Samplers and Stages are different things.
-   //
-   // The Stages were for fixed function blending.  When using shaders
-   // calling SetTextureStageState() is a complete waste of time.  In
-   // fact if this function rises to the top of profiles we should
-   // refactor stateblocks to seperate the two.
-   //
-   // Samplers are used by both fixed function and shaders, but the
-   // number of samplers is limited by shader model.
-#if !defined(TORQUE_OS_XENON)
-
-   #define TSS(x, y, z) if (!oldState || oldState->mDesc.samplers[i].x != mDesc.samplers[i].x) \
-                        mD3DDevice->SetTextureStageState(i, y, z)
-   for ( U32 i = 0; i < 8; i++ )
-   {   
-      TSS(textureColorOp, D3DTSS_COLOROP, GFXD3D9TextureOp[mDesc.samplers[i].textureColorOp]);
-      TSS(colorArg1, D3DTSS_COLORARG1, mDesc.samplers[i].colorArg1);
-      TSS(colorArg2, D3DTSS_COLORARG2, mDesc.samplers[i].colorArg2);
-      TSS(colorArg3, D3DTSS_COLORARG0, mDesc.samplers[i].colorArg3);
-      TSS(alphaOp, D3DTSS_ALPHAOP, GFXD3D9TextureOp[mDesc.samplers[i].alphaOp]);
-      TSS(alphaArg1, D3DTSS_ALPHAARG1, mDesc.samplers[i].alphaArg1);
-      TSS(alphaArg2, D3DTSS_ALPHAARG2, mDesc.samplers[i].alphaArg2);
-      TSS(alphaArg3, D3DTSS_ALPHAARG0, mDesc.samplers[i].alphaArg3);
-      TSS(textureTransform, D3DTSS_TEXTURETRANSFORMFLAGS, mDesc.samplers[i].textureTransform);
-      TSS(resultArg, D3DTSS_RESULTARG, mDesc.samplers[i].resultArg);
-   }
-   #undef TSS
-#endif
 
 #if defined(TORQUE_OS_XENON)
    #define SS(x, y, z)  if (!oldState || oldState->mDesc.samplers[i].x != mDesc.samplers[i].x) \

@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -41,12 +42,14 @@
 #include "math/util/matrixSet.h"
 #include "console/consoleTypes.h"
 
+
 const RenderInstType AdvancedLightBinManager::RIT_LightInfo( "LightInfo" );
 const String AdvancedLightBinManager::smBufferName( "lightinfo" );
 
 ShadowFilterMode AdvancedLightBinManager::smShadowFilterMode = ShadowFilterMode_SoftShadowHighQuality;
 bool AdvancedLightBinManager::smPSSMDebugRender = false;
 bool AdvancedLightBinManager::smUseSSAOMask = false;
+
 
 ImplementEnumType( ShadowFilterMode,
    "The shadow filtering modes for Advanced Lighting shadows.\n"
@@ -88,8 +91,8 @@ const GFXVertexFormat* AdvancedLightBinManager::smLightMatVertex[] =
 // NOTE: The order here matches that of the ShadowType enum.
 const String AdvancedLightBinManager::smShadowTypeMacro[] =
 {
-   "", // ShadowType_Spot
-   "", // ShadowType_PSSM,
+   "SHADOW_SPOT", // ShadowType_Spot
+   "SHADOW_PSSM", // ShadowType_PSSM,
    "SHADOW_PARABOLOID",                   // ShadowType_Paraboloid,
    "SHADOW_DUALPARABOLOID_SINGLE_PASS",   // ShadowType_DualParaboloidSinglePass,
    "SHADOW_DUALPARABOLOID",               // ShadowType_DualParaboloid,
@@ -407,7 +410,7 @@ AdvancedLightBinManager::LightMaterialInfo* AdvancedLightBinManager::_getLightMa
             shadowMacros.push_back( GFXShaderMacro( "SOFTSHADOW" ) );
            
             const F32 SM = GFX->getPixelShaderVersion();
-            if ( SM >= 3.0f && smShadowFilterMode == ShadowFilterMode_SoftShadowHighQuality )
+            if ( (SM >= 3.0f || GFX->getAdapterType() == OpenGL) && smShadowFilterMode == ShadowFilterMode_SoftShadowHighQuality )
                shadowMacros.push_back( GFXShaderMacro( "SOFTSHADOW_HIGH_QUALITY" ) );
          }
       }
@@ -764,16 +767,25 @@ void AdvancedLightBinManager::LightMaterialInfo::setLightParameters( const Light
    }
 }
 
+bool LightMatInstance::hasPass(SceneRenderState * state, const SceneData &sgData, U32 passNumber )
+{
+   if (  !mProcessedMaterial ||
+       mProcessedMaterial->getNumPasses() == 0 )
+      return false;
+   
+   return Parent::hasPass(state, sgData, passNumber);
+}
+
 bool LightMatInstance::setupPass( SceneRenderState *state, const SceneData &sgData )
 {
    // Go no further if the material failed to initialize properly.
-   if (  !mProcessedMaterial || 
-         mProcessedMaterial->getNumPasses() == 0 )
+   if ( !mProcessedMaterial ||
+      mProcessedMaterial->getNumPasses() == 0 )
       return false;
 
    // Fetch the lightmap params
    const LightMapParams *lmParams = sgData.lights[0]->getExtended<LightMapParams>();
-   
+
    // If no Lightmap params, let parent handle it
    if(lmParams == NULL)
       return Parent::setupPass(state, sgData);
@@ -786,7 +798,6 @@ bool LightMatInstance::setupPass( SceneRenderState *state, const SceneData &sgDa
    {
       // First pass, reset this flag
       mInternalPass = false;
-
       // Pass call to parent
       bRetVal = Parent::setupPass(state, sgData);
    }
@@ -823,7 +834,6 @@ bool LightMatInstance::setupPass( SceneRenderState *state, const SceneData &sgDa
          GFX->setStateBlock(mLitState[StaticLightNonLMGeometry]);
       else // This is a normal, dynamic light.
          GFX->setStateBlock(mLitState[DynamicLight]);
-      
    }
    else // Internal pass, this is the add-specular/multiply-darken-color pass
       GFX->setStateBlock(mLitState[StaticLightLMGeometry]);

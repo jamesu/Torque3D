@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -45,6 +46,7 @@ class RectI;
 class Point2I;
 class ColorI;
 class ColorF;
+struct DDSFile;
 
 //------------------------------------------------------------------------------
 //-------------------------------------- GBitmap
@@ -52,6 +54,8 @@ class ColorF;
 class GBitmap
 {
 public:
+   friend struct DDSFile;
+   
    enum Constants
    {
       /// The maximum mipmap levels we support.  The current
@@ -147,11 +151,19 @@ public:
                        const U32  in_height,
                        const bool in_extrudeMipLevels = false,
                        const GFXFormat in_format = GFXFormatR8G8B8 );
+    
+   void allocateBitmapWithMips(const U32  in_width,
+                       const U32  in_height,
+                       const U32  in_numMips,
+                       const GFXFormat in_format = GFXFormatR8G8B8 );
 
    void extrudeMipLevels(bool clearBorders = false);
    void extrudeMipLevelsDetail();
 
    U32   getNumMipLevels() const { return mNumMipLevels; }
+   void killMips(U32 targetSize) { mNumMipLevels = targetSize; }
+   
+   void chopTopMips(U32 mipsToChop);
 
    GBitmap *createPaddedBitmap() const;
    GBitmap *createPow2Bitmap() const;
@@ -178,6 +190,9 @@ public:
 
    U32         getByteSize() const { return mByteSize; }
    U32         getBytesPerPixel() const { return mBytesPerPixel; }
+   U32         getPitch(const U32 mipLevel) const;
+
+   U32         getSurfaceSize(const U32 mipLevel) const;
 
    /// Use these functions to set and get the mHasTransparency value
    /// This is used to indicate that this bitmap has pixels that have

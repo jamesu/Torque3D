@@ -23,22 +23,24 @@
 
 singleton ShaderData( BL_ShadowFilterShaderV )
 {   
-   DXVertexShaderFile 	= "shaders/common/lighting/basic/shadowFilterV.hlsl";
-   DXPixelShaderFile 	= "shaders/common/lighting/basic/shadowFilterP.hlsl";
+   DXVertexShaderFile   = "shaders/common/lighting/basic/shadowFilterV.hlsl";
+   DXPixelShaderFile    = "shaders/common/lighting/basic/shadowFilterP.hlsl";
    
-   OGLVertexShaderFile 	= "shaders/common/lighting/basic/gl/shadowFilterV.glsl";
-   OGLPixelShaderFile 	= "shaders/common/lighting/basic/gl/shadowFilterP.glsl";
+   OGLVertexShaderFile  = "shaders/common/lighting/basic/gl/shadowFilterV.glsl";
+   OGLPixelShaderFile   = "shaders/common/lighting/basic/gl/shadowFilterP.glsl";
 
    samplerNames[0] = "$diffuseMap";
 
-   defines = "BLUR_DIR=float2(1.0,0.0)";
+   definesDX = "BLUR_DIR=float2(1.0,0.0)";
+   definesOGL = "BLUR_DIR=vec2(1.0,0.0)";
 
    pixVersion = 2.0;     
 };
 
 singleton ShaderData( BL_ShadowFilterShaderH : BL_ShadowFilterShaderV )
 {
-    defines = "BLUR_DIR=float2(0.0,1.0)";
+    definesDX = "BLUR_DIR=float2(0.0,1.0)";
+    definesOGL = "BLUR_DIR=vec2(0.0,1.0)";
 };
 
 

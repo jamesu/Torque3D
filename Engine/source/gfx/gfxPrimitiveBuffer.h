@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -43,7 +44,9 @@ public: //protected:
    U32 mPrimitiveCount;
    GFXBufferType mBufferType;
    GFXPrimitive *mPrimitiveArray;
-   GFXDevice *mDevice;  
+   GFXDevice *mDevice;
+   
+   U32 mVolatileStart;
 
 #ifdef TORQUE_DEBUG
    // In debug builds we provide a TOC leak tracking system.
@@ -65,6 +68,8 @@ public: //protected:
       mIndexCount = indexCount;
       mPrimitiveCount = primitiveCount;
       mBufferType = bufferType;
+      mVolatileStart = 0;
+      
       if(primitiveCount)
       {
          mPrimitiveArray = new GFXPrimitive[primitiveCount];
@@ -119,6 +124,10 @@ public: //protected:
    virtual void lock(U32 indexStart, U32 indexEnd, void **indexPtr)=0; ///< locks this primitive buffer for writing into
    virtual void unlock()=0; ///< unlocks this primitive buffer.
    virtual void prepare()=0;  ///< prepares this primitive buffer for use on the device it was allocated on
+   
+   virtual void onFenceMarked(U32 fenceId) {;}
+   virtual void onFenceDone(U32 fenceId) {;}
+   virtual U32 getStorageIndicesFree() { return mIndexCount; }
 
    // GFXResource interface
    /// The resource should put a description of itself (number of vertices, size/width of texture, etc.) in buffer

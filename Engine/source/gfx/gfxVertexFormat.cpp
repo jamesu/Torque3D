@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -37,6 +38,8 @@ namespace GFXSemantic
    const String TANGENTW = String( "TANGENTW" ).intern();
    const String COLOR = String( "COLOR" ).intern();
    const String TEXCOORD = String( "TEXCOORD" ).intern();
+   const String BLENDINDICES = String( "BLENDINDICES" ).intern();
+   const String BLENDWEIGHT = String( "BLENDWEIGHT" ).intern();
 }
 
 
@@ -57,6 +60,9 @@ U32 GFXVertexElement::getSizeInBytes() const
          return 16;
 
       case GFXDeclType_Color:
+         return 4;
+
+      case GFXDeclType_UByte4:
          return 4;
 
       default:
@@ -83,6 +89,7 @@ void GFXVertexFormat::copy( const GFXVertexFormat &format )
    mHasNormal = format.mHasNormal;
    mHasTangent = format.mHasTangent;
    mHasColor = format.mHasColor;
+   mHasBlend = format.mHasBlend;
    mTexCoordCount = format.mTexCoordCount;
    mSizeInBytes = format.mSizeInBytes;
    mDescription = format.mDescription;
@@ -160,6 +167,14 @@ bool GFXVertexFormat::hasColor() const
    return mHasColor;
 }
 
+bool GFXVertexFormat::hasBlend() const
+{
+   if ( mDirty )
+      const_cast<GFXVertexFormat*>(this)->_updateDirty();
+   
+   return mHasBlend;
+}
+
 U32 GFXVertexFormat::getTexCoordCount() const
 {
    if ( mDirty )
@@ -183,6 +198,7 @@ void GFXVertexFormat::_updateDirty()
    mTexCoordCount = 0;
 
    mHasColor = false;
+   mHasBlend = false;
    mHasNormal = false;
    mHasTangent = false;
    mSizeInBytes = 0;
@@ -206,6 +222,8 @@ void GFXVertexFormat::_updateDirty()
          mHasColor = true;
       else if ( element.isSemantic( GFXSemantic::TEXCOORD ) )
          ++mTexCoordCount;
+      else if ( element.isSemantic( GFXSemantic::BLENDINDICES ) )
+         mHasBlend = true;
 
       mSizeInBytes += element.getSizeInBytes();
    }

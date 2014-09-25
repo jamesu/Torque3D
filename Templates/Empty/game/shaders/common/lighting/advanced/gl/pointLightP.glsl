@@ -21,24 +21,33 @@
 //-----------------------------------------------------------------------------
 
 #include "../../../gl/hlslCompat.glsl"
-#include "shadergen:/autogenConditioners.h"
-
 #include "farFrustumQuad.glsl"
 #include "lightingUtils.glsl"
-#include "../../../gl/lighting.glsl"
 #include "../../shadowMap/shadowMapIO_GLSL.h"
-#include "softShadow.glsl"
+#include "shadergen:/autogenConditioners.h"
 
-in vec4 wsEyeDir;
-in vec4 ssPos;
-in vec4 vsEyeDir;
+#ifndef NO_SHADOW
 
-#ifdef USE_COOKIE_TEX
+#if TORQUE_SM >= 30
 
-/// The texture for cookie rendering.
-uniform samplerCube cookieMap ;
+   // Enables high quality soft shadow 
+   // filtering for SM3.0 and above.
+   #define SOFTSHADOW_SM3
 
-#endif
+   #include "softShadow.glsl"
+
+#else
+
+
+#endif//TORQUE_SM >= 30
+
+#endif//NO_SHADOW 
+
+// I am not sure if we should do this in a better way
+//#define SHADOW_CUBE
+//#define SHADOW_PARABOLOID
+#define SHADOW_DUALPARABOLOID
+#define SHADOW_DUALPARABOLOID_SINGLE_PASS
 
 
 #ifdef SHADOW_CUBE
@@ -48,47 +57,39 @@ uniform samplerCube cookieMap ;
       return shadowCoord;
    }
 
-   vec4 shadowSample( samplerCube shadowMap, vec3 shadowCoord )
+   vec4 shadowSample( samplerCUBE shadowMap, vec3 shadowCoord )
    {
-      return texture( shadowMap, shadowCoord );
+      return textureCUBE( shadowMap, shadowCoord );
    }
-  
-#else
+
+#elif defined( SHADOW_DUALPARABOLOID )
 
    vec3 decodeShadowCoord( vec3 paraVec )
    {
-      // Flip y and z
+      // Swizzle z and y
       paraVec = paraVec.xzy;
       
-      #ifndef SHADOW_PARABOLOID
+      #ifdef SHADOW_DUALPARABOLOID_SINGLE_PASS
 
          bool calcBack = (paraVec.z < 0.0);
-         if ( calcBack )
-         {
+         if(calcBack)
             paraVec.z = paraVec.z * -1.0;
-            
-            #ifdef SHADOW_DUALPARABOLOID
-               paraVec.x = -paraVec.x;
-            #endif
-         }
 
       #endif
 
       vec3 shadowCoord;
-      shadowCoord.x = (paraVec.x / (2*(1 + paraVec.z))) + 0.5;
-      shadowCoord.y = 1-((paraVec.y / (2*(1 + paraVec.z))) + 0.5);
+      shadowCoord.x = (paraVec.x / (2.0*(1.0 + paraVec.z))) + 0.5;
+      shadowCoord.y = ((paraVec.y / (2.0*(1.0 + paraVec.z))) + 0.5);
       shadowCoord.z = 0;
       
       // adjust the co-ordinate slightly if it is near the extent of the paraboloid
       // this value was found via experementation
-      // NOTE: this is wrong, it only biases in one direction, not towards the uv 
-      // center ( 0.5 0.5 ).
-      //shadowCoord.xy *= 0.997;
+      shadowCoord.xy *= 0.997;
 
-      #ifndef SHADOW_PARABOLOID
+      #ifdef SHADOW_DUALPARABOLOID_SINGLE_PASS
 
          // If this is the back, offset in the atlas
-         if ( calcBack )
+         if(calcBack)
             shadowCoord.x += 1.0;
          
          // Atlasing front and back maps, so scale
@@ -99,32 +100,50 @@ uniform samplerCube cookieMap ;
       return shadowCoord;
    }
 
+#else
+
+   #error Unknown shadow type!
+
 #endif
+
+varying vec4 wsEyeDir;
+varying vec4 ssPos;
+varying vec4 vsEyeDir;
 
 uniform sampler2D prePassBuffer;
 
 #ifdef SHADOW_CUBE
-	uniform samplerCube shadowMap;
+   uniform samplerCube shadowMap;
 #else
-	uniform sampler2D shadowMap;
+   uniform sampler2D shadowMap;
+#endif
+#ifdef ACCUMULATE_LUV
+   uniform sampler2D scratchTarget;
 #endif
 
 uniform vec4 rtParams0;
 
 uniform vec3 lightPosition;
 uniform vec4 lightColor;
-uniform float  lightBrightness;
-uniform float  lightRange;
+uniform float lightBrightness;
+uniform float lightRange;
 uniform vec2 lightAttenuation;
 uniform vec4 lightMapParams;
-uniform vec4 vsFarPlane;
-uniform mat3 viewToLightProj;
+
+uniform vec3 eyePosWorld;
+uniform vec4 farPlane;
+uniform float negFarPlaneDotEye;
+uniform mat3x3 worldToLightProj;
+
 uniform vec4 lightParams;
 uniform float shadowSoftness;
-			   
+uniform float constantSpecularPower;
+uniform vec4 vsFarPlane;
+uniform mat3x3 viewToLightProj;
 
-void main()               
-{   
+
+void main()
+{
    // Compute scene UV
    vec3 ssPos = ssPos.xyz / ssPos.w;
    vec2 uvScene = getUVFromSSPos( ssPos, rtParams0 );
@@ -141,11 +160,17 @@ void main()
    // Build light vec, get length, clip pixel if needed
    vec3 lightVec = lightPosition - viewSpacePos;
    float lenLightV = length( lightVec );
-   clip( lightRange - lenLightV );
+   if ((lightRange - lenLightV) < 0)
+   {
+     discard;
+   }
 
    // Get the attenuated falloff.
    float atten = attenuate( lightColor, lightAttenuation, lenLightV );
-   clip( atten - 1e-6 );
+   if ((atten - 1e-6) < 0 )
+   {
+     discard;
+   }
 
    // Normalize lightVec
    lightVec /= lenLightV;
@@ -167,12 +192,12 @@ void main()
       #ifdef SHADOW_CUBE
               
          // TODO: We need to fix shadow cube to handle soft shadows!
-         float occ = texture( shadowMap, tMul( viewToLightProj, -lightVec ) ).r;
+         float occ = texCUBE( shadowMap,  viewToLightProj * -lightVec  ).r;
          float shadowed = saturate( exp( lightParams.y * ( occ - distToLight ) ) );
          
       #else
 
-         vec2 shadowCoord = decodeShadowCoord( tMul( viewToLightProj, -lightVec ) ).xy;
+         vec2 shadowCoord = decodeShadowCoord( viewToLightProj * -lightVec ).xy;
          
          float shadowed = softShadow_filter( shadowMap,
                                              ssPos.xy,
@@ -189,7 +214,7 @@ void main()
    #ifdef USE_COOKIE_TEX
 
       // Lookup the cookie sample.
-      vec4 cookie = texture( cookieMap, tMul( viewToLightProj, -lightVec ) );
+      vec4 cookie = texCUBE( cookieMap, viewToLightProj * -lightVec );
 
       // Multiply the light with the cookie tex.
       lightColor.rgb *= cookie.rgb;
@@ -205,29 +230,14 @@ void main()
    // cause the hardware occlusion query to disable the shadow.
 
    // Specular term
-   float specular = AL_CalcSpecular(   lightVec, 
+   float specular = calcSpecular(   lightVec, 
                                        normal, 
-                                       normalize( -eyeRay ) ) * lightBrightness * atten * shadowed;
+                                    normalize( -eyeRay ) ) * lightBrightness * atten * shadowed;
 
    float Sat_NL_Att = saturate( nDotL * atten * shadowed ) * lightBrightness;
-   vec3 lightColorOut = lightMapParams.rgb * lightColor.rgb;
-   vec4 addToResult = vec4(0.0);
+   vec3 lightColorOut = lightColor.rgb;
+   vec4 addToResult = vec4(0.0f, 0.0f, 0.0f, 0.0f);
+   
     
-   // TODO: This needs to be removed when lightmapping is disabled
-   // as its extra work per-pixel on dynamic lit scenes.
-   //
-   // Special lightmapping pass.
-   if ( lightMapParams.a < 0.0 )
-   {
-      // This disables shadows on the backsides of objects.
-      shadowed = nDotL < 0.0f ? 1.0f : shadowed;
-
-      Sat_NL_Att = 1.0f;
-      shadowed = mix( 1.0f, shadowed, atten );
-      lightColorOut = vec3(shadowed);
-      specular *= lightBrightness;
-      addToResult = ( 1.0 - shadowed ) * abs(lightMapParams);
-   }
-
-   OUT_FragColor0 = lightinfoCondition( lightColorOut, Sat_NL_Att, specular, addToResult );
+   gl_FragColor = lightinfoCondition( lightColorOut, Sat_NL_Att, specular, addToResult );
 }

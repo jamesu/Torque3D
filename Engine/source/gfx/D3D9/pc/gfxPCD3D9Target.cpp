@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -496,7 +497,9 @@ void GFXPCD3D9WindowTarget::resetMode()
    }
 
    // Update our size, too.
-   mSize = Point2I(mPresentationParams.BackBufferWidth, mPresentationParams.BackBufferHeight);      
+   mSize = Point2I(mPresentationParams.BackBufferWidth, mPresentationParams.BackBufferHeight);     
+
+	
 
    mWindow->setSuppressReset(false);
 }

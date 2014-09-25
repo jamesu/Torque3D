@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -20,14 +21,16 @@
 // IN THE SOFTWARE.
 //-----------------------------------------------------------------------------
 
-#ifndef _DEFERREDFEATURESHLSL_H_
-#define _DEFERREDFEATURESHLSL_H_
+#ifndef _ADVANCEDLIGHTINGFEATURES_H_
+#define _ADVANCEDLIGHTINGFEATURES_H_
 
-#include "shaderGen/HLSL/shaderFeatureHLSL.h"
-#include "shaderGen/HLSL/bumpHLSL.h"
-#include "shaderGen/HLSL/pixSpecularHLSL.h"
-
-class ConditionerMethodDependency;
+#ifndef _GFXENUMS_H_
+#include "gfx/gfxEnums.h"
+#endif
+#include "shaderGen/bump.h"
+#include "shaderGen/pixSpecular.h"
+#include "shaderGen/shaderFeatureCommon.h"
+#include "lighting/advanced/advancedLightingFeatures.h"
 
 
 /// Lights the pixel by sampling from the light prepass 
@@ -38,133 +41,135 @@ class ConditionerMethodDependency;
 /// forward rendering pass.  It is not used during the
 /// prepass step.
 ///
-class DeferredRTLightingFeatHLSL : public RTLightingFeatHLSL
+class DeferredRTLightingFeat : public RTLightingFeat
 {
-   typedef RTLightingFeatHLSL Parent;
+  typedef RTLightingFeat Parent;
 
 protected:
 
-   /// @see DeferredRTLightingFeatHLSL::processPix()
-   U32 mLastTexIndex;
+  /// @see DeferredRTLightingFeat::processPix()
+  U32 mLastTexIndex;
 
 public:
 
-   virtual void processVert( Vector<ShaderComponent*> &componentList,
-                              const MaterialFeatureData &fd );
+  virtual void processVert( Vector<ShaderComponent*> &componentList,
+    const MaterialFeatureData &fd );
 
-   virtual void processPix(   Vector<ShaderComponent*> &componentList, 
-                              const MaterialFeatureData &fd );
+  virtual void processPix(   Vector<ShaderComponent*> &componentList, 
+    const MaterialFeatureData &fd );
 
-   virtual void processPixMacros(   Vector<GFXShaderMacro> &macros, 
-                                    const MaterialFeatureData &fd );
+  virtual void processPixMacros(   Vector<GFXShaderMacro> &macros, 
+    const MaterialFeatureData &fd );
 
-   virtual Material::BlendOp getBlendOp(){ return Material::None; }
+  virtual Material::BlendOp getBlendOp(){ return Material::None; }
 
-   virtual Resources getResources( const MaterialFeatureData &fd );
+  virtual Resources getResources( const MaterialFeatureData &fd );
 
-   virtual void setTexData(   Material::StageData &stageDat,
-                              const MaterialFeatureData &fd,
-                              RenderPassData &passData,
-                              U32 &texIndex );
+  virtual void setTexData(   Material::StageData &stageDat,
+    const MaterialFeatureData &fd,
+    RenderPassData &passData,
+    U32 &texIndex );
 
-   virtual String getName()
-   {
-      return "Deferred RT Lighting";
-   }
+  virtual String getName()
+  {
+    return "Deferred RT Lighting";
+  }
+
+  static const char* lightInfoSamplerName;
 };
 
 
 /// This is used during the 
-class DeferredBumpFeatHLSL : public BumpFeatHLSL
+class DeferredBumpFeat : public BumpFeat
 {
-   typedef BumpFeatHLSL Parent;
+  typedef BumpFeat Parent;
 
 public:
-   virtual void processVert(  Vector<ShaderComponent*> &componentList,
-                              const MaterialFeatureData &fd );
+  virtual void processVert(  Vector<ShaderComponent*> &componentList,
+    const MaterialFeatureData &fd );
 
-   virtual void processPix(   Vector<ShaderComponent*> &componentList, 
-                              const MaterialFeatureData &fd );
+  virtual void processPix(   Vector<ShaderComponent*> &componentList, 
+    const MaterialFeatureData &fd );
 
-   virtual Material::BlendOp getBlendOp() { return Material::LerpAlpha; }
+  virtual Material::BlendOp getBlendOp() { return Material::LerpAlpha; }
 
-   virtual Resources getResources( const MaterialFeatureData &fd );
+  virtual Resources getResources( const MaterialFeatureData &fd );
 
-   virtual void setTexData(   Material::StageData &stageDat,
-                              const MaterialFeatureData &fd,
-                              RenderPassData &passData,
-                              U32 &texIndex );
+  virtual void setTexData(   Material::StageData &stageDat,
+    const MaterialFeatureData &fd,
+    RenderPassData &passData,
+    U32 &texIndex );
 
-   virtual String getName()
-   {
-      return "Bumpmap [Deferred]";
-   }
+  virtual String getName()
+  {
+    return "Bumpmap [Deferred]";
+  }
 };
 
 
 /// Generates specular highlights in the forward pass 
 /// from the light prepass buffer.
-class DeferredPixelSpecularHLSL : public PixelSpecularHLSL
+class DeferredPixelSpecular : public PixelSpecular
 {
-   typedef PixelSpecularHLSL Parent;
+  typedef PixelSpecular Parent;
 
 public:
-   virtual void processVert(  Vector<ShaderComponent*> &componentList,
-                              const MaterialFeatureData &fd );
+  virtual void processVert(  Vector<ShaderComponent*> &componentList,
+    const MaterialFeatureData &fd );
 
-   virtual void processPix(   Vector<ShaderComponent*> &componentList, 
-                              const MaterialFeatureData &fd );
+  virtual void processPix(   Vector<ShaderComponent*> &componentList, 
+    const MaterialFeatureData &fd );
 
-   virtual Resources getResources( const MaterialFeatureData &fd );
+  virtual Resources getResources( const MaterialFeatureData &fd );
 
-   virtual String getName()
-   {
-      return "Pixel Specular [Deferred]";
-   }
+  virtual String getName()
+  {
+    return "Pixel Specular [Deferred]";
+  }
 };
 
 
 ///
-class DeferredMinnaertHLSL : public ShaderFeatureHLSL
+class DeferredMinnaert : public ShaderFeatureCommon
 {
-   typedef ShaderFeatureHLSL Parent;
-   
+  typedef ShaderFeatureCommon Parent;
+
 public:
-   virtual void processPix(   Vector<ShaderComponent*> &componentList, 
-                              const MaterialFeatureData &fd );
-   virtual void processVert(  Vector<ShaderComponent*> &componentList,
-                              const MaterialFeatureData &fd );
+  virtual void processPix(   Vector<ShaderComponent*> &componentList, 
+    const MaterialFeatureData &fd );
+  virtual void processVert(  Vector<ShaderComponent*> &componentList,
+    const MaterialFeatureData &fd );
 
-   virtual void processPixMacros(   Vector<GFXShaderMacro> &macros, 
-                                    const MaterialFeatureData &fd );
+  virtual void processPixMacros(   Vector<GFXShaderMacro> &macros, 
+    const MaterialFeatureData &fd );
 
-   virtual Resources getResources( const MaterialFeatureData &fd );
+  virtual Resources getResources( const MaterialFeatureData &fd );
 
-   virtual void setTexData(   Material::StageData &stageDat,
-                              const MaterialFeatureData &fd,
-                              RenderPassData &passData,
-                              U32 &texIndex );
+  virtual void setTexData(   Material::StageData &stageDat,
+    const MaterialFeatureData &fd,
+    RenderPassData &passData,
+    U32 &texIndex );
 
-   virtual String getName()
-   {
-      return "Minnaert Shading [Deferred]";
-   }
+  virtual String getName()
+  {
+    return "Minnaert Shading [Deferred]";
+  }
 };
 
 
 ///
-class DeferredSubSurfaceHLSL : public ShaderFeatureHLSL
+class DeferredSubSurface : public ShaderFeatureCommon
 {
-   typedef ShaderFeatureHLSL Parent;
+  typedef ShaderFeatureCommon Parent;
 
 public:
-   virtual void processPix(   Vector<ShaderComponent*> &componentList, 
-                              const MaterialFeatureData &fd );
+  virtual void processPix(   Vector<ShaderComponent*> &componentList, 
+    const MaterialFeatureData &fd );
 
-   virtual String getName()
-   {
-      return "Sub-Surface Approximation [Deferred]";
-   }
+  virtual String getName()
+  {
+    return "Sub-Surface Approximation [Deferred]";
+  }
 };
 
-#endif // _DEFERREDFEATURESHLSL_H_
+#endif // _ADVANCEDLIGHTINGFEATURES_H_

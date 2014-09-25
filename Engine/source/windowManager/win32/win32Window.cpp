@@ -153,8 +153,7 @@ void Win32Window::setVideoMode( const GFXVideoMode &mode )
 	{
 		SetWindowLong( getHWND(), GWL_STYLE, WS_POPUP);
 		SetWindowPos( getHWND(), HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_FRAMECHANGED);
-		
-      if(mDisplayWindow)
+        if(mDisplayWindow)
          ShowWindow(getHWND(), SW_SHOWNORMAL);
 
       // Clear the menu bar from the window for full screen
@@ -218,7 +217,6 @@ void Win32Window::setVideoMode( const GFXVideoMode &mode )
 		   // We have to force Win32 to update the window frame and make the window
 		   // visible and no longer topmost - this code might be possible to simplify.
 		   SetWindowPos( getHWND(), HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_FRAMECHANGED);
-
          if(mDisplayWindow)
             ShowWindow( getHWND(), SW_SHOWNORMAL);
       }
@@ -311,6 +309,11 @@ void Win32Window::setClientExtent( const Point2I newExtent )
 		rtClient.bottom += GetSystemMetrics( SM_CYVSCROLL );
 
 	SetWindowPos( mWindowHandle, NULL, 0, 0, rtClient.right - rtClient.left, rtClient.bottom - rtClient.top, SWP_NOMOVE | SWP_NOACTIVATE | SWP_NOZORDER);
+}
+
+const Point2I Win32Window::getRealClientExtent()
+{
+	return getClientExtent();
 }
 
 const Point2I Win32Window::getClientExtent()

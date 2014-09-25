@@ -1516,6 +1516,12 @@ void GuiCanvas::paint()
 {
    resetUpdateRegions();
 
+   if (mPlatformWindow)
+   {
+      bool vis = mPlatformWindow->isVisible();
+      vis = vis;
+   }
+
    // inhibit explicit refreshes in the case we're swapped out
    if( mPlatformWindow && mPlatformWindow->isVisible() && GFX->allowRender())
       mPlatformWindow->displayEvent.trigger(mPlatformWindow->getWindowId());

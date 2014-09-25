@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -129,6 +130,9 @@ public:
    virtual MaterialParameterHandle* getMaterialParameterHandle(const String& name);
    virtual U32 getNumStages();
 
+   bool hasPass(SceneRenderState * state, const SceneData &sgData, U32 passNumber );
+   U32 getPassShaderId(U32 passId) const;
+
 protected:
 
    Vector<GFXShaderConstDesc> mShaderConstDesc;
@@ -186,9 +190,15 @@ protected:
 
       void resetStep() { mCount = -1; }
 
-      U8* getBuffer() const { return mBuffer; }
+      U8* getBuffer() const
+      { 
+        return mBuffer; 
+      }
 
-      S32 getCount() const { return mCount; }
+      S32 getCount() const 
+      { 
+        return mCount; 
+      }
 
       const GFXVertexFormat* getFormat() const { return mInstFormat; }
 
@@ -257,7 +267,7 @@ protected:
    ///
    virtual void _initMaterialParameters();
 
-   ShaderRenderPassData* _getRPD(const U32 pass) { return static_cast<ShaderRenderPassData*>(mPasses[pass]); }
+   ShaderRenderPassData* _getRPD(const U32 pass) const { return static_cast<ShaderRenderPassData*>(mPasses[pass]); }
 };
 
 #endif // _MATERIALS_PROCESSEDSHADERMATERIAL_H_

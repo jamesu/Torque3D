@@ -24,7 +24,7 @@
 
 uniform sampler2D diffuseMap;
 
-in vec2 uv;
+varying vec2 uv;
 
 uniform vec2 oneOverTargetSize;
 
@@ -33,14 +33,14 @@ const float weight[3] = float[]( 0.2270270270, 0.3162162162, 0.0702702703 );
 
 void main()
 {
-   vec4 OUT = texture( diffuseMap, uv ) * weight[0];
+   vec4 OUT = texture2D( diffuseMap, uv ) * weight[0];
    
    for ( int i=1; i < 3; i++ )
    {
-      vec2 _sample = (BLUR_DIR * offset[i]) * oneOverTargetSize;
-      OUT += texture( diffuseMap, uv + _sample ) * weight[i];  
-      OUT += texture( diffuseMap, uv - _sample ) * weight[i];  
+      vec2 sample = (BLUR_DIR * offset[i]) * oneOverTargetSize;
+      OUT += texture2D( diffuseMap, uv + sample ) * weight[i];  
+      OUT += texture2D( diffuseMap, uv - sample ) * weight[i];  
    }
 
-   OUT_FragColor0 = OUT;
+   gl_FragColor = OUT;
 }

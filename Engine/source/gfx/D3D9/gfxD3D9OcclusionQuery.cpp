@@ -1,5 +1,6 @@
 //-----------------------------------------------------------------------------
 // Copyright (c) 2012 GarageGames, LLC
+// Portions Copyright (c) 2013-2014 Mode 7 Limited
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to
@@ -114,7 +115,7 @@ GFXD3D9OcclusionQuery::OcclusionQueryStatus GFXD3D9OcclusionQuery::getStatus( bo
       return Unset;
 
 #ifdef TORQUE_GATHER_METRICS
-   //AssertFatal( mBeginFrame < GuiTSCtrl::getFrameCount(), "GFXD3D9OcclusionQuery::getStatus - called on the same frame as begin!" );
+   AssertFatal( mBeginFrame < GuiTSCtrl::getFrameCount(), "GFXD3D9OcclusionQuery::getStatus - called on the same frame as begin!" );
 
    //U32 mTimeSinceEnd = mTimer->getElapsedMs();
    //AssertFatal( mTimeSinceEnd >= 5, "GFXD3DOcculsionQuery::getStatus - less than TickMs since called ::end!" );
@@ -125,8 +126,20 @@ GFXD3D9OcclusionQuery::OcclusionQueryStatus GFXD3D9OcclusionQuery::getStatus( bo
 
    if ( block )
    {      
-      while( ( hRes = mQuery->GetData( &dwOccluded, sizeof(DWORD), D3DGETDATA_FLUSH ) ) == S_FALSE )
-         ;
+      // BUGFIX: http://git.chromium.org/gitweb/?p=chromium.git;a=commitdiff;h=4079f5138838dab337341826fcdd089069da1fef
+      /*
+            We currently have a loop in the DXVA decoder on Windows 7 and above where we flush
+            the queued D3D command buffers and wait for the operation to complete. This causes an
+            infinite loop on certain multicore machines due to a bug in the IDirect3DQuery9::GetData
+            call not returning the correct result. This seems to be a very old bug dating back to April 2008
+            http://us.generation-nt.com/idirect3dquery9-getdata-fails-return-ok-multi-core-cpus-help-26986872.html
+            
+            Fix for now is to have an upper limit of 20 iterations while we wait for the flush to complete.
+      */
+      int iterations = 0;
+      while ((hRes = mQuery->GetData(&dwOccluded, sizeof(DWORD), D3DGETDATA_FLUSH)) == S_FALSE && ++iterations < 20) {
+            if (iterations > 10) Sleep(1);
+      }
    }
    else
    {

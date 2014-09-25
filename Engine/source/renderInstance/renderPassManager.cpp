@@ -40,6 +40,7 @@
 #include "core/util/safeDelete.h"
 #include "math/util/matrixSet.h"
 #include "console/engineAPI.h"
+#include "gfx/gfxTextureManager.h"
 
 
 const RenderInstType RenderInstType::Invalid( "" );
@@ -255,7 +256,7 @@ void RenderPassManager::render(SceneRenderState * state)
    GFX->setProjectionMatrix( proj );
       
    // Restore a clean state for subsequent rendering.
-   GFX->disableShaders();
+   //GFX->disableShaders();
    for(S32 i = 0; i < GFX->getNumSamplers(); ++i)
       GFX->setTexture(i, NULL);
 }
@@ -290,7 +291,7 @@ GFXTextureObject *RenderPassManager::getDepthTargetTexture()
          return mDepthBuff.getPointer();
    }
 
-   if(GFX->getAdapterType() == OpenGL)
+   /*if(GFX->getAdapterType() == OpenGL)
    {
       AssertFatal(GFX->getActiveRenderTarget(), "Must be an active render target to call 'getDepthTargetTexture'");
 
@@ -298,7 +299,7 @@ GFXTextureObject *RenderPassManager::getDepthTargetTexture()
       mDepthBuff.set(rtSize.x, rtSize.y, GFXFormatD24S8, 
          &GFXDefaultZTargetProfile, avar("%s() - mDepthBuff (line %d)", __FUNCTION__, __LINE__));
       return mDepthBuff.getPointer();
-   }
+   }*/
 
    // Default return value
    return GFXTextureTarget::sDefaultDepthStencil;
