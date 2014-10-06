@@ -40,7 +40,7 @@
 #pragma comment(lib, "d3dcompiler.lib")
 
 extern bool gDisassembleAllShaders;
-#define SHADER_DEBUG
+//#define SHADER_DEBUG
 
 // Constant table derived from http://www.gamedev.net/topic/648016-replacement-for-id3dxconstanttable/
 

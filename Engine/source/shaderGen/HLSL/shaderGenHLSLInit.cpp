@@ -32,6 +32,8 @@
 #include "shaderGen/HLSL/paraboloidHLSL.h"
 #include "materials/materialFeatureTypes.h"
 #include "core/module.h"
+#include "terrain/terrFeatureTypes.h"
+#include "terrain/hlsl/terrFeatureHLSL.h"
 
 static ShaderGen::ShaderGenInitDelegate sInitDelegate;
 
@@ -94,6 +96,17 @@ void _initShaderGenHLSL( ShaderGen *shaderGen )
    FEATUREMGR->registerFeature( MFT_ForwardShading, new NamedFeature( "Forward Shaded Material" ) );
 
    FEATUREMGR->registerFeature( MFT_ImposterVert, new ImposterVertFeature );
+   
+   
+   // Terrain
+   FEATUREMGR->registerFeature( MFT_TerrainBaseMap, new TerrainBaseMapFeatCommon );
+   FEATUREMGR->registerFeature( MFT_TerrainParallaxMap, new NamedFeature( "Terrain Parallax Texture" ) );
+   FEATUREMGR->registerFeature( MFT_TerrainDetailMap, new TerrainDetailMapFeatCommon );
+   FEATUREMGR->registerFeature( MFT_TerrainNormalMap, new TerrainNormalMapFeatCommon );
+   FEATUREMGR->registerFeature( MFT_TerrainMacroMap, new TerrainMacroMapFeatCommon );
+   FEATUREMGR->registerFeature( MFT_TerrainLightMap, new TerrainLightMapFeatCommon );
+   FEATUREMGR->registerFeature( MFT_TerrainSideProject, new NamedFeature( "Terrain Side Projection" ) );
+   FEATUREMGR->registerFeature( MFT_TerrainAdditive, new TerrainAdditiveFeatCommon );
 }
 
 MODULE_BEGIN( ShaderGenHLSL )
