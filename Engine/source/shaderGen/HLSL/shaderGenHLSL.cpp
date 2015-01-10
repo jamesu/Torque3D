@@ -174,6 +174,22 @@ ShaderComponent* ShaderGenComponentFactoryHLSL::createVertexInputConnector( cons
          else
             var->setName( String::ToString( "texCoord%d", element.getSemanticIndex() + 1 ) );
       }
+      else if ( element.isSemantic( GFXSemantic::BLENDINDICES ) )
+      {
+         var = vertComp->getIndexedElement( element.getSemanticIndex(), RT_BLENDINDICES );
+         if ( element.getSemanticIndex() == 0 )
+            var->setName( "blendIndices" );
+         else
+            var->setName( String::ToString( "blendIndices%d", element.getSemanticIndex() + 1 ) );
+      }
+      else if ( element.isSemantic( GFXSemantic::BLENDWEIGHT ) )
+      {
+         var = vertComp->getIndexedElement( element.getSemanticIndex(), RT_BLENDWEIGHT );
+         if ( element.getSemanticIndex() == 0 )
+            var->setName( "blendWeights" );
+         else
+            var->setName( String::ToString( "blendWeights%d", element.getSemanticIndex() + 1 ) );
+      }
       else
       {
          // Everything else is a texcoord!

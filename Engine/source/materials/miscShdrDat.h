@@ -42,6 +42,8 @@ enum RegisterType
    RT_TEXCOORD,
    RT_VPOS,
    RT_SVPOSITION
+   RT_BLENDINDICES,
+   RT_BLENDWEIGHT
 };
 
 enum Components

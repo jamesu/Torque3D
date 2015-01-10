@@ -42,6 +42,20 @@ Var * ShaderConnectorHLSL::getElement( RegisterType type,
       else
          mCurTexElem += numElements;
    }
+   else if ( type == RT_BLENDINDICES )
+   {
+      if ( numRegisters != -1 )
+         mCurBlendIndicesElem += numRegisters;
+      else
+         mCurBlendIndicesElem += numElements;
+   }
+   else if ( type == RT_BLENDWEIGHT )
+   {
+      if ( numRegisters != -1 )
+         mCurBlendWeightsElem += numRegisters;
+      else
+         mCurBlendWeightsElem += numElements;
+   }
 
    return ret;
 }
@@ -133,6 +147,46 @@ Var * ShaderConnectorHLSL::getIndexedElement( U32 index, RegisterType type, U32 
          return newVar;
       }
 
+   case RT_BLENDINDICES:
+      {
+         Var *newVar = new Var;
+         mElementList.push_back( newVar );
+
+         // This was needed for hardware instancing, but
+         // i don't really remember why right now.
+         if ( index > mCurBlendIndicesElem )
+            mCurBlendIndicesElem = index + 1;
+
+         char out[32];
+         dSprintf( (char*)out, sizeof(out), "BLENDINDICES%d", index );
+         newVar->setConnectName( out );
+         newVar->constNum = index;
+         newVar->arraySize = numElements;
+
+         return newVar;
+      }
+
+   case RT_BLENDWEIGHT:
+      {
+         Var *newVar = new Var;
+         mElementList.push_back( newVar );
+
+         // This was needed for hardware instancing, but
+         // i don't really remember why right now.
+         if ( index > mCurBlendWeightsElem )
+            mCurBlendWeightsElem = index + 1;
+
+         char out[32];
+         dSprintf( (char*)out, sizeof(out), "BLENDWEIGHT%d", index );
+         newVar->setConnectName( out );
+         newVar->constNum = index;
+         newVar->arraySize = numElements;
+
+         return newVar;
+      }
+
+
+
    default:
       break;
    }
@@ -177,6 +231,8 @@ void ShaderConnectorHLSL::reset()
 
    mElementList.setSize( 0 );
    mCurTexElem = 0;
+   mCurBlendIndicesElem = 0;
+   mCurBlendWeightsElem = 0;
 }
 
 void ShaderConnectorHLSL::print( Stream &stream, bool isVertexShader )
