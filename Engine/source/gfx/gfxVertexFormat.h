@@ -45,6 +45,9 @@ namespace GFXSemantic
    extern const String TANGENTW;
    extern const String COLOR;
    extern const String TEXCOORD;
+   extern const String BLENDWEIGHT;
+   extern const String BLENDINDICES;
+   extern const String PADDING;
 }
 
 
@@ -184,6 +187,9 @@ public:
 
    /// Returns true if there is a COLOR semantic in this vertex format.
    bool hasColor() const;
+   
+   /// Returns true if there is a BLENDWEIGHT or BLENDINDICES semantic in this vertex format.
+   bool hasBlendIndices() const;
 
    /// Return true if instancing is used with this vertex format.
    bool hasInstancing() const;
@@ -230,6 +236,9 @@ protected:
 
    /// Is true if there is a COLOR semantic in this vertex format.
    bool mHasColor;
+   
+   /// Is true if there is a BLENDWEIGHT or BLENDINDICES semantic in this vertex format.
+   bool mHasBlendIndices;
 
    /// Is instaning used with this vertex format.
    bool mHasInstancing;

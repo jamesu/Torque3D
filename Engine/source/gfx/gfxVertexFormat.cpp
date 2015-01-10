@@ -37,6 +37,9 @@ namespace GFXSemantic
    const String TANGENTW = String( "TANGENTW" ).intern();
    const String COLOR = String( "COLOR" ).intern();
    const String TEXCOORD = String( "TEXCOORD" ).intern();
+   const String BLENDINDICES = String( "BLENDINDICES" ).intern();
+   const String BLENDWEIGHT = String( "BLENDWEIGHT" ).intern();
+   const String PADDING = String( "PADDING" ).intern();
 }
 
 
@@ -57,6 +60,9 @@ U32 GFXVertexElement::getSizeInBytes() const
          return 16;
 
       case GFXDeclType_Color:
+         return 4;
+
+      case GFXDeclType_UByte4:
          return 4;
 
       default:
@@ -85,6 +91,7 @@ void GFXVertexFormat::copy( const GFXVertexFormat &format )
    mHasTangent = format.mHasTangent;
    mHasColor = format.mHasColor;
    mHasInstancing = format.mHasInstancing;
+   mHasBlendIndices = format.mHasBlendIndices;
    mTexCoordCount = format.mTexCoordCount;
    mSizeInBytes = format.mSizeInBytes;
    mDescription = format.mDescription;
@@ -163,12 +170,21 @@ bool GFXVertexFormat::hasColor() const
    return mHasColor;
 }
 
+<<<<<<< HEAD
 bool GFXVertexFormat::hasInstancing() const
 {
    if (mDirty)
       const_cast<GFXVertexFormat*>(this)->_updateDirty();
 
    return mHasInstancing;
+=======
+bool GFXVertexFormat::hasBlendIndices() const
+{
+   if ( mDirty )
+      const_cast<GFXVertexFormat*>(this)->_updateDirty();
+   
+   return mHasBlendIndices;
+>>>>>>> 0291ff3... Add in basic support for specifying blend elements & padding in D3D9
 }
 
 U32 GFXVertexFormat::getTexCoordCount() const
@@ -199,6 +215,7 @@ void GFXVertexFormat::_updateDirty()
    mTexCoordCount = 0;
 
    mHasColor = false;
+   mHasBlendIndices = false;
    mHasNormal = false;
    mHasTangent = false;
    mSizeInBytes = 0;
@@ -222,6 +239,8 @@ void GFXVertexFormat::_updateDirty()
          mHasColor = true;
       else if ( element.isSemantic( GFXSemantic::TEXCOORD ) )
          ++mTexCoordCount;
+      else if ( element.isSemantic( GFXSemantic::BLENDINDICES ) )
+         mHasBlendIndices = true;
 
       mSizeInBytes += element.getSizeInBytes();
    }
