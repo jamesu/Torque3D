@@ -80,9 +80,13 @@ bool GenericConstBufferLayout::set(const ParamDesc& pd, const GFXShaderConstType
                ( 
                  ( pd.constType == GFXSCT_Float2x2 || 
                    pd.constType == GFXSCT_Float3x3 || 
+                   pd.constType == GFXSCT_Float3x4 ||  
+                   pd.constType == GFXSCT_Float4x3 || 
                    pd.constType == GFXSCT_Float4x4 ) && 
                  ( constType == GFXSCT_Float2x2 || 
-                   constType == GFXSCT_Float3x3 || 
+                   constType == GFXSCT_Float3x3 ||  
+                   constType == GFXSCT_Float3x4 ||  
+                   constType == GFXSCT_Float4x3 ||
                    constType == GFXSCT_Float4x4 )
                ), "Mismatched const type!" );
 

@@ -1081,7 +1081,7 @@ void GFXD3D9Shader::_getShaderConstants( ID3DXConstantTable *table,
                               desc.constType = constantDesc.Columns == 4 ? GFXSCT_Float3x4 : GFXSCT_Float3x3;
                               break;
                            case 4 :
-                              desc.constType = constantDesc.Columns == 3 ? GFXSCT_Float4x3 : GFXSCT_Float3x4;
+                              desc.constType = constantDesc.Columns == 3 ? GFXSCT_Float4x3 : GFXSCT_Float4x4;
                               break;
                         }
                      }
