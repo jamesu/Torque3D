@@ -206,7 +206,11 @@ void TSPartInstance::render(S32 od, const TSRenderState &rdata)
 
    // render mesh objects
    for (i=0; i<mMeshObjects.size(); i++)
-      mMeshObjects[i]->render(od,mSourceShape->getMaterialList(),rdata,1.0);
+   {
+      TSRenderState objState = rdata;
+      objState.setNodeTransforms(mMeshObjects[i]->mTransforms->address(), mMeshObjects[i]->mTransforms->size());
+      mMeshObjects[i]->render(od,mSourceShape->getMaterialList(),objState,1.0);
+   }
 }
 
 //-------------------------------------------------------------------------------------

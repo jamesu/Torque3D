@@ -548,6 +548,9 @@ class TSShape
    /// by default we initialize shape when we read...
    static bool smInitOnRead;
 
+   /// Enables hardware skinning features
+   static bool smUseHardwareSkinning;
+
    /// @name Version Info
    /// @{
 

@@ -58,6 +58,7 @@ F32 TSShape::smAlphaOutDefault = -1.0f;
 S32 TSShape::smNumSkipLoadDetails = 0;
 
 bool TSShape::smInitOnRead = true;
+bool TSShape::smUseHardwareSkinning = true;
 
 
 TSShape::TSShape()

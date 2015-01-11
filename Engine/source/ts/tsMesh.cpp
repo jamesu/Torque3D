@@ -213,6 +213,11 @@ void TSMesh::innerRender( TSMaterialList *materials, const TSRenderState &rdata,
    coreRI->visibility = meshVisibility;  
    coreRI->cubemap = rdata.getCubemap();
 
+   if ( getMeshType() == TSMesh::SkinMeshType )
+   {
+      rdata.getNodeTransforms(&coreRI->mNodeTransforms, &coreRI->mNodeTransformCount);
+   }
+
    // NOTICE: SFXBB is removed and refraction is disabled!
    //coreRI->backBuffTex = GFX->getSfxBackBuffer();
 

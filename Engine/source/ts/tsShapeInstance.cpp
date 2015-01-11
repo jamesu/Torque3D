@@ -532,9 +532,12 @@ void TSShapeInstance::render( const TSRenderState &rdata, S32 dl, F32 intraDL )
    S32 end   = rdata.isNoRenderTranslucent() ? mShape->subShapeFirstTranslucentObject[ss] : mShape->subShapeFirstObject[ss] + mShape->subShapeNumObjects[ss];
    for (i=start; i<end; i++)
    {
+      TSRenderState objState = rdata;
+      objState.setNodeTransforms(mMeshObjects[i].mTransforms->address(), mMeshObjects[i].mTransforms->size());
+
       // following line is handy for debugging, to see what part of the shape that it is rendering
       // const char *name = mShape->names[ mMeshObjects[i].object->nameIndex ];
-      mMeshObjects[i].render( od, mMaterialList, rdata, mAlphaAlways ? mAlphaAlwaysValue : 1.0f );
+      mMeshObjects[i].render( od, mMaterialList, objState, mAlphaAlways ? mAlphaAlwaysValue : 1.0f );
    }
 }
 
