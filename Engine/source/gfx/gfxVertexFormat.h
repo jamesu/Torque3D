@@ -194,6 +194,9 @@ public:
    /// Return true if instancing is used with this vertex format.
    bool hasInstancing() const;
 
+   /// Returns number of blend indices
+   U32 getNumBlendIndices() const;
+
    /// Returns the texture coordinate count by 
    /// counting the number of TEXCOORD semantics.
    U32 getTexCoordCount() const;
