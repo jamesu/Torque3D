@@ -32,7 +32,20 @@ Var * ShaderConnectorHLSL::getElement( RegisterType type,
                                        U32 numElements, 
                                        U32 numRegisters )
 {
-   Var *ret = getIndexedElement( mCurTexElem, type, numElements, numRegisters );
+   Var *ret = NULL;
+   
+   if ( type == RT_BLENDINDICES )
+   {
+      ret = getIndexedElement( mCurBlendIndicesElem, type, numElements, numRegisters );
+   }
+   else if ( type == RT_BLENDWEIGHT )
+   {
+      ret = getIndexedElement( mCurBlendWeightsElem, type, numElements, numRegisters );
+   }
+   else
+   {
+      ret = getIndexedElement( mCurTexElem, type, numElements, numRegisters );
+   }
 
    // Adjust texture offset if this is a texcoord type
    if( type == RT_TEXCOORD )
@@ -287,12 +300,23 @@ void ParamsDefHLSL::assignConstantNumbers()
                if (dStrcmp((const char*)var->type, "float4x4") == 0)
                {
                   mCurrConst += (4 * var->arraySize);
-               } else {
+               }
+               else
+               {
                   if (dStrcmp((const char*)var->type, "float3x3") == 0)
                   {
                      mCurrConst += (3 * var->arraySize);
-                  } else {
-                     mCurrConst += var->arraySize;
+                  }
+                  else
+                  {
+                     if (dStrcmp((const char*)var->type, "float4x3") == 0)
+                     {
+                        mCurrConst += (3 * var->arraySize);
+                     }
+                     else
+                     {
+                        mCurrConst += var->arraySize;
+                     }
                   }
                }
             }

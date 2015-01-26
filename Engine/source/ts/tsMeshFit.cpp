@@ -408,9 +408,10 @@ void MeshFit::addBox( const Point3F& sides, const MatrixF& mat )
 
    for ( S32 i = 0; i < mesh->mVertexData.size(); i++ )
    {
-      Point3F v = mesh->mVertexData[i].vert();
+      TSMesh::__TSMeshVertexBase &vdata = mesh->mVertexData.getBase(i);
+      Point3F v = vdata.vert();
       v.convolve( sides );
-      mesh->mVertexData[i].vert( v );
+      vdata.vert( v );
    }
    mesh->computeBounds();
 
@@ -437,8 +438,9 @@ void MeshFit::addSphere( F32 radius, const Point3F& center )
 
    for ( S32 i = 0; i < mesh->mVertexData.size(); i++ )
    {
-      Point3F v = mesh->mVertexData[i].vert();
-      mesh->mVertexData[i].vert( v * radius );
+      TSMesh::__TSMeshVertexBase &vdata = mesh->mVertexData.getBase(i);
+      Point3F v = vdata.vert();
+      vdata.vert( v * radius );
    }
    mesh->computeBounds();
 
@@ -470,9 +472,9 @@ void MeshFit::addCapsule( F32 radius, F32 height, const MatrixF& mat )
    F32 offset = ( height / ( 2 * radius ) ) - 0.5f;
    for ( S32 i = 0; i < mesh->mVertexData.size(); i++ )
    {
-      Point3F v = mesh->mVertexData[i].vert();
+      Point3F v = mesh->mVertexData.getBase(i).vert();
       v.y += ( ( v.y > 0 ) ? offset : -offset );
-      mesh->mVertexData[i].vert( v * radius );
+      mesh->mVertexData.getBase(i).vert( v * radius );
    }
    mesh->computeBounds();
 
@@ -788,9 +790,10 @@ DefineTSShapeConstructorMethod( addPrimitive, bool, ( const char* meshName, cons
    {
       for (S32 i = 0; i < mesh->mVertexData.size(); i++)
       {
+         TSMesh::__TSMeshVertexBase &vdata = mesh->mVertexData.getBase(i);
          Point3F v;
-         mat.mulP( mesh->mVertexData[i].vert(), &v );
-         mesh->mVertexData[i].vert( v );
+         mat.mulP( vdata.vert(), &v );
+         vdata.vert( v );
       }
    }
    else

@@ -80,6 +80,8 @@ public:
    ShaderConnector();
    virtual ~ShaderConnector();
 
+   U32 getCurTexElem() { return mCurTexElem; }
+
    ///
    virtual Var* getElement(   RegisterType type, 
                               U32 numElements = 1, 

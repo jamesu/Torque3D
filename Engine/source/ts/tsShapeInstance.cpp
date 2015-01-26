@@ -368,8 +368,9 @@ void TSShapeInstance::renderDebugNormals( F32 normalScalar, S32 dl )
          PrimBuild::begin( GFXLineList, 2 * numNrms );
          for ( U32 n = 0; n < numNrms; n++ )
          {
-            Point3F norm = mesh->mVertexData[n].normal();
-            Point3F vert = mesh->mVertexData[n].vert();
+            const TSMesh::__TSMeshVertexBase &v = mesh->mVertexData.getBase(n);
+            Point3F norm = v.normal();
+            Point3F vert = v.vert();
 
             meshMat.mulP( vert );
             meshMat.mulV( norm );
@@ -533,8 +534,6 @@ void TSShapeInstance::render( const TSRenderState &rdata, S32 dl, F32 intraDL )
    for (i=start; i<end; i++)
    {
       TSRenderState objState = rdata;
-      objState.setNodeTransforms(mMeshObjects[i].mTransforms->address(), mMeshObjects[i].mTransforms->size());
-
       // following line is handy for debugging, to see what part of the shape that it is rendering
       // const char *name = mShape->names[ mMeshObjects[i].object->nameIndex ];
       mMeshObjects[i].render( od, mMaterialList, objState, mAlphaAlways ? mAlphaAlwaysValue : 1.0f );
@@ -714,14 +713,14 @@ S32 TSShapeInstance::setDetailFromScreenError( F32 errorTolerance )
 // Object (MeshObjectInstance & PluginObjectInstance) render methods
 //-------------------------------------------------------------------------------------
 
-void TSShapeInstance::ObjectInstance::render( S32, TSMaterialList *, const TSRenderState &rdata, F32 alpha )
+void TSShapeInstance::ObjectInstance::render( S32, TSMaterialList *, TSRenderState &rdata, F32 alpha )
 {
    AssertFatal(0,"TSShapeInstance::ObjectInstance::render:  no default render method.");
 }
 
 void TSShapeInstance::MeshObjectInstance::render(  S32 objectDetail, 
                                                    TSMaterialList *materials, 
-                                                   const TSRenderState &rdata, 
+                                                   TSRenderState &rdata, 
                                                    F32 alpha )
 {
    PROFILE_SCOPE( TSShapeInstance_MeshObjectInstance_render );
@@ -753,6 +752,16 @@ void TSShapeInstance::MeshObjectInstance::render(  S32 objectDetail,
    // in the skin only updating once per frame in most cases.
    const U32 currTime = Sim::getCurrentTime();
    bool isSkinDirty = currTime != mLastTime;
+
+   // Update active transform list for bones for GPU skinning
+   if ( mesh->getMeshType() == TSMesh::SkinMeshType )
+   {
+      if (isSkinDirty)
+      {
+         static_cast<TSSkinMesh*>(mesh)->updateSkinBones(*mTransforms, mActiveTransforms);
+      }
+      rdata.setNodeTransforms(mActiveTransforms.address(), mActiveTransforms.size());
+   }
 
    mesh->render(  materials, 
                   rdata, 

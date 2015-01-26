@@ -59,6 +59,7 @@ S32 TSShape::smNumSkipLoadDetails = 0;
 
 bool TSShape::smInitOnRead = true;
 bool TSShape::smUseHardwareSkinning = true;
+U32 TSShape::smMaxSkinBones = 70;
 
 
 TSShape::TSShape()
@@ -554,6 +555,7 @@ void TSShape::initVertexFeatures()
 {
    bool hasColors = false;
    bool hasTexcoord2 = false;
+   U32 maxBonesPerVert = 0;
 
    Vector<TSMesh*>::iterator iter = meshes.begin();
    for ( ; iter != meshes.end(); iter++ )
@@ -573,25 +575,59 @@ void TSShape::initVertexFeatures()
             hasColors |= !mesh->colors.empty();
             hasTexcoord2 |= !mesh->tverts2.empty();
          }
+
+         if (smUseHardwareSkinning && mesh->getMeshType() == TSMesh::SkinMeshType)
+         {
+            // Setup the node index list now so we know how many bones we're using for the vertex format
+            static_cast<TSSkinMesh*>(mesh)->createBatchData();
+            U32 maxBones = static_cast<TSSkinMesh*>(mesh)->getMaxBonesPerVert();
+            maxBonesPerVert = maxBones > maxBonesPerVert ? maxBones : maxBonesPerVert;
+         }
       }
    }
 
-   mVertSize = ( hasTexcoord2 || hasColors ) ? sizeof(TSMesh::__TSMeshVertex_3xUVColor) : sizeof(TSMesh::__TSMeshVertexBase);
    mVertexFormat.clear();
   
+   // __TSMeshVertexBase
    mVertexFormat.addElement( GFXSemantic::POSITION, GFXDeclType_Float3 );
    mVertexFormat.addElement( GFXSemantic::TANGENTW, GFXDeclType_Float, 3 );
    mVertexFormat.addElement( GFXSemantic::NORMAL, GFXDeclType_Float3 );
    mVertexFormat.addElement( GFXSemantic::TANGENT, GFXDeclType_Float3 );
-
    mVertexFormat.addElement( GFXSemantic::TEXCOORD, GFXDeclType_Float2, 0 );
 
+   // __TSMeshVertex_3xUVColor
    if(hasTexcoord2 || hasColors)
    {
-      mVertexFormat.addElement( GFXSemantic::TEXCOORD, GFXDeclType_Float2, 1 );
-      mVertexFormat.addElement( GFXSemantic::COLOR, GFXDeclType_Color );
-      mVertexFormat.addElement( GFXSemantic::TEXCOORD, GFXDeclType_Float, 2 );
+       mVertexFormat.addElement( GFXSemantic::TEXCOORD, GFXDeclType_Float2, 1 );
+       mVertexFormat.addElement( GFXSemantic::COLOR, GFXDeclType_Color );
    }
+   
+   // __TSMeshVertex_BoneData * maxBonesPerVert
+   U32 idx = 0;
+   for (U32 i=0; i<maxBonesPerVert; i += 4, idx++)
+   {
+      mVertexFormat.addElement( GFXSemantic::BLENDINDICES, GFXDeclType_UByte4, idx );
+      mVertexFormat.addElement( GFXSemantic::BLENDWEIGHT, GFXDeclType_Float4, idx );
+   }
+
+   // Make sure data is padded for SSE2
+   mVertSize = mVertexFormat.getSizeInBytes();
+
+   if (mVertSize % 16 != 0)
+   {
+      U32 idx = 0;
+      S32 paddedSize = ( mVertSize + ( 16 - 1 ) ) & (~( 16 - 1 ));
+
+      paddedSize -= mVertSize;
+      while (paddedSize > 0)
+      {
+         mVertexFormat.addElement( GFXSemantic::PADDING, GFXDeclType_Float, idx++ );
+         paddedSize -= 4;
+      }
+   }
+
+   // Make sure data is padded for SSE2
+   mVertSize = mVertexFormat.getSizeInBytes();
 
    // Go fix up meshes to include defaults for optional features
    // and initialize them if they're not a skin mesh.
@@ -611,9 +647,13 @@ void TSShape::initVertexFeatures()
       // Create and fill aligned data structure
       mesh->convertToAlignedMeshData();
 
+      if (mesh->getMeshType() == TSMesh::SkinMeshType)
+      {
+         static_cast<TSSkinMesh*>(mesh)->setupVertexTransforms();
+      }
+
       // Init the vertex buffer.
-      if ( mesh->getMeshType() == TSMesh::StandardMeshType )
-         mesh->createVBIB();
+      mesh->createVBIB();
    }
 }
 

@@ -551,6 +551,9 @@ class TSShape
    /// Enables hardware skinning features
    static bool smUseHardwareSkinning;
 
+   /// Determines maximum number of bones to use in hardware skinning shaders
+   static U32 smMaxSkinBones;
+
    /// @name Version Info
    /// @{
 

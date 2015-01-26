@@ -44,6 +44,9 @@
 // We need to include customMaterialDefinition for ShaderConstHandles::init
 #include "materials/customMaterialDefinition.h"
 
+
+#include "ts/tsShape.h"
+
 ///
 /// ShaderConstHandles
 ///
@@ -492,6 +495,12 @@ void ProcessedShaderMaterial::_determineFeatures(  U32 stageNum,
                                        *info.type, 
                                        features, 
                                        &fd );
+   }
+
+   // Need to add the Hardware Skinning feature if its used
+   if ( features.hasFeature( MFT_HardwareSkinning ) )
+   {
+      fd.features.addFeature( MFT_HardwareSkinning );
    }
 
    // Now disable any features that were 
@@ -1229,10 +1238,9 @@ void ProcessedShaderMaterial::setNodeTransforms(const MatrixF *transforms, const
 
    if ( handles->mNodeTransforms->isValid() )
    {
-      shaderConsts->set( handles->mNodeTransforms, transforms, transformCount, GFXSCT_Float4x3 );
+      S32 realTransformCount = getMin( transformCount, TSShape::smMaxSkinBones );
+      shaderConsts->set( handles->mNodeTransforms, transforms, realTransformCount, GFXSCT_Float4x3 );
    }
-
-
 }
 
 void ProcessedShaderMaterial::setSceneInfo(SceneRenderState * state, const SceneData& sgData, U32 pass)
