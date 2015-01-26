@@ -95,6 +95,7 @@ bool GenericConstBufferLayout::set(const ParamDesc& pd, const GFXShaderConstType
    {
    case GFXSCT_Float2x2 :
    case GFXSCT_Float3x3 :
+   case GFXSCT_Float4x3 :
    case GFXSCT_Float4x4 :
       return setMatrix(pd, constType, size, data, basePointer);
       break;
