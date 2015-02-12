@@ -414,7 +414,7 @@ class TSMesh
                               TSDrawPrimitive *primitivesOut, S32 *indicesOut) const;
 
    /// Moves vertices from the vertex buffer back into the split vert lists
-   void makeEditable();
+   void makeEditable(bool clearVertexData);
 
    /// methods used during assembly to share vertexand other info
    /// between meshes (and for skipping detail levels on load)

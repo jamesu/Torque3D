@@ -217,6 +217,11 @@ void TSMesh::innerRender( TSMaterialList *materials, const TSRenderState &rdata,
    {
       rdata.getNodeTransforms(&coreRI->mNodeTransforms, &coreRI->mNodeTransformCount);
    }
+   else
+   {
+      coreRI->mNodeTransforms = NULL;
+      coreRI->mNodeTransformCount = 0;
+   }
 
    // NOTICE: SFXBB is removed and refraction is disabled!
    //coreRI->backBuffTex = GFX->getSfxBackBuffer();
@@ -2764,7 +2769,7 @@ void TSMesh::disassemble()
    tsalloc.set32( (S32)mRadius );
 
    // Re-create the vectors
-   makeEditable();
+   makeEditable(false);
 
    // verts...
    tsalloc.set32( verts.size() );
@@ -2802,6 +2807,17 @@ void TSMesh::disassemble()
          U8 normIdx = encodedNorms.size() ? encodedNorms[i] : encodeNormal( norms[i] );
          tsalloc.copyToBuffer8( (S8*)&normIdx, 1 );
       }
+   }
+
+   // Clear out recreated arrays if we still have mVertexData around
+   if (mVertexData.isReady())
+   {
+      verts.free_memory();
+      norms.free_memory();
+      tangents.free_memory();
+      tverts.free_memory();
+      tverts2.free_memory();
+      colors.free_memory();
    }
 
    // optimize triangle draw order during disassemble
@@ -3163,6 +3179,8 @@ void TSMesh::_convertToAlignedMeshData( TSMeshVertexArray &vertexData, const Vec
       if (boneOffset > 0) boneOffset += sizeof(__TSMeshVertex_3xUVColor);
    }
 
+   Con::printf("_convertToAlignedMeshData VERTS: %i", _verts.size());
+
    // If mVertexData is ready, and the input array is different than mVertexData
    // use mVertexData to quickly initialize the input array
    if(mVertexData.isReady() && vertexData.address() != mVertexData.address())
@@ -3196,6 +3214,7 @@ void TSMesh::_convertToAlignedMeshData( TSMeshVertexArray &vertexData, const Vec
    // Initialize the vertex data
    vertexData.set(NULL, 0, 0, colorOffset, boneOffset);
    vertexData.setReady(true);
+   Con::printf("_convertToAlignedMeshData VERTS: %i numVerts", _verts.size(), mNumVerts);
 
    if(mNumVerts == 0)
       return;
@@ -3237,7 +3256,7 @@ void TSMesh::_convertToAlignedMeshData( TSMeshVertexArray &vertexData, const Vec
    colors.free_memory();
 }
 
-void TSMesh::makeEditable()
+void TSMesh::makeEditable(bool clearVertexData)
 {
    if(mVertexData.isReady())
    {
@@ -3264,7 +3283,11 @@ void TSMesh::makeEditable()
          if(mHasTVert2)
             tverts2[i] = cvc.tvert2();
       }
-      mVertexData.set(NULL, 0, 0, 0, 0);
-      mVertexData.setReady(false);
+
+      if (clearVertexData)
+      {
+         mVertexData.set(NULL, 0, 0, 0, 0);
+         mVertexData.setReady(false);
+      }
    }
 }
