@@ -554,6 +554,10 @@ void PlaneReflector::updateReflection( const ReflectParams &params )
    {
       viewport.x *= 0.5f;
    }
+   else if(GFX->getCurrentRenderStyle() == GFXDevice::RS_StereoRenderTargets)
+   {
+      // TODO
+   }
    F32 aspectRatio = F32( viewport.x ) / F32( viewport.y );
 
    Frustum frustum;
@@ -665,6 +669,10 @@ void PlaneReflector::updateReflection( const ReflectParams &params )
       gfxFrustum.clearProjectionOffset();
       GFX->setFrustum(gfxFrustum);
       GFX->setViewport(originalVP);
+   }
+   else if(GFX->getCurrentRenderStyle() == GFXDevice::RS_StereoRenderTargets)
+   {
+      // TODO
    }
    else
    {

@@ -153,7 +153,6 @@ GuiTSCtrl::GuiTSCtrl()
    mLastCameraQuery.nearPlane = 0.01f;
 
    mLastCameraQuery.projectionOffset = Point2F::Zero;
-   mLastCameraQuery.eyeOffset = Point3F::Zero;
 
    mLastCameraQuery.ortho = false;
 }
@@ -205,6 +204,9 @@ bool GuiTSCtrl::onWake()
    AssertFatal( !smAwakeTSCtrls.contains( this ), 
       "GuiTSCtrl::onWake - This control is already in the awake list!" );
    smAwakeTSCtrls.push_back( this );
+
+   // For VR
+   mLastCameraQuery.drawCanvas = getRoot();
 
    return true;
 }
@@ -320,12 +322,18 @@ void GuiTSCtrl::onRender(Point2I offset, const RectI &updateRect)
    // Set up the appropriate render style
    U32 prevRenderStyle = GFX->getCurrentRenderStyle();
    Point2F prevProjectionOffset = GFX->getCurrentProjectionOffset();
-   Point3F prevEyeOffset = GFX->getStereoEyeOffset();
+
    if(mRenderStyle == RenderStyleStereoSideBySide)
    {
       GFX->setCurrentRenderStyle(GFXDevice::RS_StereoSideBySide);
       GFX->setCurrentProjectionOffset(mLastCameraQuery.projectionOffset);
-      GFX->setStereoEyeOffset(mLastCameraQuery.eyeOffset);
+      GFX->setStereoEyeOffsets(mLastCameraQuery.eyeOffset);
+      GFX->setFovPort(mLastCameraQuery.fovPort); // NOTE: this specifies fov for BOTH eyes
+   }
+   else if (mRenderStyle == RenderStyleStereoRenderTargets)
+   {
+      GFX->setCurrentRenderStyle(GFXDevice::RS_StereoRenderTargets);
+      // TODO
    }
    else
    {
@@ -380,6 +388,7 @@ void GuiTSCtrl::onRender(Point2I offset, const RectI &updateRect)
    Frustum frustum;
    if(mRenderStyle == RenderStyleStereoSideBySide)
    {
+      // NOTE: these calculations are essentially overridden later by the fov port settings when rendering each eye.
       F32 left = 0.0f * hscale - wwidth;
       F32 right = renderWidth * hscale - wwidth;
       F32 top = wheight - vscale * 0.0f;
@@ -462,7 +471,6 @@ void GuiTSCtrl::onRender(Point2I offset, const RectI &updateRect)
    // Restore the render style and any stereo parameters
    GFX->setCurrentRenderStyle(prevRenderStyle);
    GFX->setCurrentProjectionOffset(prevProjectionOffset);
-   GFX->setStereoEyeOffset(prevEyeOffset);
 
    // Allow subclasses to render 2D elements.
    GFX->setClipRect(updateRect);

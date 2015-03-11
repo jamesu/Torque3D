@@ -1911,6 +1911,7 @@ void GuiCanvas::renderFrame(bool preRenderOnly, bool bufferSwap /* = true */)
    swapBuffers();
 
    GuiCanvas::getGuiCanvasFrameSignal().trigger(false);
+   GFX->getDeviceEventSignal().trigger( GFXDevice::dePostFrame );
 
 #ifdef TORQUE_GFX_STATE_DEBUG
    GFX->getDebugStateManager()->endFrame();

@@ -98,6 +98,9 @@ enum SceneRenderStyle
 
    /// Side-by-side style rendering
    SRS_SideBySide,
+
+   /// Two views in separate render targets
+   SRS_LeftRightRT
 };
 
 

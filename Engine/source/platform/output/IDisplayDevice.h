@@ -34,11 +34,16 @@ public:
    virtual bool providesYFOV() const = 0;
    virtual F32 getYFOV() const = 0;
 
-   virtual bool providesEyeOffset() const = 0;
-   virtual const Point3F& getEyeOffset() const = 0;
+   virtual bool providesEyeOffsets() const = 0;
+   virtual void getEyeOffsets(Point3F *dest) const = 0;
+
+   virtual bool providesFovPorts() const = 0;
+   virtual void getFovPorts(FovPort *out) const = 0;
 
    virtual bool providesProjectionOffset() const = 0;
    virtual const Point2F& getProjectionOffset() const = 0;
+
+   virtual void setDrawCanvas(GuiCanvas *canvas) = 0;
 };
 
 #endif   // _IDISPLAYDEVICE_H_

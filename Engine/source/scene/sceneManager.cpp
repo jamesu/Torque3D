@@ -238,24 +238,24 @@ void SceneManager::renderScene( SceneRenderState* renderState, U32 objectMask, S
       MatrixF originalWorld = GFX->getWorldMatrix();
 
       Point2F projOffset = GFX->getCurrentProjectionOffset();
-      Point3F eyeOffset = GFX->getStereoEyeOffset();
+      const FovPort *currentFovPort = GFX->getSteroFovPort();
+      const RectI *currentViewports = GFX->getStereoViewports();
+      const Point3F *eyeOffset = GFX->getStereoEyeOffsets();
 
       // Indicate that we're about to start a field
       GFX->beginField();
 
       // Render left half of display
-      RectI leftVP = originalVP;
-      leftVP.extent.x *= 0.5;
-      GFX->setViewport(leftVP);
+      GFX->setViewport(currentViewports[0]); //(params.viewport);
 
       MatrixF leftWorldTrans(true);
-      leftWorldTrans.setPosition(Point3F(eyeOffset.x, eyeOffset.y, eyeOffset.z));
+      leftWorldTrans.setPosition(eyeOffset[0]);
       MatrixF leftWorld(originalWorld);
       leftWorld.mulL(leftWorldTrans);
       GFX->setWorldMatrix(leftWorld);
 
       Frustum gfxFrustum = GFX->getFrustum();
-      gfxFrustum.setProjectionOffset(Point2F(projOffset.x, projOffset.y));
+      gfxFrustum.setExtendedFov(currentFovPort[0]);
       GFX->setFrustum(gfxFrustum);
 
       SceneCameraState cameraStateLeft = SceneCameraState::fromGFX();
@@ -272,19 +272,16 @@ void SceneManager::renderScene( SceneRenderState* renderState, U32 objectMask, S
       GFX->beginField();
 
       // Render right half of display
-      RectI rightVP = originalVP;
-      rightVP.extent.x *= 0.5;
-      rightVP.point.x += rightVP.extent.x;
-      GFX->setViewport(rightVP);
+      GFX->setViewport(currentViewports[1]);
 
       MatrixF rightWorldTrans(true);
-      rightWorldTrans.setPosition(Point3F(-eyeOffset.x, eyeOffset.y, eyeOffset.z));
+      rightWorldTrans.setPosition(eyeOffset[1]);
       MatrixF rightWorld(originalWorld);
       rightWorld.mulL(rightWorldTrans);
       GFX->setWorldMatrix(rightWorld);
 
       gfxFrustum = GFX->getFrustum();
-      gfxFrustum.setProjectionOffset(Point2F(-projOffset.x, projOffset.y));
+      gfxFrustum.setExtendedFov(currentFovPort[1]);
       GFX->setFrustum(gfxFrustum);
 
       SceneCameraState cameraStateRight = SceneCameraState::fromGFX();
@@ -299,9 +296,13 @@ void SceneManager::renderScene( SceneRenderState* renderState, U32 objectMask, S
 
       // Restore previous values
       GFX->setWorldMatrix(originalWorld);
-      gfxFrustum.clearProjectionOffset();
+      gfxFrustum.clearExtendedFov();
       GFX->setFrustum(gfxFrustum);
       GFX->setViewport(originalVP);
+   }
+   else if(GFX->getCurrentRenderStyle() == GFXDevice::RS_StereoRenderTargets)
+   {
+      // TODO
    }
    else
    {

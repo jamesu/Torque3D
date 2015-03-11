@@ -20,13 +20,40 @@
 // IN THE SOFTWARE.
 //-----------------------------------------------------------------------------
 
-//-----------------------------------------------------------------------------
-// Demo Pathed AIPlayer.
-//-----------------------------------------------------------------------------
+#ifndef _VRPostEffect_H_
+#define _VRPostEffect_H_
 
-datablock PlayerData(DemoPlayer : DefaultPlayerData)
+#include "postFx/postEffect.h"
+
+class VRPostEffect : public PostEffect
 {
-   shootingDelay = 2000;
-   
-   cameraCanBank = true;
+   typedef PostEffect Parent;
+
+protected:
+
+   // Oculus VR HMD index to reference
+   S32 mHMDIndex;
+
+   // Oculus VR sensor index to reference
+   S32 mSensorIndex;
+
+protected:
+   virtual void _setupConstants( const SceneRenderState *state );
+
+public:
+   VRPostEffect();
+   virtual ~VRPostEffect();
+
+   DECLARE_CONOBJECT(VRPostEffect);
+
+   // SimObject
+   virtual bool onAdd();
+   virtual void onRemove();
+   static void initPersistFields();
+
+   virtual void process(   const SceneRenderState *state, 
+                           GFXTexHandle &inOutTex,
+                           const RectI *inTexViewport = NULL );
 };
+
+#endif   // _VRPostEffect_H_

@@ -349,7 +349,6 @@ bool GameProcessCameraQuery(CameraQuery *query)
 
       // Provide some default values
       query->projectionOffset = Point2F::Zero;
-      query->eyeOffset = Point3F::Zero;
 
       F32 cameraFov = 0.0f;
       bool fovSet = false;
@@ -358,7 +357,7 @@ bool GameProcessCameraQuery(CameraQuery *query)
       // is not open
       if(!gEditingMission && connection->hasDisplayDevice())
       {
-         const IDisplayDevice* display = connection->getDisplayDevice();
+         IDisplayDevice* display = connection->getDisplayDevice();
 
          // The connection's display device may want to set the FOV
          if(display->providesYFOV())
@@ -374,10 +373,18 @@ bool GameProcessCameraQuery(CameraQuery *query)
          }
 
          // The connection's display device may want to set the eye offset
-         if(display->providesEyeOffset())
+         if(display->providesEyeOffsets())
          {
-            query->eyeOffset = display->getEyeOffset();
+            display->getEyeOffsets(query->eyeOffset);
          }
+
+         if (display->providesFovPorts())
+         {
+            display->getFovPorts(query->fovPort);
+            fovSet = true;
+         }
+
+         display->setDrawCanvas(query->drawCanvas);
       }
 
       // Use the connection's FOV settings if requried

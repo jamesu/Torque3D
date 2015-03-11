@@ -81,6 +81,8 @@
 #  undef TORQUE_TOOLS
 #endif
 
+#define TORQUE_EXTENDED_MOVE
+
 /// Define me if you want to enable the profiler.
 ///    See also the TORQUE_SHIPPING block below
 //#define TORQUE_ENABLE_PROFILER

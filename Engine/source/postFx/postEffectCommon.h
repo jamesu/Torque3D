@@ -101,6 +101,8 @@ struct PFXFrameState
 ///
 GFX_DeclareTextureProfile( PostFxTextureProfile );
 
+GFX_DeclareTextureProfile( VRTextureProfile );
+
 ///
 GFXDeclareVertexFormat( PFXVertex )
 {

@@ -36,6 +36,9 @@ function createCanvas(%windowTitle)
       GFXInit::createNullDevice();
       return true;
    }
+ 
+   // For Rift
+   pointCanvasToOculusVRDisplay();
 
    // Create the Canvas
    %foo = new GuiCanvas(Canvas)

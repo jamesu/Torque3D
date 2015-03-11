@@ -55,6 +55,8 @@ function GameConnection::initialControlSet(%this)
    {
       if (Canvas.getContent() != PlayGui.getId())
       {
+         enableOculusVRDisplay(%this);
+         setStandardOculusVRControlScheme(%this);
          Canvas.setContent(PlayGui);
       }
    }

@@ -280,7 +280,7 @@ public:
    void setFirstPerson(bool firstPerson);
    
    bool hasDisplayDevice() const { return mDisplayDevice != NULL; }
-   const IDisplayDevice* getDisplayDevice() const { return mDisplayDevice; }
+   IDisplayDevice* getDisplayDevice() const { return mDisplayDevice; }
    void setDisplayDevice(IDisplayDevice* display) { mDisplayDevice = display; }
    void clearDisplayDevice() { mDisplayDevice = NULL; }
 

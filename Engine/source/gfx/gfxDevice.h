@@ -213,6 +213,9 @@ public:
       /// The device is about to finish rendering a frame
       deEndOfFrame,
 
+      /// The device has rendered a frame and ended the scene
+      dePostFrame,
+
       /// The device has started rendering a frame's field (such as for side-by-side rendering)
       deStartOfField,
 
@@ -244,7 +247,13 @@ public:
    enum GFXDeviceRenderStyles
    {
       RS_Standard          = 0,
-      RS_StereoSideBySide  = (1<<0),
+      RS_StereoSideBySide  = (1<<0),     // Render into current Render Target side-by-side
+      RS_StereoRenderTargets = (1<<1)    // Render into separate left & right Render Targets
+   };
+
+   enum GFXDeviceLimits
+   {
+      NumStereoPorts = 2
    };
 
 private:
@@ -277,7 +286,12 @@ protected:
    Point2F mCurrentProjectionOffset;
 
    /// Eye offset used when using a stereo rendering style
-   Point3F mStereoEyeOffset;
+   Point3F mStereoEyeOffset[NumStereoPorts];
+
+   /// Fov port settings
+   FovPort mFovPorts[NumStereoPorts];
+
+   RectI mStereoViewports[NumStereoPorts];
 
    /// This will allow querying to see if a device is initialized and ready to
    /// have operations performed on it.
@@ -323,10 +337,21 @@ public:
    void setCurrentProjectionOffset(const Point2F& offset) { mCurrentProjectionOffset = offset; }
 
    /// Get the current eye offset used during stereo rendering
-   const Point3F& getStereoEyeOffset() { return mStereoEyeOffset; }
+   const Point3F* getStereoEyeOffsets() { return mStereoEyeOffset; }
 
    /// Set the current eye offset used during stereo rendering
-   void setStereoEyeOffset(const Point3F& offset) { mStereoEyeOffset = offset; }
+   void setStereoEyeOffsets(Point3F *offsets) { dMemcpy(mStereoEyeOffset, offsets, sizeof(Point3F) * NumStereoPorts); }
+
+   /// Set the current eye offset used during stereo rendering. Assumes NumStereoPorts are available.
+   void setFovPort(const FovPort *ports) { dMemcpy(mFovPorts, ports, sizeof(FovPort) * NumStereoPorts); }
+
+   /// Get the current eye offset used during stereo rendering
+   const FovPort* getSteroFovPort() { return mFovPorts; }
+
+   /// Sets stereo viewports
+   void setSteroViewports(const RectI *ports) { dMemcpy(mStereoViewports, ports, sizeof(RectI) * NumStereoPorts); }
+
+   RectI* getStereoViewports() { return mStereoViewports; }
 
    GFXCardProfiler* getCardProfiler() const { return mCardProfiler; }
 

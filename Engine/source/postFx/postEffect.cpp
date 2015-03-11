@@ -144,6 +144,11 @@ GFX_ImplementTextureProfile( PostFxTextureProfile,
                             GFXTextureProfile::Static | GFXTextureProfile::PreserveSize | GFXTextureProfile::NoMipmap,
                             GFXTextureProfile::NONE );
 
+GFX_ImplementTextureProfile( VRTextureProfile,
+                            GFXTextureProfile::DiffuseMap,
+                            GFXTextureProfile::Static | GFXTextureProfile::PreserveSize | GFXTextureProfile::NoMipmap,
+                            GFXTextureProfile::NONE );
+
 
 void PostEffect::EffectConst::set( const String &newVal )
 {

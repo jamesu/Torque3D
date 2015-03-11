@@ -32,6 +32,7 @@
 #include "core/util/tSingleton.h"
 #include "math/mQuat.h"
 #include "math/mPoint4.h"
+#include "gfx/gfxDevice.h"
 #include "OVR.h"
 
 #define DEFAULT_RIFT_UNIT 0
@@ -51,6 +52,7 @@ public:
    // Type of rotation events to broadcast
    static bool smGenerateAngleAxisRotationEvents;
    static bool smGenerateEulerRotationEvents;
+   static bool smGeneratePositionEvents;
 
    // Broadcast sensor rotation as axis
    static bool smGenerateRotationAsAxisEvents;
@@ -67,23 +69,6 @@ public:
    static bool smGenerateWholeFrameEvents;
 
 protected:
-   class DeviceListener : public OVR::MessageHandler
-   {
-   protected:
-      OculusVRDevice* mOwner;
-
-   public:
-      DeviceListener(OculusVRDevice* owner) { mOwner = owner; }
-      virtual ~DeviceListener() { mOwner = NULL; }
-
-      virtual void OnMessage(const OVR::Message&);
-   };
-
-   // Our OVR SDK device listener class
-   DeviceListener* mListener;
-
-   // The OVR SDK device manager
-   OVR::DeviceManager* mDeviceManager;
 
    // Discovered HMD devices
    Vector<OculusVRHMDDevice*> mHMDDevices;
@@ -105,11 +90,11 @@ protected:
    /// Input Event Manager
    void buildCodeTable();
 
-   void addHMDDevice(OVR::HMDDevice* hmd);
+   void addHMDDevice(ovrHmd hmd);
 
    void createSimulatedHMD();
 
-   void addSensorDevice(OVR::SensorDevice* sensor);
+   void addSensorDevice(ovrHmd sensor);
 
    void createSimulatedSensor();
 
@@ -130,14 +115,16 @@ public:
    // IDisplayDevice
    virtual bool providesYFOV() const;
    virtual F32 getYFOV() const;
-   virtual bool providesEyeOffset() const;
-   virtual const Point3F& getEyeOffset() const;
+   virtual bool providesEyeOffsets() const;
+   virtual void getEyeOffsets(Point3F *dest) const;
+   virtual bool providesFovPorts() const;
+   virtual void getFovPorts(FovPort *out) const;
    virtual bool providesProjectionOffset() const;
    virtual const Point2F& getProjectionOffset() const;
 
    // HMDs
    U32 getHMDCount() const { return mHMDDevices.size(); }
-   const OculusVRHMDDevice* getHMDDevice(U32 index) const;
+   OculusVRHMDDevice* getHMDDevice(U32 index) const;
    F32 getHMDCurrentIPD(U32 index);
    void setHMDCurrentIPD(U32 index, F32 ipd);
 
@@ -147,16 +134,14 @@ public:
    EulerF getSensorEulerRotation(U32 index);
    VectorF getSensorAcceleration(U32 index);
    EulerF getSensorAngularVelocity(U32 index);
-   VectorF getSensorMagnetometer(U32 index);
-   F32 getSensorPredictionTime(U32 index);
-   void setSensorPredictionTime(U32 index, F32 dt);
-   void setAllSensorPredictionTime(F32 dt);
-   bool getSensorGravityCorrection(U32 index);
-   void setSensorGravityCorrection(U32 index, bool state);
    bool getSensorYawCorrection(U32 index);
    void setSensorYawCorrection(U32 index, bool state);
    bool getSensorMagnetometerCalibrated(U32 index);
    void resetAllSensors();
+
+
+   void setDrawCanvas(GuiCanvas *canvas);
+   bool _handleDeviceEvent( GFXDevice::GFXDeviceEventType evt );
 
 public:
    // For ManagedSingleton.

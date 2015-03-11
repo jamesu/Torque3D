@@ -484,6 +484,8 @@ datablock PlayerData(DefaultPlayerData)
    renderFirstPerson = false;
    firstPersonShadows = true;
    computeCRC = false;
+   
+   cameraCanBank = true;
 
    // Third person shape
    shapeFile = "art/shapes/actors/Soldier/soldier_rigged.DAE";

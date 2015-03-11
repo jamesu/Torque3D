@@ -1318,6 +1318,9 @@ bool ActionMap::processAction(const InputEventInfo* pEvent)
       return false;
 
    static const char *argv[5];
+   char tmp1[16];
+   char tmp2[16];
+   char tmp3[16];
    if (pEvent->action == SI_MAKE) {
       const Node* pNode = findNode(pEvent->deviceType, pEvent->deviceInst,
                                    pEvent->modifier,   pEvent->objInst);
@@ -1442,9 +1445,13 @@ bool ActionMap::processAction(const InputEventInfo* pEvent)
          else if (pEvent->objType == SI_POS)
          {
             // Handle Point3F type position
-            argv[1] = Con::getFloatArg( pEvent->fValue );
-            argv[2] = Con::getFloatArg( pEvent->fValue2 );
-            argv[3] = Con::getFloatArg( pEvent->fValue3 );
+            dSprintf(tmp1, sizeof(tmp1), "%g", pEvent->fValue );
+            dSprintf(tmp2, sizeof(tmp2), "%g", pEvent->fValue2 );
+            dSprintf(tmp3, sizeof(tmp3), "%g", pEvent->fValue3 );
+
+            argv[1] = tmp1;
+            argv[2] = tmp2;
+            argv[3] = tmp3;
 
             argc += 3;
          }

@@ -36,10 +36,13 @@ struct CameraQuery
    F32         nearPlane;
    F32         farPlane;
    F32         fov;
+   FovPort     fovPort[2]; // fov for each eye
    Point2F     projectionOffset;
-   Point3F     eyeOffset;
+   Point3F     eyeOffset[2];
    bool        ortho;
    MatrixF     cameraMatrix;
+
+   GuiCanvas* drawCanvas; // Canvas we are drawing to. Needed for VR
 };
 
 /// Abstract base class for 3D viewport GUIs.
@@ -51,6 +54,7 @@ public:
    enum RenderStyles {
       RenderStyleStandard           = 0,
       RenderStyleStereoSideBySide   = (1<<0),
+      RenderStyleStereoRenderTargets = (1<<1)
    };
 
 protected:

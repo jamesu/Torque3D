@@ -30,8 +30,12 @@
 #include "math/mPoint4.h"
 #include "platform/input/oculusVR/oculusVRConstants.h"
 #include "platform/types.h"
+#include "gfx/gfxTextureHandle.h"
 #include "OVR.h"
+#include "math/mRect.h"
+#include "gfx/gfxDevice.h"
 
+class GuiCanvas;
 class OculusVRHMDDevice
 {
 public:
@@ -43,8 +47,18 @@ protected:
    bool mIsValid;
 
    bool mIsSimulation;
+   bool mVsync;
+   bool mTimewarp;
 
-   OVR::HMDDevice* mDevice;
+   bool mConfigurationDirty;
+
+   ovrHmd mDevice;
+
+   U32 mSupportedDistortionCaps;
+   U32 mCurrentDistortionCaps;
+
+   U32 mSupportedCaps;
+   U32 mCurrentCaps;
 
    // From OVR::DeviceInfo
    String   mProductName;
@@ -66,10 +80,6 @@ protected:
    // Physical screen size in meters
    Point2F  mScreenSize;
 
-   // Physical offset from the top of the screen to the center of the
-   // eye, in meters.  Usually half of the vertical physical screen size
-   F32      mVerticalEyeCenter;
-
    // Physical distance from the eye to the screen
    F32      mEyeToScreen;
 
@@ -84,12 +94,6 @@ protected:
 
    // The eye IPD as a Point3F
    Point3F  mEyeWorldOffset;
-
-   // Radial distortion correction coefficients used by the barrel distortion shader
-   Point4F  mKDistortion;
-
-   // Chromatic aberration correction coefficients
-   Point4F mChromaticAbCorrection;
 
    // Calculated values of eye x offset from center in normalized (uv) coordinates
    // where each eye is 0..1.  Used for the mono to stereo postFX to simulate an
@@ -120,10 +124,15 @@ protected:
    // center of the screen.
    Point2F mProjectionCenterOffset;
 
-protected:
-   F32 calcScale(F32 fitRadius);
+   // Current pose of eyes
+   ovrPosef         mCurrentEyePoses[2];
+   ovrEyeRenderDesc mEyeRenderDesc[2];
+   ovrTexture mEyeTexture;
 
-   void calculateValues(bool calculateDistortionScale);
+   ovrFovPort mCurrentFovPorts[2];
+
+protected:
+   void calculateValues();
 
    void createSimulatedPreviewRift(bool calculateDistortionScale);
 
@@ -134,7 +143,7 @@ public:
    void cleanUp();
 
    // Set the HMD properties based on information from the OVR device
-   void set(OVR::HMDDevice* hmd, OVR::HMDInfo& info, bool calculateDistortionScale);
+   void set(ovrHmd hmd, bool calculateDistortionScale);
 
    // Set the HMD properties based on a simulation of the given type
    void createSimulation(SimulationTypes simulationType, bool calculateDistortionScale);
@@ -161,10 +170,6 @@ public:
    // Physical screen size in meters
    const Point2F& getScreenSize() const { return mScreenSize; }
 
-   // Physical offset from the top of the screen to the center of the
-   // eye, in meters.  Usually half of the vertical physical screen size
-   F32 getVerticalEyeCenter() const { return mVerticalEyeCenter; }
-
    // Physical distance from the eye to the screen
    F32 getEyeToScreen() const { return mEyeToScreen; }
 
@@ -182,12 +187,6 @@ public:
 
    // Provides the IPD of one eye as a Point3F
    const Point3F& getEyeWorldOffset() const { return mEyeWorldOffset; }
-
-   // Radial distortion correction coefficients used by the barrel distortion shader
-   const Point4F& getKDistortion() const { return mKDistortion; }
-
-   // Chromatic aberration correction coefficients used by the barrel distortion shader
-   const Point4F& getChromaticAbCorrection() const { return mChromaticAbCorrection; }
 
    // Calculated values of eye x offset from center in normalized (uv) coordinates.
    const Point2F& getEyeUVOffset() const { return mEyeUVOffset; }
@@ -209,6 +208,46 @@ public:
    // The amount to offset the projection matrix to account for the eye not being in the
    // center of the screen.
    const Point2F& getProjectionCenterOffset() const { return mProjectionCenterOffset; }
+
+   void getFovPorts(FovPort *dest) const { dMemcpy(dest, mCurrentFovPorts, sizeof(mCurrentFovPorts)); }
+   
+   void getEyeOffsets(Point3F *offsets) const { 
+      offsets[0] = Point3F(mCurrentEyePoses[0].Position.x, mCurrentEyePoses[0].Position.y, mCurrentEyePoses[0].Position.z); 
+      offsets[1] = Point3F(mCurrentEyePoses[1].Position.x, mCurrentEyePoses[1].Position.y, mCurrentEyePoses[1].Position.z); }
+
+   void updateCaps();
+
+   void onStartFrame();
+   void onEndFrame();
+
+   Point2I generateRenderTarget(GFXTexHandle &dest, Point2I desiredSize);
+   void clearRenderTargets();
+
+   void setDrawCanvas(GuiCanvas *canvas) { mDrawCanvas = canvas; }
+
+   // Stereo RT
+   GFXTexHandle mStereoRT;
+
+   // Eye RTs (if we are using separate targets)
+   GFXTexHandle mEyeRT[2];
+
+   // Current render target size for each eye
+   Point2I mEyeRenderSize[2];
+
+   // Recommended eye target size for each eye
+   ovrSizei mRecomendedEyeTargetSize[2];
+
+   // Desired viewport for each eye
+   RectI mEyeViewport[2];
+
+   F32 mDesiredPixelDensity;
+
+   GFXDevice::GFXDeviceRenderStyles mDesiredRenderingMode;
+
+   GFXFormat mRTFormat;
+
+   // Canvas we should be drawing
+   GuiCanvas *mDrawCanvas;
 };
 
 #endif   // _OCULUSVRHMDDEVICE_H_
