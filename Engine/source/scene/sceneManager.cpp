@@ -266,6 +266,7 @@ void SceneManager::renderScene( SceneRenderState* renderState, U32 objectMask, S
       renderSceneNoLights( &renderStateLeft, objectMask, baseObject, baseZone );
 
       // Indicate that we've just finished a field
+      //GFX->clear(GFXClearTarget | GFXClearZBuffer | GFXClearStencil, ColorI(255,0,0), 1.0f, 0);
       GFX->endField();
 
       // Indicate that we're about to start a field
@@ -292,6 +293,7 @@ void SceneManager::renderScene( SceneRenderState* renderState, U32 objectMask, S
       renderSceneNoLights( &renderStateRight, objectMask, baseObject, baseZone );
 
       // Indicate that we've just finished a field
+      //GFX->clear(GFXClearTarget | GFXClearZBuffer | GFXClearStencil, ColorI(0,255,0), 1.0f, 0);
       GFX->endField();
 
       // Restore previous values

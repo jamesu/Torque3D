@@ -41,6 +41,7 @@ struct CameraQuery
    Point3F     eyeOffset[2];
    bool        ortho;
    MatrixF     cameraMatrix;
+   RectI       stereoViewports[2]; // Viewports for stereo in render target
 
    GuiCanvas* drawCanvas; // Canvas we are drawing to. Needed for VR
 };
@@ -158,6 +159,8 @@ public:
    void drawLineList( const Vector<Point3F> &points, const ColorI color, F32 width );
 
    static const U32& getFrameCount() { return smFrameCount; }
+
+   bool shouldRenderChildControls() { return mRenderStyle == RenderStyleStandard; }
 
    DECLARE_CONOBJECT(GuiTSCtrl);
    DECLARE_CATEGORY( "Gui 3D" );

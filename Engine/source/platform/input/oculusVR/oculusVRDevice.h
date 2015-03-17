@@ -121,6 +121,7 @@ public:
    virtual void getFovPorts(FovPort *out) const;
    virtual bool providesProjectionOffset() const;
    virtual const Point2F& getProjectionOffset() const;
+   virtual void getStereoViewports(RectI *out) const;
 
    // HMDs
    U32 getHMDCount() const { return mHMDDevices.size(); }

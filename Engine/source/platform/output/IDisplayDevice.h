@@ -43,6 +43,8 @@ public:
    virtual bool providesProjectionOffset() const = 0;
    virtual const Point2F& getProjectionOffset() const = 0;
 
+   virtual void getStereoViewports(RectI *out) const = 0;
+
    virtual void setDrawCanvas(GuiCanvas *canvas) = 0;
 };
 

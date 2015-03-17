@@ -208,6 +208,8 @@ public:
    // The amount to offset the projection matrix to account for the eye not being in the
    // center of the screen.
    const Point2F& getProjectionCenterOffset() const { return mProjectionCenterOffset; }
+   
+   void getStereoViewports(RectI *dest) const { dMemcpy(dest, mEyeViewport, sizeof(mEyeViewport)); }
 
    void getFovPorts(FovPort *dest) const { dMemcpy(dest, mCurrentFovPorts, sizeof(mCurrentFovPorts)); }
    

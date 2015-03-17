@@ -34,7 +34,7 @@ function PlayGui::onWake(%this)
    activateDirectInput();
 
    // Message hud dialog
-   if ( isObject( MainChatHud ) )
+   if ( isObject( MainChatHud ) && PlayGui.renderStyle !$= "stereo side by side" )
    {
       Canvas.pushDialog( MainChatHud );
       chatHud.attach(HudMessageVector);

@@ -379,6 +379,18 @@ const Point2F& OculusVRDevice::getProjectionOffset() const
    return hmd->getProjectionCenterOffset();
 }
 
+void OculusVRDevice::getStereoViewports(RectI *out) const
+{
+   if(!mHMDDevices.size())
+      return;
+
+   const OculusVRHMDDevice* hmd = getHMDDevice(0);
+   if(!hmd)
+      return;
+
+   hmd->getStereoViewports(out);
+}
+
 //-----------------------------------------------------------------------------
 
 OculusVRHMDDevice* OculusVRDevice::getHMDDevice(U32 index) const

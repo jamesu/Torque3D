@@ -329,6 +329,7 @@ void GuiTSCtrl::onRender(Point2I offset, const RectI &updateRect)
       GFX->setCurrentProjectionOffset(mLastCameraQuery.projectionOffset);
       GFX->setStereoEyeOffsets(mLastCameraQuery.eyeOffset);
       GFX->setFovPort(mLastCameraQuery.fovPort); // NOTE: this specifies fov for BOTH eyes
+      GFX->setSteroViewports(mLastCameraQuery.stereoViewports);
    }
    else if (mRenderStyle == RenderStyleStereoRenderTargets)
    {
@@ -476,7 +477,10 @@ void GuiTSCtrl::onRender(Point2I offset, const RectI &updateRect)
    GFX->setClipRect(updateRect);
    renderGui( offset, updateRect );
 
-   renderChildControls(offset, updateRect);
+   if (shouldRenderChildControls())
+   {
+      renderChildControls(offset, updateRect);
+   }
    smFrameCount++;
 }
 

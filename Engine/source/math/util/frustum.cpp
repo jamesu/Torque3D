@@ -352,10 +352,10 @@ void FrustumData::_update() const
 
       // Convert to torque-land
       MatrixF projMat(1);
-      projMat.setColumn(0, Point4F(mat.M[0][0], mat.M[0][1], mat.M[0][2], mat.M[0][3]));
-      projMat.setColumn(0, Point4F(mat.M[1][0], mat.M[1][1], mat.M[1][2], mat.M[1][3]));
-      projMat.setColumn(0, Point4F(mat.M[2][0], mat.M[2][1], mat.M[2][2], mat.M[2][3]));
-      projMat.setColumn(0, Point4F(mat.M[3][0], mat.M[3][1], mat.M[3][2], mat.M[3][3]));
+      projMat.setRow(0, Point4F(mat.M[0][0], mat.M[0][1], mat.M[0][2], mat.M[0][3]));
+      projMat.setRow(1, Point4F(mat.M[1][0], mat.M[1][1], mat.M[1][2], mat.M[1][3]));
+      projMat.setRow(2, Point4F(mat.M[2][0], mat.M[2][1], mat.M[2][2], mat.M[2][3]));
+      projMat.setRow(3, Point4F(mat.M[3][0], mat.M[3][1], mat.M[3][2], mat.M[3][3]));
 
       // Calulcate the points from the matrix
       // From "Fast Extraction of Viewing Frustum Planes from the World-View-Projection Matrix"
@@ -632,10 +632,10 @@ void Frustum::getProjectionMatrix( MatrixF *proj, bool gfxRotate ) const
 
       // Convert to torque-land
       MatrixF torqueMat(1);
-      torqueMat.setColumn(0, Point4F(mat.M[0][0], mat.M[0][1], mat.M[0][2], mat.M[0][3]));
-      torqueMat.setColumn(0, Point4F(mat.M[1][0], mat.M[1][1], mat.M[1][2], mat.M[1][3]));
-      torqueMat.setColumn(0, Point4F(mat.M[2][0], mat.M[2][1], mat.M[2][2], mat.M[2][3]));
-      torqueMat.setColumn(0, Point4F(mat.M[3][0], mat.M[3][1], mat.M[3][2], mat.M[3][3]));
+      torqueMat.setRow(0, Point4F(mat.M[0][0], mat.M[0][1], mat.M[0][2], mat.M[0][3]));
+      torqueMat.setRow(1, Point4F(mat.M[1][0], mat.M[1][1], mat.M[1][2], mat.M[1][3]));
+      torqueMat.setRow(2, Point4F(mat.M[2][0], mat.M[2][1], mat.M[2][2], mat.M[2][3]));
+      torqueMat.setRow(3, Point4F(mat.M[3][0], mat.M[3][1], mat.M[3][2], mat.M[3][3]));
       *proj = torqueMat;
    }
    else if (mIsOrtho)

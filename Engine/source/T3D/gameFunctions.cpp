@@ -384,6 +384,8 @@ bool GameProcessCameraQuery(CameraQuery *query)
             fovSet = true;
          }
 
+         display->getStereoViewports(query->stereoViewports);
+
          display->setDrawCanvas(query->drawCanvas);
       }
 
