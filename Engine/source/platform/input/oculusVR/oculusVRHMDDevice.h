@@ -81,9 +81,6 @@ protected:
    // Physical screen size in meters
    Point2F  mScreenSize;
 
-   // Physical distance from the eye to the screen
-   F32      mEyeToScreen;
-
    // Physical distance between lens centers, in meters
    F32      mLensSeparation;
 
@@ -92,34 +89,6 @@ protected:
 
    // Physical distance between the user's eye centers
    F32      mInterpupillaryDistance;
-
-   // The eye IPD as a Point3F
-   Point3F  mEyeWorldOffset;
-
-   // Calculated values of eye x offset from center in normalized (uv) coordinates
-   // where each eye is 0..1.  Used for the mono to stereo postFX to simulate an
-   // eye offset of the camera.  The x component is the left eye, the y component
-   // is the right eye.
-   Point2F mEyeUVOffset;
-
-   // Used to adjust where an eye's view is rendered to account for the lenses not
-   // being in the center of the physical screen half.
-   F32 mXCenterOffset;
-
-   // When calculating the distortion scale to use to increase the size of the input texture
-   // this determines how we should attempt to fit the distorted view into the backbuffer.
-   Point2F mDistortionFit;
-
-   // Is the factor by which the input texture size is increased to make post-distortion
-   // result distortion fit the viewport.  If the input texture is the same size as the
-   // backbuffer, then this should be 1.0.
-   F32 mDistortionScale;
-
-   // Aspect ratio for a single eye
-   F32 mAspectRatio;
-
-   // Vertical field of view
-   F32 mYFOV;
 
    // The amount to offset the projection matrix to account for the eye not being in the
    // center of the screen.
@@ -136,7 +105,7 @@ protected:
 protected:
    void updateRenderInfo();
 
-   void createSimulatedPreviewRift(bool calculateDistortionScale);
+   void createSimulatedPreviewRift();
 
 public:
    OculusVRHMDDevice();
@@ -145,13 +114,13 @@ public:
    void cleanUp();
 
    // Set the HMD properties based on information from the OVR device
-   void set(ovrHmd hmd, bool calculateDistortionScale);
+   void set(ovrHmd hmd);
 
    // Sets optimal display size for canvas
    void setOptimalDisplaySize(GuiCanvas *canvas);
 
    // Set the HMD properties based on a simulation of the given type
-   void createSimulation(SimulationTypes simulationType, bool calculateDistortionScale);
+   void createSimulation(SimulationTypes simulationType);
 
    bool isValid() const {return mIsValid;}
    bool isSimulated() const {return mIsSimulation;}
@@ -175,9 +144,6 @@ public:
    // Physical screen size in meters
    const Point2F& getScreenSize() const { return mScreenSize; }
 
-   // Physical distance from the eye to the screen
-   F32 getEyeToScreen() const { return mEyeToScreen; }
-
    // Physical distance between lens centers, in meters
    F32 getLensSeparation() const { return mLensSeparation; }
 
@@ -188,27 +154,7 @@ public:
    F32 getIPD() const { return mInterpupillaryDistance; }
 
    // Set a new physical distance between the user's eye centers
-   void setIPD(F32 ipd, bool calculateDistortionScale);
-
-   // Provides the IPD of one eye as a Point3F
-   const Point3F& getEyeWorldOffset() const { return mEyeWorldOffset; }
-
-   // Calculated values of eye x offset from center in normalized (uv) coordinates.
-   const Point2F& getEyeUVOffset() const { return mEyeUVOffset; }
-
-   // Used to adjust where an eye's view is rendered to account for the lenses not
-   // being in the center of the physical screen half.
-   F32 getCenterOffset() const { return mXCenterOffset; }
-
-   // Is the factor by which the input texture size is increased to make post-distortion
-   // result distortion fit the viewport.
-   F32 getDistortionScale() const { return mDistortionScale; }
-
-   // Aspect ration for a single eye
-   F32 getAspectRation() const { return mAspectRatio; }
-
-   // Vertical field of view
-   F32 getYFOV() const { return mYFOV; }
+   void setIPD(F32 ipd);
 
    // The amount to offset the projection matrix to account for the eye not being in the
    // center of the screen.
@@ -233,10 +179,10 @@ public:
    Point2I generateRenderTarget(GFXTextureTargetRef &target, GFXTexHandle &texture, GFXTexHandle &depth, Point2I desiredSize);
    void clearRenderTargets();
 
-   void setPixelDensity(F32 scale);
-
    bool isDisplayingWarning();
    void dismissWarning();
+
+   bool setupTargets();
 
    /// Designates canvas we are drawing to. Also updates render targets
    void setDrawCanvas(GuiCanvas *canvas) { if (mDrawCanvas != canvas) { mDrawCanvas = canvas; } mConfigurationDirty = true; updateRenderInfo(); }
@@ -260,7 +206,8 @@ public:
    // Desired viewport for each eye
    RectI mEyeViewport[2];
 
-   F32 mDesiredPixelDensity;
+   F32 mCurrentPixelDensity;
+   F32 smDesiredPixelDensity;
 
    GFXDevice::GFXDeviceRenderStyles mDesiredRenderingMode;
 

@@ -21,6 +21,7 @@
 //-----------------------------------------------------------------------------
 
 #include "platform/input/oculusVR/oculusVRHMDDevice.h"
+#include "platform/input/oculusVR/oculusVRDevice.h"
 #include "gfx/D3D9/gfxD3D9Device.h"
 #include "postFx/postEffectCommon.h"
 #include "gui/core/guiCanvas.h"
@@ -46,7 +47,7 @@ mWindowSize(1280,800)
    mVsync = true;
    mTimewarp = true;
    mConfigurationDirty = true;
-   mDesiredPixelDensity = 1.0f;
+   mCurrentPixelDensity = OculusVRDevice::smDesiredPixelDensity;
    mDesiredRenderingMode = GFXDevice::RS_StereoSideBySide;
    mRTFormat = GFXFormatR8G8B8A8;
    mDrawCanvas = NULL;
@@ -71,7 +72,7 @@ void OculusVRHMDDevice::cleanUp()
    mIsValid = false;
 }
 
-void OculusVRHMDDevice::set(ovrHmd hmd, bool calculateDistortionScale)
+void OculusVRHMDDevice::set(ovrHmd hmd)
 {
    mIsValid = false;
    mIsSimulation = false;
@@ -129,15 +130,15 @@ void OculusVRHMDDevice::set(ovrHmd hmd, bool calculateDistortionScale)
    updateCaps();
 }
 
-void OculusVRHMDDevice::createSimulation(SimulationTypes simulationType, bool calculateDistortionScale)
+void OculusVRHMDDevice::createSimulation(SimulationTypes simulationType)
 {
    if(simulationType == ST_RIFT_PREVIEW)
    {
-      createSimulatedPreviewRift(calculateDistortionScale);
+      createSimulatedPreviewRift();
    }
 }
 
-void OculusVRHMDDevice::createSimulatedPreviewRift(bool calculateDistortionScale)
+void OculusVRHMDDevice::createSimulatedPreviewRift()
 {
    mIsValid = true;
    mIsSimulation = true;
@@ -154,22 +155,22 @@ void OculusVRHMDDevice::createSimulatedPreviewRift(bool calculateDistortionScale
    mScreenSize.x = 0.14975999f;
    mScreenSize.y = 0.093599997f;
 
-   mEyeToScreen = 0.041000001f;
    mLensSeparation = 0.064000003f;
    mProfileInterpupillaryDistance = 0.064000003f;
    mInterpupillaryDistance = mProfileInterpupillaryDistance;
 }
 
-void OculusVRHMDDevice::setIPD(F32 ipd, bool calculateDistortionScale)
+void OculusVRHMDDevice::setIPD(F32 ipd)
 {
    mInterpupillaryDistance = ipd;
-   
-   //ovrVector3f hmdToEyeViewOffset[2] = { EyeRenderDesc[0].HmdToEyeViewOffset, EyeRenderDesc[1].HmdToEyeViewOffset };
-   //ovrHmd_GetEyePoses(Hmd, 0, hmdToEyeViewOffset, EyeRenderPose, &hmdState);
+   mConfigurationDirty = true;
 }
 
 void OculusVRHMDDevice::setOptimalDisplaySize(GuiCanvas *canvas)
 {
+   if (!mDevice)
+      return;
+
    PlatformWindow *window = canvas->getPlatformWindow();
    GFXTarget *target = window->getGFXTarget();
 
@@ -184,6 +185,12 @@ void OculusVRHMDDevice::setOptimalDisplaySize(GuiCanvas *canvas)
       newMode.wideScreen = false;
       window->setVideoMode(newMode);
       //AssertFatal(window->getClientExtent().x == mWindowSize[0] && window->getClientExtent().y == mWindowSize[1], "Window didn't resize to correct dimensions");
+   }
+
+   // Need to move window over to the rift side of the desktop
+   if (mDevice->HmdCaps & ovrHmdCap_ExtendDesktop)
+   {
+      window->setPosition(getDesktopPosition());
    }
 }
 
@@ -205,8 +212,81 @@ void OculusVRHMDDevice::dismissWarning()
    ovrHmd_DismissHSWDisplay(mDevice);
 }
 
+bool OculusVRHMDDevice::setupTargets()
+{
+   ovrFovPort eyeFov[2] = {mDevice->DefaultEyeFov[0], mDevice->DefaultEyeFov[1]};
+
+   mRecomendedEyeTargetSize[0] = ovrHmd_GetFovTextureSize(mDevice, ovrEye_Left,  eyeFov[0], mCurrentPixelDensity);
+   mRecomendedEyeTargetSize[1] = ovrHmd_GetFovTextureSize(mDevice, ovrEye_Right, eyeFov[1], mCurrentPixelDensity);
+
+   // Calculate render target size
+   if (mDesiredRenderingMode == GFXDevice::RS_StereoSideBySide)
+   {
+      // Setup a single texture, side-by-side viewports
+      Point2I rtSize(
+         mRecomendedEyeTargetSize[0].w + mRecomendedEyeTargetSize[1].w,
+         mRecomendedEyeTargetSize[0].h > mRecomendedEyeTargetSize[1].h ? mRecomendedEyeTargetSize[0].h : mRecomendedEyeTargetSize[1].h
+         );
+
+      GFXFormat targetFormat = GFX->getActiveRenderTarget()->getFormat();
+      mRTFormat = targetFormat;
+
+      rtSize = generateRenderTarget(mStereoRT, mStereoTexture, mStereoDepthTexture, rtSize);
+      
+      // Left
+      mEyeRenderSize[0] = rtSize;
+      mEyeRT[0] = mStereoRT;
+      mEyeTexture[0] = mStereoTexture;
+      mEyeViewport[0] = RectI(Point2I(0,0), Point2I((rtSize.x+1)/2, rtSize.y));
+
+      // Right
+      mEyeRenderSize[1] = rtSize;
+      mEyeRT[1] = mStereoRT;
+      mEyeTexture[1] = mStereoTexture;
+      mEyeViewport[1] = RectI(Point2I((rtSize.x+1)/2,0), Point2I((rtSize.x+1)/2, rtSize.y));
+
+      gLastStereoTexture = mEyeTexture[0];
+   }
+   else if (mDesiredRenderingMode == GFXDevice::RS_StereoRenderTargets)
+   {
+      // Setup two targets
+      Point2I rtSize;
+
+      GFXFormat targetFormat = GFX->getActiveRenderTarget()->getFormat();
+      mRTFormat = targetFormat;
+
+      // Left
+      rtSize = generateRenderTarget(mEyeRT[0], mEyeTexture[0], mStereoDepthTexture, Point2I(mRecomendedEyeTargetSize[0].w, mRecomendedEyeTargetSize[0].h));
+      mEyeViewport[0] = RectI(Point2I(0,0), Point2I((rtSize.x+1)/2, rtSize.y));
+
+      // Right
+      rtSize = generateRenderTarget(mEyeRT[1], mEyeTexture[1], mStereoDepthTexture, Point2I(mRecomendedEyeTargetSize[1].w, mRecomendedEyeTargetSize[1].h));
+      mEyeViewport[1] = RectI(Point2I(0,0), Point2I((rtSize.x+1)/2, rtSize.y));
+
+      mStereoRT = NULL;
+      mStereoTexture = NULL;
+
+      gLastStereoTexture = mEyeTexture[0];
+
+   }
+   else
+   {
+      // No rendering, abort!
+      return false;
+   }
+
+   return true;
+}
+
 void OculusVRHMDDevice::updateRenderInfo()
 {
+   // Check console values first
+   if (mCurrentPixelDensity != OculusVRDevice::smDesiredPixelDensity)
+   {
+      mConfigurationDirty = true;
+      mCurrentPixelDensity = OculusVRDevice::smDesiredPixelDensity;
+   }
+
    if (!mIsValid || !mDevice || !mConfigurationDirty)
       return;
 
@@ -214,6 +294,7 @@ void OculusVRHMDDevice::updateRenderInfo()
       return;
    
    PlatformWindow *window = mDrawCanvas->getPlatformWindow();
+   ovrFovPort eyeFov[2] = {mDevice->DefaultEyeFov[0], mDevice->DefaultEyeFov[1]};
 
    // Update window size if it's incorrect
    Point2I backbufferSize = mDrawCanvas->getBounds().extent;
@@ -225,52 +306,16 @@ void OculusVRHMDDevice::updateRenderInfo()
       ovrD3D9Config cfg;
       cfg.D3D9.Header.API = ovrRenderAPI_D3D9;
       cfg.D3D9.Header.Multisample = 0;
+      cfg.D3D9.Header.BackBufferSize = OVR::Sizei(backbufferSize.x, backbufferSize.y);
       cfg.D3D9.pDevice = d3d9GFX->getDevice();
       cfg.D3D9.pDevice->GetSwapChain(0, &cfg.D3D9.pSwapChain);
 
-      ovrFovPort eyeFov[2] = {mDevice->DefaultEyeFov[0], mDevice->DefaultEyeFov[1]};
-
-      mRecomendedEyeTargetSize[0] = ovrHmd_GetFovTextureSize(mDevice, ovrEye_Left,  eyeFov[0], mDesiredPixelDensity);
-      mRecomendedEyeTargetSize[1] = ovrHmd_GetFovTextureSize(mDevice, ovrEye_Right, eyeFov[1], mDesiredPixelDensity);
-      
-      // Calculate render target size
-      if (mDesiredRenderingMode == GFXDevice::RS_StereoSideBySide)
+      // Finally setup!
+      if (!setupTargets())
       {
-         Point2I rtSize(
-            mRecomendedEyeTargetSize[0].w + mRecomendedEyeTargetSize[1].w,
-            mRecomendedEyeTargetSize[0].h > mRecomendedEyeTargetSize[1].h ? mRecomendedEyeTargetSize[0].h : mRecomendedEyeTargetSize[1].h
-         );
-
-         GFXFormat targetFormat = GFX->getActiveRenderTarget()->getFormat();
-         mRTFormat = targetFormat;
-
-         rtSize = generateRenderTarget(mStereoRT, mStereoTexture, mStereoDepthTexture, rtSize);
-
-         cfg.D3D9.Header.BackBufferSize = OVR::Sizei(backbufferSize.x, backbufferSize.y);
-
-         mEyeRenderSize[0] = rtSize;
-         mEyeRenderSize[1] = rtSize;
-
-         mEyeRT[0] = mStereoRT;
-         mEyeTexture[0] = mStereoTexture;
-         mEyeViewport[0] = RectI(Point2I(0,0), Point2I((rtSize.x+1)/2, rtSize.y));
-         mEyeRT[1] = mStereoRT;
-         mEyeTexture[1] = mStereoTexture;
-         mEyeViewport[1] = RectI(Point2I((rtSize.x+1)/2,0), Point2I((rtSize.x+1)/2, rtSize.y));
-
-         gLastStereoTexture = mEyeTexture[0];
-      }
-      else if (mDesiredRenderingMode == GFXDevice::RS_StereoRenderTargets)
-      {
-         // TODO: Setup two targets
-      }
-      else
-      {
-         // No rendering, abort!
+         onDeviceDestroy();
          return;
       }
-
-      // Finally setup!
 
       ovrHmd_AttachToWindow(mDevice, window->getPlatformDrawable(), NULL, NULL);
 
@@ -453,10 +498,4 @@ void OculusVRHMDDevice::onDeviceDestroy()
    mConfigurationDirty = true;
    
    ovrHmd_ConfigureRendering(mDevice, NULL, 0, NULL, NULL);
-}
-
-void OculusVRHMDDevice::setPixelDensity(F32 scale)
-{
-   mDesiredPixelDensity = scale;
-   mConfigurationDirty = true;
 }

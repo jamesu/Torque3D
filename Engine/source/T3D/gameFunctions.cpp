@@ -361,13 +361,6 @@ bool GameProcessCameraQuery(CameraQuery *query)
          // Note: all eye values are invalid until this is called
          display->setDrawCanvas(query->drawCanvas);
 
-         // The connection's display device may want to set the FOV
-         if(display->providesYFOV())
-         {
-            cameraFov = mRadToDeg(display->getYFOV());
-            fovSet = true;
-         }
-
          // The connection's display device may want to set the projection offset
          if(display->providesProjectionOffset())
          {

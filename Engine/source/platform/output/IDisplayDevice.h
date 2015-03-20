@@ -31,9 +31,6 @@
 class IDisplayDevice
 {
 public:
-   virtual bool providesYFOV() const = 0;
-   virtual F32 getYFOV() const = 0;
-
    virtual bool providesEyeOffsets() const = 0;
    virtual void getEyeOffsets(Point3F *dest) const = 0;
 

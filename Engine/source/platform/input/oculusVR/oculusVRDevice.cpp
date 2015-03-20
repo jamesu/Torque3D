@@ -78,6 +78,8 @@ bool OculusVRDevice::smGenerateSensorRawEvents = false;
 
 bool OculusVRDevice::smGenerateWholeFrameEvents = false;
 
+F32 OculusVRDevice::smDesiredPixelDensity = 1.0f;
+
 OculusVRDevice::OculusVRDevice()
 {
    // From IInputDevice
@@ -87,10 +89,6 @@ OculusVRDevice::OculusVRDevice()
    //
    mEnabled = false;
    mActive = false;
-
-   // We don't current support scaling of the input texture.  The graphics pipeline will
-   // need to be modified for this.
-   mScaleInputTexture = false;
 
    buildCodeTable();
    GFXDevice::getDeviceEventSignal().notify( this, &OculusVRDevice::_handleDeviceEvent );
@@ -137,6 +135,10 @@ void OculusVRDevice::staticInit()
    Con::addVariable("OculusVR::GenerateWholeFrameEvents", TypeBool, &smGenerateWholeFrameEvents, 
       "@brief Indicates that a whole frame event should be generated and frames should be buffered.\n\n"
 	   "@ingroup Game");
+
+   Con::addVariable("OcuulusVR::desiredPixelDensity", TypeF32, &smDesiredPixelDensity,
+      "@brief Specifies the desired pixel density of the render target. \n\n"
+      "@ingroup Game");
 }
 
 void OculusVRDevice::cleanUp()
@@ -156,7 +158,7 @@ void OculusVRDevice::addHMDDevice(ovrHmd hmd)
       return;
 
    OculusVRHMDDevice* hmdd = new OculusVRHMDDevice();
-   hmdd->set(hmd, mScaleInputTexture);
+   hmdd->set(hmd);
    mHMDDevices.push_back(hmdd);
 
    Con::printf("   HMD found: %s by %s [v%d]", hmd->ProductName, hmd->Manufacturer, hmd->Type);
@@ -165,7 +167,7 @@ void OculusVRDevice::addHMDDevice(ovrHmd hmd)
 void OculusVRDevice::createSimulatedHMD()
 {
    OculusVRHMDDevice* hmdd = new OculusVRHMDDevice();
-   hmdd->createSimulation(OculusVRHMDDevice::ST_RIFT_PREVIEW, mScaleInputTexture);
+   hmdd->createSimulation(OculusVRHMDDevice::ST_RIFT_PREVIEW);
    mHMDDevices.push_back(hmdd);
 
    Con::printf("   HMD simulated: %s by %s [v%d]", hmdd->getProductName(), hmdd->getManufacturer(), hmdd->getVersion());
@@ -296,26 +298,6 @@ bool OculusVRDevice::process()
 
 //-----------------------------------------------------------------------------
 
-bool OculusVRDevice::providesYFOV() const
-{
-   if(!mHMDDevices.size())
-      return false;
-
-   return false;
-}
-
-F32 OculusVRDevice::getYFOV() const
-{
-   if(!mHMDDevices.size())
-      return 0.0f;
-
-   const OculusVRHMDDevice* hmd = getHMDDevice(0);
-   if(!hmd)
-      return 0.0f;
-
-   return hmd->getYFOV();
-}
-
 bool OculusVRDevice::providesEyeOffsets() const
 {
    if(!mHMDDevices.size())
@@ -427,7 +409,7 @@ void OculusVRDevice::setHMDCurrentIPD(U32 index, F32 ipd)
    if(index >= mHMDDevices.size())
       return;
 
-   return mHMDDevices[index]->setIPD(ipd, mScaleInputTexture);
+   return mHMDDevices[index]->setIPD(ipd);
 }
 
 void OculusVRDevice::setOptimalDisplaySize(U32 index, GuiCanvas *canvas)
@@ -831,91 +813,6 @@ DefineEngineFunction(setOVRHMDCurrentIPD, void, (S32 index, F32 ipd),,
    }
 
    OCULUSVRDEV->setHMDCurrentIPD(index, ipd);
-}
-
-DefineEngineFunction(getOVRHMDEyeXOffsets, Point2F, (S32 index),,
-   "@brief Provides the OVR HMD eye x offsets in uv coordinates.\n\n"
-   "@param index The HMD index.\n"
-   "@return A two component string with the left and right eye x offsets.\n"
-   "@ingroup Game")
-{
-   if(!ManagedSingleton<OculusVRDevice>::instanceOrNull())
-   {
-      return Point2F(0.5, 0.5);
-   }
-
-   const OculusVRHMDDevice* hmd = OCULUSVRDEV->getHMDDevice(index);
-   if(!hmd)
-   {
-      return Point2F(0.5, 0.5);
-   }
-
-   // X component is left, Y component is right
-   const Point2F& offset = hmd->getEyeUVOffset();
-   return offset;
-}
-
-DefineEngineFunction(getOVRHMDXCenterOffset, F32, (S32 index),,
-   "@brief Provides the OVR HMD calculated XCenterOffset.\n\n"
-   "@param index The HMD index.\n"
-   "@return The calculated XCenterOffset.\n"
-   "@ingroup Game")
-{
-   if(!ManagedSingleton<OculusVRDevice>::instanceOrNull())
-   {
-      return 0.0f;
-   }
-
-   const OculusVRHMDDevice* hmd = OCULUSVRDEV->getHMDDevice(index);
-   if(!hmd)
-   {
-      return 0.0f;
-   }
-
-   F32 offset = hmd->getCenterOffset();
-   return offset;
-}
-
-DefineEngineFunction(getOVRHMDDistortionScale, F32, (S32 index),,
-   "@brief Provides the OVR HMD calculated distortion scale.\n\n"
-   "@param index The HMD index.\n"
-   "@return The calculated distortion scale.\n"
-   "@ingroup Game")
-{
-   if(!ManagedSingleton<OculusVRDevice>::instanceOrNull())
-   {
-      return 1.0f;
-   }
-
-   const OculusVRHMDDevice* hmd = OCULUSVRDEV->getHMDDevice(index);
-   if(!hmd)
-   {
-      return 1.0f;
-   }
-
-   F32 scale = hmd->getDistortionScale();
-   return scale;
-}
-
-DefineEngineFunction(getOVRHMDYFOV, F32, (S32 index),,
-   "@brief Provides the OVR HMD calculated Y FOV.\n\n"
-   "@param index The HMD index.\n"
-   "@return The calculated Y FOV.\n"
-   "@ingroup Game")
-{
-   if(!ManagedSingleton<OculusVRDevice>::instanceOrNull())
-   {
-      return 1.0f;
-   }
-
-   const OculusVRHMDDevice* hmd = OCULUSVRDEV->getHMDDevice(index);
-   if(!hmd)
-   {
-      return 1.0f;
-   }
-
-   F32 fov = hmd->getYFOV();
-   return mRadToDeg(fov);
 }
 
 //-----------------------------------------------------------------------------

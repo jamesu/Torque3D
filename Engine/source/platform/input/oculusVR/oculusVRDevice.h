@@ -68,6 +68,8 @@ public:
    // should be buffered.
    static bool smGenerateWholeFrameEvents;
 
+   static F32 smDesiredPixelDensity;
+
 protected:
 
    // Discovered HMD devices
@@ -78,10 +80,6 @@ protected:
 
    /// Is the device active
    bool mActive;
-
-   // Should the input texture into the HMD (the render target that the scene has been
-   // rendered to) be scaled according to the HMD's distortion calculation?
-   bool mScaleInputTexture;
 
 protected:
    void cleanUp();
@@ -113,8 +111,6 @@ public:
    bool process();
 
    // IDisplayDevice
-   virtual bool providesYFOV() const;
-   virtual F32 getYFOV() const;
    virtual bool providesEyeOffsets() const;
    virtual void getEyeOffsets(Point3F *dest) const;
    virtual bool providesFovPorts() const;
