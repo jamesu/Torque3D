@@ -358,6 +358,8 @@ bool GameProcessCameraQuery(CameraQuery *query)
       if(!gEditingMission && connection->hasDisplayDevice())
       {
          IDisplayDevice* display = connection->getDisplayDevice();
+         // Note: all eye values are invalid until this is called
+         display->setDrawCanvas(query->drawCanvas);
 
          // The connection's display device may want to set the FOV
          if(display->providesYFOV())
@@ -385,12 +387,11 @@ bool GameProcessCameraQuery(CameraQuery *query)
          }
 
          display->getStereoViewports(query->stereoViewports);
-
-         display->setDrawCanvas(query->drawCanvas);
+         display->getStereoTargets(query->stereoTargets);
       }
 
       // Use the connection's FOV settings if requried
-      if(!fovSet && !connection->getControlCameraFov(&cameraFov))
+      if(!connection->getControlCameraFov(&cameraFov))
       {
          return false;
       }

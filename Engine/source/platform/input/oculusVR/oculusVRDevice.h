@@ -122,6 +122,7 @@ public:
    virtual bool providesProjectionOffset() const;
    virtual const Point2F& getProjectionOffset() const;
    virtual void getStereoViewports(RectI *out) const;
+   virtual void getStereoTargets(GFXTextureTarget **out) const;
 
    // HMDs
    U32 getHMDCount() const { return mHMDDevices.size(); }
@@ -138,7 +139,12 @@ public:
    bool getSensorYawCorrection(U32 index);
    void setSensorYawCorrection(U32 index, bool state);
    bool getSensorMagnetometerCalibrated(U32 index);
+
+   void setOptimalDisplaySize(U32 idx, GuiCanvas *canvas);
    void resetAllSensors();
+
+   bool isDiplayingWarning();
+   void dismissWarning();
 
 
    void setDrawCanvas(GuiCanvas *canvas);

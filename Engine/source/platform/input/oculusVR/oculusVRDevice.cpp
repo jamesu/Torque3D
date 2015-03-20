@@ -25,6 +25,7 @@
 #include "core/module.h"
 #include "console/engineAPI.h"
 #include "T3D/gameBase/gameConnection.h"
+#include "gui/core/guiCanvas.h"
 
 bool sOcculusEnabled = false;
 
@@ -391,6 +392,18 @@ void OculusVRDevice::getStereoViewports(RectI *out) const
    hmd->getStereoViewports(out);
 }
 
+void OculusVRDevice::getStereoTargets(GFXTextureTarget **out) const
+{
+   if(!mHMDDevices.size())
+      return;
+
+   const OculusVRHMDDevice* hmd = getHMDDevice(0);
+   if(!hmd)
+      return;
+
+   hmd->getStereoTargets(out);
+}
+
 //-----------------------------------------------------------------------------
 
 OculusVRHMDDevice* OculusVRDevice::getHMDDevice(U32 index) const
@@ -416,6 +429,15 @@ void OculusVRDevice::setHMDCurrentIPD(U32 index, F32 ipd)
 
    return mHMDDevices[index]->setIPD(ipd, mScaleInputTexture);
 }
+
+void OculusVRDevice::setOptimalDisplaySize(U32 index, GuiCanvas *canvas)
+{
+   if(index >= mHMDDevices.size())
+      return;
+
+   mHMDDevices[index]->setOptimalDisplaySize(canvas);
+}
+
 
 //-----------------------------------------------------------------------------
 
@@ -490,6 +512,25 @@ void OculusVRDevice::resetAllSensors()
    }
 }
 
+bool OculusVRDevice::isDiplayingWarning()
+{
+   for(U32 i=0; i<mHMDDevices.size(); ++i)
+   {
+      if (mHMDDevices[i]->isDisplayingWarning())
+         return true;
+   }
+
+   return false;
+}
+
+void OculusVRDevice::dismissWarning()
+{
+   for(U32 i=0; i<mHMDDevices.size(); ++i)
+   {
+      mHMDDevices[i]->dismissWarning();
+   }
+}
+
 void OculusVRDevice::setDrawCanvas(GuiCanvas *canvas)
 {
    if(!mHMDDevices.size())
@@ -543,6 +584,29 @@ DefineEngineFunction(setOVRHMDAsGameConnectionDisplayDevice, bool, (GameConnecti
    }
 
    conn->setDisplayDevice(OCULUSVRDEV);
+   return true;
+}
+//-----------------------------------------------------------------------------
+
+DefineEngineFunction(setOptimalOVRCanvasSize, bool, (GuiCanvas* canvas),,
+   "@brief Sets the first HMD to be a GameConnection's display device\n\n"
+   "@param conn The GameConnection to set.\n"
+   "@return True if the GameConnection display device was set.\n"
+   "@ingroup Game")
+{
+   if(!ManagedSingleton<OculusVRDevice>::instanceOrNull())
+   {
+      Con::errorf("setOptimalOVRCanvasSize(): No Oculus VR Device present.");
+      return false;
+   }
+
+   if(!canvas)
+   {
+      Con::errorf("setOptimalOVRCanvasSize(): Invalid Canvas.");
+      return false;
+   }
+
+   OCULUSVRDEV->setOptimalDisplaySize(0, canvas);
    return true;
 }
 
@@ -972,6 +1036,29 @@ DefineEngineFunction(ovrResetAllSensors, void, (),,
    OCULUSVRDEV->resetAllSensors();
 }
 
+DefineEngineFunction(ovrIsDisplayingWarning, bool, (),,
+   "@brief returns is warning is being displayed.\n\n"
+   "@ingroup Game")
+{
+   if(!ManagedSingleton<OculusVRDevice>::instanceOrNull())
+   {
+      return false;
+   }
+
+   return OCULUSVRDEV->isDiplayingWarning();
+}
+
+DefineEngineFunction(ovrDismissWarnings, void, (),,
+   "@brief dismisses warnings.\n\n"
+   "@ingroup Game")
+{
+   if(!ManagedSingleton<OculusVRDevice>::instanceOrNull())
+   {
+      return;
+   }
+
+   OCULUSVRDEV->dismissWarning();
+}
 
 bool OculusVRDevice::_handleDeviceEvent( GFXDevice::GFXDeviceEventType evt )
 {
@@ -1000,6 +1087,13 @@ bool OculusVRDevice::_handleDeviceEvent( GFXDevice::GFXDeviceEventType evt )
          }
 
          break;
+
+      case GFXDevice::deDestroy:
+         
+         for (U32 i=0; i<OCULUSVRDEV->mHMDDevices.size(); i++)
+         {
+            OCULUSVRDEV->mHMDDevices[i]->onDeviceDestroy();
+         }
    
       default:
          break;

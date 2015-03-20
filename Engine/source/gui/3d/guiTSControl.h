@@ -30,6 +30,8 @@
 #include "math/mMath.h"
 #endif
 
+class IDisplayDevice;
+
 struct CameraQuery
 {
    SimObject*  object;
@@ -41,8 +43,8 @@ struct CameraQuery
    Point3F     eyeOffset[2];
    bool        ortho;
    MatrixF     cameraMatrix;
-   RectI       stereoViewports[2]; // Viewports for stereo in render target
-
+   RectI       stereoViewports[2]; // destination viewports
+   GFXTextureTarget* stereoTargets[2];
    GuiCanvas* drawCanvas; // Canvas we are drawing to. Needed for VR
 };
 

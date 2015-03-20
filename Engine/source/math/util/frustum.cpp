@@ -31,6 +31,8 @@
 
 #include "OVR.h"
 
+static const MatrixF sGFXProjRotMatrix( EulerF( (M_PI_F / 2.0f), 0.0f, 0.0f ) );
+
 
 //TODO: For OBB/frustum intersections and ortho frustums, we can resort to a much quicker AABB/OBB test
 
@@ -82,8 +84,6 @@ Frustum::Frustum( bool isOrtho,
 
    mProjectionOffset.zero();
    mProjectionOffsetMatrix.identity();
-
-   mExtendedFov = false;
 }
 
 //-----------------------------------------------------------------------------
@@ -125,7 +125,6 @@ void Frustum::set(   bool isOrtho,
    mIsOrtho = isOrtho;
 
    mDirty = true;
-   mExtendedFov = false;
 }
 
 //-----------------------------------------------------------------------------
@@ -339,80 +338,7 @@ void FrustumData::_update() const
 
    // Build the frustum points in camera space first.
 
-   if ( mExtendedFov )
-   {
-      // We need to use the oculus sdk to create a matrix (for now)
-      ovrFovPort fov;
-      fov.DownTan = mExtendedFovPort.downTan;
-      fov.LeftTan = mExtendedFovPort.leftTan;
-      fov.RightTan = mExtendedFovPort.rightTan;
-      fov.UpTan = mExtendedFovPort.upTan;
-
-      ovrMatrix4f mat = ovrMatrix4f_Projection(fov, mNearDist, mFarDist, true);
-
-      // Convert to torque-land
-      MatrixF projMat(1);
-      projMat.setRow(0, Point4F(mat.M[0][0], mat.M[0][1], mat.M[0][2], mat.M[0][3]));
-      projMat.setRow(1, Point4F(mat.M[1][0], mat.M[1][1], mat.M[1][2], mat.M[1][3]));
-      projMat.setRow(2, Point4F(mat.M[2][0], mat.M[2][1], mat.M[2][2], mat.M[2][3]));
-      projMat.setRow(3, Point4F(mat.M[3][0], mat.M[3][1], mat.M[3][2], mat.M[3][3]));
-
-      // Calulcate the points from the matrix
-      // From "Fast Extraction of Viewing Frustum Planes from the World-View-Projection Matrix"
-      // by Gil Gribb and Klaus Hartmann.
-      //
-      // http://www2.ravensoft.com/users/ggribb/plane%20extraction.pdf
-
-      // Right clipping plane.
-      mPlanes[ PlaneRight ].set(  projMat[3] - projMat[0], 
-                                                projMat[7] - projMat[4], 
-                                                projMat[11] - projMat[8],
-                                                projMat[15] - projMat[12] );
-
-      // Left clipping plane.
-      mPlanes[ PlaneLeft ].set(   projMat[3] + projMat[0], 
-                                                projMat[7] + projMat[4], 
-                                                projMat[11] + projMat[8], 
-                                                projMat[15] + projMat[12] );
-
-      // Bottom clipping plane.
-      mPlanes[ PlaneBottom ].set( projMat[3] + projMat[1], 
-                                                projMat[7] + projMat[5], 
-                                                projMat[11] + projMat[9], 
-                                                projMat[15] + projMat[13] );
-
-      // Top clipping plane.
-      mPlanes[ PlaneTop ].set(    projMat[3] - projMat[1], 
-                                                projMat[7] - projMat[5], 
-                                                projMat[11] - projMat[9], 
-                                                projMat[15] - projMat[13] );
-
-      // Near clipping plane
-      mPlanes[ PlaneNear ].set(   projMat[3] + projMat[2], 
-                                                projMat[7] + projMat[6], 
-                                                projMat[11] + projMat[10],
-                                                projMat[15] + projMat[14] );
-
-      // Far clipping plane.
-      mPlanes[ PlaneFar ].set(    projMat[3] - projMat[2], 
-                                                projMat[7] - projMat[6], 
-                                                projMat[11] - projMat[10], 
-                                                projMat[15] - projMat[14] );
-
-      for( S32 i = 0; i < PlaneCount; ++ i )
-         mPlanes[ i ].normalize();
-
-      // Create the corner points via plane intersections.
-      mPlanes[ PlaneNear ].intersect( mPlanes[ PlaneTop ], mPlanes[ PlaneLeft ], &mPoints[ NearTopLeft ] );
-      mPlanes[ PlaneNear ].intersect( mPlanes[ PlaneTop ], mPlanes[ PlaneRight ], &mPoints[ NearTopRight ] );
-      mPlanes[ PlaneNear ].intersect( mPlanes[ PlaneBottom ], mPlanes[ PlaneLeft ], &mPoints[ NearBottomLeft ] );
-      mPlanes[ PlaneNear ].intersect( mPlanes[ PlaneBottom ], mPlanes[ PlaneRight ], &mPoints[ NearBottomRight ] );
-      mPlanes[ PlaneFar ].intersect( mPlanes[ PlaneTop ], mPlanes[ PlaneLeft ], &mPoints[ FarTopLeft ] );
-      mPlanes[ PlaneFar ].intersect( mPlanes[ PlaneTop ], mPlanes[ PlaneRight ], &mPoints[ FarTopRight ] );
-      mPlanes[ PlaneFar ].intersect( mPlanes[ PlaneBottom ], mPlanes[ PlaneLeft ], &mPoints[ FarBottomLeft ] );
-      mPlanes[ PlaneFar ].intersect( mPlanes[ PlaneBottom ], mPlanes[ PlaneRight ], &mPoints[ FarBottomRight ] );
-   }
-   else if( mIsOrtho )
+   if( mIsOrtho )
    {
       mPoints[ NearTopLeft ].set( mNearLeft, mNearDist, mNearTop );
       mPoints[ NearTopRight ].set( mNearRight, mNearDist, mNearTop );
@@ -620,25 +546,7 @@ void Frustum::setProjectionOffset(const Point2F& offsetMat)
 
 void Frustum::getProjectionMatrix( MatrixF *proj, bool gfxRotate ) const
 {
-   if (mExtendedFov)
-   {
-      ovrFovPort fov;
-      fov.DownTan = mExtendedFovPort.downTan;
-      fov.LeftTan = mExtendedFovPort.leftTan;
-      fov.RightTan = mExtendedFovPort.rightTan;
-      fov.UpTan = mExtendedFovPort.upTan;
-
-      ovrMatrix4f mat = ovrMatrix4f_Projection(fov, mNearDist, mFarDist, true);
-
-      // Convert to torque-land
-      MatrixF torqueMat(1);
-      torqueMat.setRow(0, Point4F(mat.M[0][0], mat.M[0][1], mat.M[0][2], mat.M[0][3]));
-      torqueMat.setRow(1, Point4F(mat.M[1][0], mat.M[1][1], mat.M[1][2], mat.M[1][3]));
-      torqueMat.setRow(2, Point4F(mat.M[2][0], mat.M[2][1], mat.M[2][2], mat.M[2][3]));
-      torqueMat.setRow(3, Point4F(mat.M[3][0], mat.M[3][1], mat.M[3][2], mat.M[3][3]));
-      *proj = torqueMat;
-   }
-   else if (mIsOrtho)
+   if (mIsOrtho)
    {
       MathUtils::makeOrthoProjection(proj, mNearLeft, mNearRight, mNearTop, mNearBottom, mNearDist, mFarDist, gfxRotate);
       proj->mulL(mProjectionOffsetMatrix);
@@ -681,18 +589,4 @@ void Frustum::tile( F32 *left, F32 *right, F32 *top, F32 *bottom, U32 numTiles, 
    *right = *left + tileSize.x + rightOffset;
    *bottom += tileSize.y * curTile.y - bottomOffset;
    *top = *bottom + tileSize.y + topOffset;
-}
-
-
-void Frustum::setExtendedFov(const FovPort &port)
-{
-   mExtendedFovPort = port;
-   mExtendedFov = true;
-   mDirty = true;
-}
-
-void Frustum::clearExtendedFov()
-{
-   mExtendedFov = false;
-   mDirty = true;
 }

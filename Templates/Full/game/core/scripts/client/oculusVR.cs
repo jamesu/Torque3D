@@ -24,6 +24,11 @@
 if(!isFunction(isOculusVRDeviceActive))
    return;
 
+
+new ActionMap(OculusWarningMap);
+
+OculusWarningMap.bind(keyboard, space, dismissOculusVRWarnings);
+
 //-----------------------------------------------------------------------------
 
 function oculusSensorMetricsCallback()
@@ -60,6 +65,7 @@ function enableOculusVRDisplay(%gameConnection, %trueStereoRendering)
 {
    setOVRHMDAsGameConnectionDisplayDevice(%gameConnection);
    PlayGui.renderStyle = "stereo side by side";
+   setOptimalOVRCanvasSize(Canvas);
    
    if(%trueStereoRendering)
    {
@@ -77,6 +83,7 @@ function enableOculusVRDisplay(%gameConnection, %trueStereoRendering)
       OVRBarrelDistortionMonoPostFX.isEnabled = true;
    }
    
+   //$gfx::wireframe = true;
    // Reset all sensors
    ovrResetAllSensors();
 }
@@ -85,6 +92,8 @@ function enableOculusVRDisplay(%gameConnection, %trueStereoRendering)
 // and barrel distortion for the Rift.
 function disableOculusVRDisplay(%gameConnection)
 {
+   OculusWarningMap.pop();
+
    %gameConnection.clearDisplayDevice();
    PlayGui.renderStyle = "standard";
    OVRBarrelDistortionPostFX.isEnabled = false;
@@ -130,4 +139,13 @@ function setVideoModeForOculusVRDisplay(%fullscreen)
 function resetOculusVRSensors()
 {
    ovrResetAllSensors();
+}
+
+function dismissOculusVRWarnings(%value)
+{
+   //if (%value)
+   //{
+      ovrDismissWarnings();
+      OculusWarningMap.pop();
+   //}
 }

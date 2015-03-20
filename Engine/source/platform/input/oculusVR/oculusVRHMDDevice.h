@@ -51,6 +51,7 @@ protected:
    bool mTimewarp;
 
    bool mConfigurationDirty;
+   bool mFrameReady;
 
    ovrHmd mDevice;
 
@@ -127,12 +128,13 @@ protected:
    // Current pose of eyes
    ovrPosef         mCurrentEyePoses[2];
    ovrEyeRenderDesc mEyeRenderDesc[2];
-   ovrTexture mEyeTexture;
 
    ovrFovPort mCurrentFovPorts[2];
 
+   Point2I mWindowSize;
+
 protected:
-   void calculateValues();
+   void updateRenderInfo();
 
    void createSimulatedPreviewRift(bool calculateDistortionScale);
 
@@ -144,6 +146,9 @@ public:
 
    // Set the HMD properties based on information from the OVR device
    void set(ovrHmd hmd, bool calculateDistortionScale);
+
+   // Sets optimal display size for canvas
+   void setOptimalDisplaySize(GuiCanvas *canvas);
 
    // Set the HMD properties based on a simulation of the given type
    void createSimulation(SimulationTypes simulationType, bool calculateDistortionScale);
@@ -210,28 +215,41 @@ public:
    const Point2F& getProjectionCenterOffset() const { return mProjectionCenterOffset; }
    
    void getStereoViewports(RectI *dest) const { dMemcpy(dest, mEyeViewport, sizeof(mEyeViewport)); }
+   void getStereoTargets(GFXTextureTarget **dest) const { dest[0] = mEyeRT[0]; dest[1] = mEyeRT[1]; }
 
    void getFovPorts(FovPort *dest) const { dMemcpy(dest, mCurrentFovPorts, sizeof(mCurrentFovPorts)); }
    
+   /// Returns eye offsets in torque coordinate space, i.e. z being up, y being left-right, and x being depth (forward).
    void getEyeOffsets(Point3F *offsets) const { 
-      offsets[0] = Point3F(mCurrentEyePoses[0].Position.x, mCurrentEyePoses[0].Position.y, mCurrentEyePoses[0].Position.z); 
-      offsets[1] = Point3F(mCurrentEyePoses[1].Position.x, mCurrentEyePoses[1].Position.y, mCurrentEyePoses[1].Position.z); }
+      offsets[0] = Point3F(-mCurrentEyePoses[0].Position.z, mCurrentEyePoses[0].Position.x, mCurrentEyePoses[0].Position.y); 
+      offsets[1] = Point3F(-mCurrentEyePoses[1].Position.z, mCurrentEyePoses[1].Position.x, mCurrentEyePoses[1].Position.y); }
 
    void updateCaps();
 
    void onStartFrame();
    void onEndFrame();
+   void onDeviceDestroy();
 
-   Point2I generateRenderTarget(GFXTexHandle &dest, Point2I desiredSize);
+   Point2I generateRenderTarget(GFXTextureTargetRef &target, GFXTexHandle &texture, GFXTexHandle &depth, Point2I desiredSize);
    void clearRenderTargets();
 
-   void setDrawCanvas(GuiCanvas *canvas) { mDrawCanvas = canvas; }
+   void setPixelDensity(F32 scale);
+
+   bool isDisplayingWarning();
+   void dismissWarning();
+
+   /// Designates canvas we are drawing to. Also updates render targets
+   void setDrawCanvas(GuiCanvas *canvas) { if (mDrawCanvas != canvas) { mDrawCanvas = canvas; } mConfigurationDirty = true; updateRenderInfo(); }
 
    // Stereo RT
-   GFXTexHandle mStereoRT;
+   GFXTexHandle mStereoTexture;
+   GFXTexHandle mStereoDepthTexture;
+   GFXTextureTargetRef mStereoRT;
 
    // Eye RTs (if we are using separate targets)
-   GFXTexHandle mEyeRT[2];
+   GFXTextureTargetRef mEyeRT[2];
+   GFXTexHandle mEyeTexture[2];
+   GFXTexHandle mEyeDepthTexture[2];
 
    // Current render target size for each eye
    Point2I mEyeRenderSize[2];

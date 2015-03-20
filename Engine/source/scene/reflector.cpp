@@ -610,20 +610,22 @@ void PlaneReflector::updateReflection( const ReflectParams &params )
       RectI originalVP = GFX->getViewport();
 
       Point2F projOffset = GFX->getCurrentProjectionOffset();
-      Point3F eyeOffset = GFX->getStereoEyeOffset();
+      const FovPort *currentFovPort = GFX->getSteroFovPort();
+      const RectI *currentViewports = GFX->getStereoViewports();
+      const Point3F *eyeOffset = GFX->getStereoEyeOffsets();
+      Frustum originalFrustum = GFX->getFrustum();
 
       // Render left half of display
-      RectI leftVP = originalVP;
-      leftVP.extent.x *= 0.5;
-      GFX->setViewport(leftVP);
+      GFX->activateStereoTarget(0);
 
       MatrixF leftWorldTrans(true);
-      leftWorldTrans.setPosition(Point3F(eyeOffset.x, eyeOffset.y, eyeOffset.z));
+      leftWorldTrans.setPosition(eyeOffset[0]);
       MatrixF leftWorld(params.query->cameraMatrix);
       leftWorld.mulL(leftWorldTrans);
+      GFX->setWorldMatrix(leftWorld);
 
-      Frustum gfxFrustum = GFX->getFrustum();
-      gfxFrustum.setProjectionOffset(Point2F(projOffset.x, projOffset.y));
+      Frustum gfxFrustum = originalFrustum;
+      MathUtils::makeFovPortFrustum(&gfxFrustum, gfxFrustum.isOrtho(), gfxFrustum.getNearDist(), gfxFrustum.getFarDist(), currentFovPort[0], leftWorld);
       GFX->setFrustum(gfxFrustum);
 
       setGFXMatrices( leftWorld );
@@ -639,18 +641,16 @@ void PlaneReflector::updateReflection( const ReflectParams &params )
       gClientSceneGraph->renderSceneNoLights( &renderStateLeft, objTypeFlag );
 
       // Render right half of display
-      RectI rightVP = originalVP;
-      rightVP.extent.x *= 0.5;
-      rightVP.point.x += rightVP.extent.x;
-      GFX->setViewport(rightVP);
+      GFX->activateStereoTarget(1);
 
       MatrixF rightWorldTrans(true);
-      rightWorldTrans.setPosition(Point3F(-eyeOffset.x, eyeOffset.y, eyeOffset.z));
+      rightWorldTrans.setPosition(eyeOffset[1]);
       MatrixF rightWorld(params.query->cameraMatrix);
       rightWorld.mulL(rightWorldTrans);
+      GFX->setWorldMatrix(rightWorld);
 
-      gfxFrustum = GFX->getFrustum();
-      gfxFrustum.setProjectionOffset(Point2F(-projOffset.x, projOffset.y));
+      gfxFrustum = originalFrustum;
+      MathUtils::makeFovPortFrustum(&gfxFrustum, gfxFrustum.isOrtho(), gfxFrustum.getNearDist(), gfxFrustum.getFarDist(), currentFovPort[1], rightWorld);
       GFX->setFrustum(gfxFrustum);
 
       setGFXMatrices( rightWorld );
@@ -669,10 +669,6 @@ void PlaneReflector::updateReflection( const ReflectParams &params )
       gfxFrustum.clearProjectionOffset();
       GFX->setFrustum(gfxFrustum);
       GFX->setViewport(originalVP);
-   }
-   else if(GFX->getCurrentRenderStyle() == GFXDevice::RS_StereoRenderTargets)
-   {
-      // TODO
    }
    else
    {

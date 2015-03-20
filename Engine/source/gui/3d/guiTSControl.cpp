@@ -34,6 +34,9 @@
 #include "scene/reflectionManager.h"
 #include "postFx/postEffectManager.h"
 #include "gfx/gfxTransformSaver.h"
+#include "gfx/gfxDrawUtil.h"
+
+extern GFXTextureObject *gLastStereoTexture;
 
 
 IMPLEMENT_CONOBJECT( GuiTSCtrl );
@@ -309,6 +312,7 @@ void GuiTSCtrl::onRender(Point2I offset, const RectI &updateRect)
 	// Save the current transforms so we can restore
    // it for child control rendering below.
    GFXTransformSaver saver;
+   bool renderingToTarget = false;
 
    if(!processCameraQuery(&mLastCameraQuery))
    {
@@ -319,9 +323,12 @@ void GuiTSCtrl::onRender(Point2I offset, const RectI &updateRect)
       return;
    }
 
+   GFXTargetRef origTarget = GFX->getActiveRenderTarget();
+
    // Set up the appropriate render style
    U32 prevRenderStyle = GFX->getCurrentRenderStyle();
    Point2F prevProjectionOffset = GFX->getCurrentProjectionOffset();
+   Point2I renderSize = getExtent();
 
    if(mRenderStyle == RenderStyleStereoSideBySide)
    {
@@ -330,6 +337,14 @@ void GuiTSCtrl::onRender(Point2I offset, const RectI &updateRect)
       GFX->setStereoEyeOffsets(mLastCameraQuery.eyeOffset);
       GFX->setFovPort(mLastCameraQuery.fovPort); // NOTE: this specifies fov for BOTH eyes
       GFX->setSteroViewports(mLastCameraQuery.stereoViewports);
+      GFX->setStereoTargets(mLastCameraQuery.stereoTargets);
+
+      // Allow render size to originate from the render target
+      if (mLastCameraQuery.stereoTargets[0])
+      {
+         renderSize = mLastCameraQuery.stereoViewports[0].extent;
+         renderingToTarget = true;
+      }
    }
    else if (mRenderStyle == RenderStyleStereoRenderTargets)
    {
@@ -366,8 +381,8 @@ void GuiTSCtrl::onRender(Point2I offset, const RectI &updateRect)
    // set up the camera and viewport stuff:
    F32 wwidth;
    F32 wheight;
-   F32 renderWidth = (mRenderStyle == RenderStyleStereoSideBySide) ? F32(getWidth())*0.5f : F32(getWidth());
-   F32 renderHeight = F32(getHeight());
+   F32 renderWidth = F32(renderSize.x);
+   F32 renderHeight = F32(renderSize.y);
    F32 aspectRatio = renderWidth / renderHeight;
    
    // Use the FOV to calculate the viewport height scale
@@ -390,12 +405,7 @@ void GuiTSCtrl::onRender(Point2I offset, const RectI &updateRect)
    if(mRenderStyle == RenderStyleStereoSideBySide)
    {
       // NOTE: these calculations are essentially overridden later by the fov port settings when rendering each eye.
-      F32 left = 0.0f * hscale - wwidth;
-      F32 right = renderWidth * hscale - wwidth;
-      F32 top = wheight - vscale * 0.0f;
-      F32 bottom = wheight - vscale * renderHeight;
-
-      frustum.set( mLastCameraQuery.ortho, left, right, top, bottom, mLastCameraQuery.nearPlane, mLastCameraQuery.farPlane );
+      MathUtils::makeFovPortFrustum(&frustum, mLastCameraQuery.ortho,  mLastCameraQuery.nearPlane, mLastCameraQuery.farPlane, mLastCameraQuery.fovPort[0]);
    }
    else
    {
@@ -417,15 +427,26 @@ void GuiTSCtrl::onRender(Point2I offset, const RectI &updateRect)
       
    RectI tempRect = updateRect;
    
-#ifdef TORQUE_OS_MAC
-   Point2I screensize = getRoot()->getWindowSize();
-   tempRect.point.y = screensize.y - (tempRect.point.y + tempRect.extent.y);
-#endif
+   if (!renderingToTarget)
+   {
+   #ifdef TORQUE_OS_MAC
+      Point2I screensize = getRoot()->getWindowSize();
+      tempRect.point.y = screensize.y - (tempRect.point.y + tempRect.extent.y);
+   #endif
 
-   GFX->setViewport( tempRect );
+      GFX->setViewport( tempRect );
+   }
+   else
+   {
+      // Activate stereo RT
+      GFX->activateStereoTarget(-1);
+   }
+
+   // TODO: do per-target stereo rendering (i.e. activateStereoTarget X, render, activateStereoTarget Y, render ...)
 
    // Clear the zBuffer so GUI doesn't hose object rendering accidentally
    GFX->clear( GFXClearZBuffer , ColorI(20,20,20), 1.0f, 0 );
+   //GFX->clear( GFXClearTarget, ColorI(255,0,0), 1.0f, 0);
 
    GFX->setFrustum( frustum );
    if(mLastCameraQuery.ortho)
@@ -437,7 +458,7 @@ void GuiTSCtrl::onRender(Point2I offset, const RectI &updateRect)
    // We're going to be displaying this render at size of this control in
    // pixels - let the scene know so that it can calculate e.g. reflections
    // correctly for that final display result.
-   gClientSceneGraph->setDisplayTargetResolution(getExtent());
+   gClientSceneGraph->setDisplayTargetResolution(renderSize);
 
    // Set the GFX world matrix to the world-to-camera transform, but don't 
    // change the cameraMatrix in mLastCameraQuery. This is because 
@@ -470,8 +491,15 @@ void GuiTSCtrl::onRender(Point2I offset, const RectI &updateRect)
    saver.restore();
 
    // Restore the render style and any stereo parameters
+   GFX->setActiveRenderTarget(origTarget);
    GFX->setCurrentRenderStyle(prevRenderStyle);
    GFX->setCurrentProjectionOffset(prevProjectionOffset);
+
+   
+   if(mRenderStyle == RenderStyleStereoSideBySide && gLastStereoTexture)
+   {
+      GFX->getDrawUtil()->drawBitmapStretch(gLastStereoTexture, updateRect);
+   }
 
    // Allow subclasses to render 2D elements.
    GFX->setClipRect(updateRect);

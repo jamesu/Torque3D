@@ -36,6 +36,7 @@
 #include "console/engineAPI.h"
 #include "sim/netConnection.h"
 #include "T3D/gameBase/gameConnection.h"
+#include "math/mathUtils.h"
 
 // For player object bounds workaround.
 #include "T3D/player.h"
@@ -236,17 +237,16 @@ void SceneManager::renderScene( SceneRenderState* renderState, U32 objectMask, S
       // Store previous values
       RectI originalVP = GFX->getViewport();
       MatrixF originalWorld = GFX->getWorldMatrix();
+      Frustum originalFrustum = GFX->getFrustum();
 
       Point2F projOffset = GFX->getCurrentProjectionOffset();
       const FovPort *currentFovPort = GFX->getSteroFovPort();
       const RectI *currentViewports = GFX->getStereoViewports();
       const Point3F *eyeOffset = GFX->getStereoEyeOffsets();
 
-      // Indicate that we're about to start a field
-      GFX->beginField();
-
       // Render left half of display
-      GFX->setViewport(currentViewports[0]); //(params.viewport);
+      GFX->activateStereoTarget(0);
+      GFX->beginField();
 
       MatrixF leftWorldTrans(true);
       leftWorldTrans.setPosition(eyeOffset[0]);
@@ -254,8 +254,8 @@ void SceneManager::renderScene( SceneRenderState* renderState, U32 objectMask, S
       leftWorld.mulL(leftWorldTrans);
       GFX->setWorldMatrix(leftWorld);
 
-      Frustum gfxFrustum = GFX->getFrustum();
-      gfxFrustum.setExtendedFov(currentFovPort[0]);
+      Frustum gfxFrustum = originalFrustum;
+      MathUtils::makeFovPortFrustum(&gfxFrustum, gfxFrustum.isOrtho(), gfxFrustum.getNearDist(), gfxFrustum.getFarDist(), currentFovPort[0], leftWorld);
       GFX->setFrustum(gfxFrustum);
 
       SceneCameraState cameraStateLeft = SceneCameraState::fromGFX();
@@ -269,11 +269,14 @@ void SceneManager::renderScene( SceneRenderState* renderState, U32 objectMask, S
       //GFX->clear(GFXClearTarget | GFXClearZBuffer | GFXClearStencil, ColorI(255,0,0), 1.0f, 0);
       GFX->endField();
 
-      // Indicate that we're about to start a field
+      
+      GFX->setWorldMatrix(leftWorld);
+      GFX->activateStereoTarget(0);
       GFX->beginField();
+      GFX->getDrawUtil()->drawFrustum(gfxFrustum, ColorI(255,0,0));
 
       // Render right half of display
-      GFX->setViewport(currentViewports[1]);
+      GFX->activateStereoTarget(1);
 
       MatrixF rightWorldTrans(true);
       rightWorldTrans.setPosition(eyeOffset[1]);
@@ -281,8 +284,8 @@ void SceneManager::renderScene( SceneRenderState* renderState, U32 objectMask, S
       rightWorld.mulL(rightWorldTrans);
       GFX->setWorldMatrix(rightWorld);
 
-      gfxFrustum = GFX->getFrustum();
-      gfxFrustum.setExtendedFov(currentFovPort[1]);
+      gfxFrustum = originalFrustum;
+      MathUtils::makeFovPortFrustum(&gfxFrustum, gfxFrustum.isOrtho(), gfxFrustum.getNearDist(), gfxFrustum.getFarDist(), currentFovPort[1], rightWorld);
       GFX->setFrustum(gfxFrustum);
 
       SceneCameraState cameraStateRight = SceneCameraState::fromGFX();
@@ -298,13 +301,8 @@ void SceneManager::renderScene( SceneRenderState* renderState, U32 objectMask, S
 
       // Restore previous values
       GFX->setWorldMatrix(originalWorld);
-      gfxFrustum.clearExtendedFov();
-      GFX->setFrustum(gfxFrustum);
+      GFX->setFrustum(originalFrustum);
       GFX->setViewport(originalVP);
-   }
-   else if(GFX->getCurrentRenderStyle() == GFXDevice::RS_StereoRenderTargets)
-   {
-      // TODO
    }
    else
    {

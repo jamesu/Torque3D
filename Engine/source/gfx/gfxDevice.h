@@ -291,7 +291,11 @@ protected:
    /// Fov port settings
    FovPort mFovPorts[NumStereoPorts];
 
+   /// Destination viewports for stereo rendering
    RectI mStereoViewports[NumStereoPorts];
+
+   /// Destination targets for stereo rendering
+   GFXTextureTarget* mStereoTargets[NumStereoPorts];
 
    /// This will allow querying to see if a device is initialized and ready to
    /// have operations performed on it.
@@ -343,7 +347,7 @@ public:
    void setStereoEyeOffsets(Point3F *offsets) { dMemcpy(mStereoEyeOffset, offsets, sizeof(Point3F) * NumStereoPorts); }
 
    /// Set the current eye offset used during stereo rendering. Assumes NumStereoPorts are available.
-   void setFovPort(const FovPort *ports) { dMemcpy(mFovPorts, ports, sizeof(FovPort) * NumStereoPorts); }
+   void setFovPort(const FovPort *ports) { dMemcpy(mFovPorts, ports, sizeof(mFovPorts)); }
 
    /// Get the current eye offset used during stereo rendering
    const FovPort* getSteroFovPort() { return mFovPorts; }
@@ -351,7 +355,25 @@ public:
    /// Sets stereo viewports
    void setSteroViewports(const RectI *ports) { dMemcpy(mStereoViewports, ports, sizeof(RectI) * NumStereoPorts); }
 
+   /// Sets stereo render targets
+   void setStereoTargets(GFXTextureTarget **targets) { mStereoTargets[0] = targets[0]; mStereoTargets[1] = targets[1]; }
+
    RectI* getStereoViewports() { return mStereoViewports; }
+
+   /// Activates a stereo render target, setting the correct viewport to render eye contents.
+   /// If eyeId is -1, set a viewport encompassing the entire size of the render targets.
+   void activateStereoTarget(S32 eyeId)
+   {
+      if (eyeId == -1)
+      {
+         setActiveRenderTarget(mStereoTargets[0], true);
+      }
+      else
+      {
+         setActiveRenderTarget(mStereoTargets[eyeId], false);
+         setViewport(mStereoViewports[eyeId]);
+      }
+   }
 
    GFXCardProfiler* getCardProfiler() const { return mCardProfiler; }
 
