@@ -111,6 +111,8 @@ public:
    bool process();
 
    // IDisplayDevice
+   virtual bool providesRenderViewTransform() const;
+   virtual void getRenderViewTransform(MatrixF *transform) const;
    virtual bool providesEyeOffsets() const;
    virtual void getEyeOffsets(Point3F *dest) const;
    virtual bool providesFovPorts() const;
@@ -119,6 +121,7 @@ public:
    virtual const Point2F& getProjectionOffset() const;
    virtual void getStereoViewports(RectI *out) const;
    virtual void getStereoTargets(GFXTextureTarget **out) const;
+   virtual void onStartFrame();
 
    // HMDs
    U32 getHMDCount() const { return mHMDDevices.size(); }

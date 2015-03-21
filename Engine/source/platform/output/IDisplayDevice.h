@@ -31,6 +31,9 @@
 class IDisplayDevice
 {
 public:
+   virtual bool providesRenderViewTransform() const = 0;
+   virtual void getRenderViewTransform(MatrixF *transform) const = 0;
+
    virtual bool providesEyeOffsets() const = 0;
    virtual void getEyeOffsets(Point3F *dest) const = 0;
 
@@ -44,6 +47,8 @@ public:
    virtual void getStereoTargets(GFXTextureTarget **out) const = 0;
 
    virtual void setDrawCanvas(GuiCanvas *canvas) = 0;
+
+   virtual void onStartFrame() = 0;
 };
 
 #endif   // _IDISPLAYDEVICE_H_

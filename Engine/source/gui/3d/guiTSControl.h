@@ -41,6 +41,7 @@ struct CameraQuery
    FovPort     fovPort[2]; // fov for each eye
    Point2F     projectionOffset;
    Point3F     eyeOffset[2];
+   MatrixF     eyeTransforms[2];
    bool        ortho;
    MatrixF     cameraMatrix;
    RectI       stereoViewports[2]; // destination viewports

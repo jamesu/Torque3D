@@ -361,6 +361,9 @@ bool GameProcessCameraQuery(CameraQuery *query)
          // Note: all eye values are invalid until this is called
          display->setDrawCanvas(query->drawCanvas);
 
+         // Display may activate AFTER so we need to call this again just in case
+         display->onStartFrame();
+
          // The connection's display device may want to set the projection offset
          if(display->providesProjectionOffset())
          {
@@ -373,10 +376,17 @@ bool GameProcessCameraQuery(CameraQuery *query)
             display->getEyeOffsets(query->eyeOffset);
          }
 
+         // Grab field of view for both eyes
          if (display->providesFovPorts())
          {
             display->getFovPorts(query->fovPort);
             fovSet = true;
+         }
+         
+         // Grab the latest overriding render view transforms
+         if (display->providesRenderViewTransform())
+         {
+            display->getRenderViewTransform(query->eyeTransforms);
          }
 
          display->getStereoViewports(query->stereoViewports);

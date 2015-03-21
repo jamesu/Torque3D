@@ -298,6 +298,31 @@ bool OculusVRDevice::process()
 
 //-----------------------------------------------------------------------------
 
+bool OculusVRDevice::providesRenderViewTransform() const
+{
+   if(!mHMDDevices.size())
+      return false;
+
+   const OculusVRHMDDevice* hmd = getHMDDevice(0);
+   if(!hmd)
+      return false;
+
+   return !hmd->isSimulated();
+}
+
+void OculusVRDevice::getRenderViewTransform(MatrixF *transform) const
+{
+   if(!mHMDDevices.size())
+      return;
+
+   const OculusVRHMDDevice* hmd = getHMDDevice(0);
+   if(!hmd)
+      return;
+
+   hmd->getRenderViewTransform(transform);
+}
+
+
 bool OculusVRDevice::providesEyeOffsets() const
 {
    if(!mHMDDevices.size())
@@ -384,6 +409,11 @@ void OculusVRDevice::getStereoTargets(GFXTextureTarget **out) const
       return;
 
    hmd->getStereoTargets(out);
+}
+
+void OculusVRDevice::onStartFrame()
+{
+   _handleDeviceEvent(GFXDevice::deStartOfFrame);
 }
 
 //-----------------------------------------------------------------------------

@@ -339,6 +339,27 @@ void GuiTSCtrl::onRender(Point2I offset, const RectI &updateRect)
       GFX->setSteroViewports(mLastCameraQuery.stereoViewports);
       GFX->setStereoTargets(mLastCameraQuery.stereoTargets);
 
+      MatrixF myTransforms[2];
+#define OCULUS_USE_LATEST_VIEW_MATRIX
+
+#ifdef OCULUS_USE_LATEST_VIEW_MATRIX
+      // Use the view matrix determined from the display device
+      myTransforms[0] = mLastCameraQuery.eyeTransforms[0];
+      myTransforms[1] = mLastCameraQuery.eyeTransforms[1];
+
+      myTransforms[0].setPosition(myTransforms[0].getPosition() + mLastCameraQuery.cameraMatrix.getPosition());
+      myTransforms[1].setPosition(myTransforms[1].getPosition() + mLastCameraQuery.cameraMatrix.getPosition());
+#else
+      // Use the view matrix determined from the control object
+      myTransforms[0] = mLastCameraQuery.cameraMatrix;
+      myTransforms[1] = mLastCameraQuery.cameraMatrix;
+
+      myTransforms[0].setPosition(mLastCameraQuery.eyeOffset[0] + mLastCameraQuery.cameraMatrix.getPosition());
+      myTransforms[1].setPosition(mLastCameraQuery.eyeOffset[1] + mLastCameraQuery.cameraMatrix.getPosition());
+
+#endif
+      GFX->setStereoEyeTransforms(myTransforms);
+
       // Allow render size to originate from the render target
       if (mLastCameraQuery.stereoTargets[0])
       {

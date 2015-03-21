@@ -288,6 +288,9 @@ protected:
    /// Eye offset used when using a stereo rendering style
    Point3F mStereoEyeOffset[NumStereoPorts];
 
+   MatrixF mStereoEyeTransforms[NumStereoPorts];
+   MatrixF mInverseStereoEyeTransforms[NumStereoPorts];
+
    /// Fov port settings
    FovPort mFovPorts[NumStereoPorts];
 
@@ -343,8 +346,13 @@ public:
    /// Get the current eye offset used during stereo rendering
    const Point3F* getStereoEyeOffsets() { return mStereoEyeOffset; }
 
+   const MatrixF* getStereoEyeTransforms() { return mStereoEyeTransforms; }
+   const MatrixF* getInverseStereoEyeTransforms() { return mInverseStereoEyeTransforms; }
+
    /// Set the current eye offset used during stereo rendering
    void setStereoEyeOffsets(Point3F *offsets) { dMemcpy(mStereoEyeOffset, offsets, sizeof(Point3F) * NumStereoPorts); }
+
+   void setStereoEyeTransforms(MatrixF *transforms) { dMemcpy(mStereoEyeTransforms, transforms, sizeof(mStereoEyeTransforms)); dMemcpy(mInverseStereoEyeTransforms, transforms, sizeof(mInverseStereoEyeTransforms)); mInverseStereoEyeTransforms[0].inverse(); mInverseStereoEyeTransforms[1].inverse();  }
 
    /// Set the current eye offset used during stereo rendering. Assumes NumStereoPorts are available.
    void setFovPort(const FovPort *ports) { dMemcpy(mFovPorts, ports, sizeof(mFovPorts)); }

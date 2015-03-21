@@ -243,19 +243,17 @@ void SceneManager::renderScene( SceneRenderState* renderState, U32 objectMask, S
       const FovPort *currentFovPort = GFX->getSteroFovPort();
       const RectI *currentViewports = GFX->getStereoViewports();
       const Point3F *eyeOffset = GFX->getStereoEyeOffsets();
+      const MatrixF *eyeTransforms = GFX->getStereoEyeTransforms();
+      const MatrixF *worldEyeTransforms = GFX->getInverseStereoEyeTransforms();
 
       // Render left half of display
       GFX->activateStereoTarget(0);
       GFX->beginField();
 
-      MatrixF leftWorldTrans(true);
-      leftWorldTrans.setPosition(eyeOffset[0]);
-      MatrixF leftWorld(originalWorld);
-      leftWorld.mulL(leftWorldTrans);
-      GFX->setWorldMatrix(leftWorld);
+      GFX->setWorldMatrix(worldEyeTransforms[0]);
 
       Frustum gfxFrustum = originalFrustum;
-      MathUtils::makeFovPortFrustum(&gfxFrustum, gfxFrustum.isOrtho(), gfxFrustum.getNearDist(), gfxFrustum.getFarDist(), currentFovPort[0], leftWorld);
+      MathUtils::makeFovPortFrustum(&gfxFrustum, gfxFrustum.isOrtho(), gfxFrustum.getNearDist(), gfxFrustum.getFarDist(), currentFovPort[0], eyeTransforms[0]);
       GFX->setFrustum(gfxFrustum);
 
       SceneCameraState cameraStateLeft = SceneCameraState::fromGFX();
@@ -268,24 +266,14 @@ void SceneManager::renderScene( SceneRenderState* renderState, U32 objectMask, S
       // Indicate that we've just finished a field
       //GFX->clear(GFXClearTarget | GFXClearZBuffer | GFXClearStencil, ColorI(255,0,0), 1.0f, 0);
       GFX->endField();
-
       
-      GFX->setWorldMatrix(leftWorld);
-      GFX->activateStereoTarget(0);
-      GFX->beginField();
-      GFX->getDrawUtil()->drawFrustum(gfxFrustum, ColorI(255,0,0));
-
       // Render right half of display
       GFX->activateStereoTarget(1);
-
-      MatrixF rightWorldTrans(true);
-      rightWorldTrans.setPosition(eyeOffset[1]);
-      MatrixF rightWorld(originalWorld);
-      rightWorld.mulL(rightWorldTrans);
-      GFX->setWorldMatrix(rightWorld);
+      GFX->beginField();
+      GFX->setWorldMatrix(worldEyeTransforms[1]);
 
       gfxFrustum = originalFrustum;
-      MathUtils::makeFovPortFrustum(&gfxFrustum, gfxFrustum.isOrtho(), gfxFrustum.getNearDist(), gfxFrustum.getFarDist(), currentFovPort[1], rightWorld);
+      MathUtils::makeFovPortFrustum(&gfxFrustum, gfxFrustum.isOrtho(), gfxFrustum.getNearDist(), gfxFrustum.getFarDist(), currentFovPort[1], eyeTransforms[1]);
       GFX->setFrustum(gfxFrustum);
 
       SceneCameraState cameraStateRight = SceneCameraState::fromGFX();

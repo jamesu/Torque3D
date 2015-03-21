@@ -50,7 +50,7 @@ protected:
    bool mVsync;
    bool mTimewarp;
 
-   bool mConfigurationDirty;
+   bool mRenderConfigurationDirty;
    bool mFrameReady;
 
    ovrHmd mDevice;
@@ -170,6 +170,8 @@ public:
       offsets[0] = Point3F(-mCurrentEyePoses[0].Position.z, mCurrentEyePoses[0].Position.x, mCurrentEyePoses[0].Position.y); 
       offsets[1] = Point3F(-mCurrentEyePoses[1].Position.z, mCurrentEyePoses[1].Position.x, mCurrentEyePoses[1].Position.y); }
 
+   void getRenderViewTransform(MatrixF *transform) const;
+
    void updateCaps();
 
    void onStartFrame();
@@ -185,7 +187,7 @@ public:
    bool setupTargets();
 
    /// Designates canvas we are drawing to. Also updates render targets
-   void setDrawCanvas(GuiCanvas *canvas) { if (mDrawCanvas != canvas) { mDrawCanvas = canvas; } mConfigurationDirty = true; updateRenderInfo(); }
+   void setDrawCanvas(GuiCanvas *canvas) { if (mDrawCanvas != canvas) { mDrawCanvas = canvas; } updateRenderInfo(); }
 
    // Stereo RT
    GFXTexHandle mStereoTexture;
@@ -208,6 +210,8 @@ public:
 
    F32 mCurrentPixelDensity;
    F32 smDesiredPixelDensity;
+
+   ovrTrackingState mLastTrackingState;
 
    GFXDevice::GFXDeviceRenderStyles mDesiredRenderingMode;
 
