@@ -242,8 +242,8 @@ void SceneManager::renderScene( SceneRenderState* renderState, U32 objectMask, S
       Point2F projOffset = GFX->getCurrentProjectionOffset();
       const FovPort *currentFovPort = GFX->getSteroFovPort();
       const RectI *currentViewports = GFX->getStereoViewports();
-      const Point3F *eyeOffset = GFX->getStereoEyeOffsets();
-      const MatrixF *eyeTransforms = GFX->getStereoEyeTransforms();
+      //const Point3F *eyeOffset = GFX->getStereoEyeOffsets();
+      //const MatrixF *eyeTransforms = GFX->getStereoEyeTransforms();
       const MatrixF *worldEyeTransforms = GFX->getInverseStereoEyeTransforms();
 
       // Render left half of display

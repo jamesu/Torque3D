@@ -36,6 +36,9 @@
 #include "gfx/gfxDevice.h"
 
 class GuiCanvas;
+class GameConnection;
+struct DisplayPose;
+
 class OculusVRHMDDevice
 {
 public:
@@ -101,6 +104,8 @@ protected:
    ovrFovPort mCurrentFovPorts[2];
 
    Point2I mWindowSize;
+
+   GameConnection *mConnection;
 
 protected:
    void updateRenderInfo();
@@ -170,7 +175,7 @@ public:
       offsets[0] = Point3F(-mCurrentEyePoses[0].Position.z, mCurrentEyePoses[0].Position.x, mCurrentEyePoses[0].Position.y); 
       offsets[1] = Point3F(-mCurrentEyePoses[1].Position.z, mCurrentEyePoses[1].Position.x, mCurrentEyePoses[1].Position.y); }
 
-   void getRenderViewTransform(MatrixF *transform) const;
+   void getFrameEyePose(DisplayPose *outPose, U32 eyeId) const;
 
    void updateCaps();
 
@@ -188,6 +193,9 @@ public:
 
    /// Designates canvas we are drawing to. Also updates render targets
    void setDrawCanvas(GuiCanvas *canvas) { if (mDrawCanvas != canvas) { mDrawCanvas = canvas; } updateRenderInfo(); }
+
+   virtual void setCurrentConnection(GameConnection *connection) { mConnection = connection; }
+   virtual GameConnection* getCurrentConnection() { return mConnection; }
 
    // Stereo RT
    GFXTexHandle mStereoTexture;

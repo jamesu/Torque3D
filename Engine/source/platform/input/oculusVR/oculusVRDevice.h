@@ -111,8 +111,8 @@ public:
    bool process();
 
    // IDisplayDevice
-   virtual bool providesRenderViewTransform() const;
-   virtual void getRenderViewTransform(MatrixF *transform) const;
+   virtual bool providesFrameEyePose() const;
+   virtual void getFrameEyePose(DisplayPose *outPose, U32 eyeId) const;
    virtual bool providesEyeOffsets() const;
    virtual void getEyeOffsets(Point3F *dest) const;
    virtual bool providesFovPorts() const;
@@ -147,6 +147,10 @@ public:
 
 
    void setDrawCanvas(GuiCanvas *canvas);
+   
+   virtual void setCurrentConnection(GameConnection *connection);
+   virtual GameConnection* getCurrentConnection();
+
    bool _handleDeviceEvent( GFXDevice::GFXDeviceEventType evt );
 
 public:

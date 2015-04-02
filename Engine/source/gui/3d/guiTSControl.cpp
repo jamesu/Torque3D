@@ -54,6 +54,7 @@ ConsoleDocClass( GuiTSCtrl,
 );
 
 U32 GuiTSCtrl::smFrameCount = 0;
+bool GuiTSCtrl::smUseLatestDisplayTransform = true;
 Vector<GuiTSCtrl*> GuiTSCtrl::smAwakeTSCtrls;
 
 ImplementEnumType( GuiTSRenderStyles,
@@ -62,7 +63,6 @@ ImplementEnumType( GuiTSRenderStyles,
 	{ GuiTSCtrl::RenderStyleStandard,         "standard"              },
 	{ GuiTSCtrl::RenderStyleStereoSideBySide, "stereo side by side"   },
 EndImplementEnumType;
-
 
 //-----------------------------------------------------------------------------
 
@@ -193,6 +193,8 @@ void GuiTSCtrl::initPersistFields()
 void GuiTSCtrl::consoleInit()
 {
    Con::addVariable("$TSControl::frameCount", TypeS32, &smFrameCount, "The number of frames that have been rendered since this control was created.\n"
+	   "@ingroup Rendering\n");
+   Con::addVariable("$TSControl::useLatestDisplayTransform", TypeBool, &smUseLatestDisplayTransform, "Use the latest view transform when rendering stereo instead of the one calculated by the last move.\n"
 	   "@ingroup Rendering\n");
 }
 
@@ -340,24 +342,35 @@ void GuiTSCtrl::onRender(Point2I offset, const RectI &updateRect)
       GFX->setStereoTargets(mLastCameraQuery.stereoTargets);
 
       MatrixF myTransforms[2];
-#define OCULUS_USE_LATEST_VIEW_MATRIX
 
-#ifdef OCULUS_USE_LATEST_VIEW_MATRIX
-      // Use the view matrix determined from the display device
-      myTransforms[0] = mLastCameraQuery.eyeTransforms[0];
-      myTransforms[1] = mLastCameraQuery.eyeTransforms[1];
+      if (smUseLatestDisplayTransform)
+      {
+         // Use the view matrix determined from the display device
+         myTransforms[0] = mLastCameraQuery.eyeTransforms[0];
+         myTransforms[1] = mLastCameraQuery.eyeTransforms[1];
+      }
+      else
+      {
+         // Use the view matrix determined from the control object
+         myTransforms[0] = mLastCameraQuery.cameraMatrix;
+         myTransforms[1] = mLastCameraQuery.cameraMatrix;
 
-      myTransforms[0].setPosition(myTransforms[0].getPosition() + mLastCameraQuery.cameraMatrix.getPosition());
-      myTransforms[1].setPosition(myTransforms[1].getPosition() + mLastCameraQuery.cameraMatrix.getPosition());
-#else
-      // Use the view matrix determined from the control object
-      myTransforms[0] = mLastCameraQuery.cameraMatrix;
-      myTransforms[1] = mLastCameraQuery.cameraMatrix;
+         QuatF qrot = mLastCameraQuery.cameraMatrix;
+         Point3F pos = mLastCameraQuery.cameraMatrix.getPosition();
+         Point3F rotEyePos;
 
-      myTransforms[0].setPosition(mLastCameraQuery.eyeOffset[0] + mLastCameraQuery.cameraMatrix.getPosition());
-      myTransforms[1].setPosition(mLastCameraQuery.eyeOffset[1] + mLastCameraQuery.cameraMatrix.getPosition());
+         /* DEBUG
+         static F32 YAdd = 0;
+         YAdd += 0.05;
+         if (YAdd > 2)
+            YAdd = 0;
+         mLastCameraQuery.eyeOffset[1].x = YAdd;
+         */
 
-#endif
+         myTransforms[0].setPosition(pos + qrot.mulP(mLastCameraQuery.eyeOffset[0], &rotEyePos));
+         myTransforms[1].setPosition(pos + qrot.mulP(mLastCameraQuery.eyeOffset[1], &rotEyePos));
+      }
+
       GFX->setStereoEyeTransforms(myTransforms);
 
       // Allow render size to originate from the render target

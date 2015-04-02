@@ -361,6 +361,8 @@ bool GameProcessCameraQuery(CameraQuery *query)
          // Note: all eye values are invalid until this is called
          display->setDrawCanvas(query->drawCanvas);
 
+         display->setCurrentConnection(connection);
+
          // Display may activate AFTER so we need to call this again just in case
          display->onStartFrame();
 
@@ -384,10 +386,7 @@ bool GameProcessCameraQuery(CameraQuery *query)
          }
          
          // Grab the latest overriding render view transforms
-         if (display->providesRenderViewTransform())
-         {
-            display->getRenderViewTransform(query->eyeTransforms);
-         }
+         connection->getControlCameraEyeTransforms(display, query->eyeTransforms);
 
          display->getStereoViewports(query->stereoViewports);
          display->getStereoTargets(query->stereoTargets);

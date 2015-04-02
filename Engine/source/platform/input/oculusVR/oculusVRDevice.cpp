@@ -298,7 +298,7 @@ bool OculusVRDevice::process()
 
 //-----------------------------------------------------------------------------
 
-bool OculusVRDevice::providesRenderViewTransform() const
+bool OculusVRDevice::providesFrameEyePose() const
 {
    if(!mHMDDevices.size())
       return false;
@@ -310,7 +310,7 @@ bool OculusVRDevice::providesRenderViewTransform() const
    return !hmd->isSimulated();
 }
 
-void OculusVRDevice::getRenderViewTransform(MatrixF *transform) const
+void OculusVRDevice::getFrameEyePose(DisplayPose *outPose, U32 eyeId) const
 {
    if(!mHMDDevices.size())
       return;
@@ -319,7 +319,7 @@ void OculusVRDevice::getRenderViewTransform(MatrixF *transform) const
    if(!hmd)
       return;
 
-   hmd->getRenderViewTransform(transform);
+   hmd->getFrameEyePose(outPose, eyeId);
 }
 
 
@@ -553,6 +553,31 @@ void OculusVRDevice::setDrawCanvas(GuiCanvas *canvas)
       return;
 
    hmd->setDrawCanvas(canvas);
+}
+
+
+void OculusVRDevice::setCurrentConnection(GameConnection *connection)
+{
+   if(!mHMDDevices.size())
+      return;
+
+   OculusVRHMDDevice* hmd = getHMDDevice(0);
+   if(!hmd)
+      return;
+
+   hmd->setCurrentConnection(connection);
+}
+
+GameConnection* OculusVRDevice::getCurrentConnection()
+{
+   if(!mHMDDevices.size())
+      return NULL;
+
+   OculusVRHMDDevice* hmd = getHMDDevice(0);
+   if(!hmd)
+      return NULL;
+
+   return hmd->getCurrentConnection();
 }
 
 //-----------------------------------------------------------------------------

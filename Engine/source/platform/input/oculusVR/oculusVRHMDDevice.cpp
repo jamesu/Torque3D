@@ -53,6 +53,7 @@ mWindowSize(1280,800)
    mRTFormat = GFXFormatR8G8B8A8;
    mDrawCanvas = NULL;
    mFrameReady = false;
+   mConnection = NULL;
 }
 
 OculusVRHMDDevice::~OculusVRHMDDevice()
@@ -190,7 +191,7 @@ void OculusVRHMDDevice::setOptimalDisplaySize(GuiCanvas *canvas)
    // Need to move window over to the rift side of the desktop
    if (mDevice->HmdCaps & ovrHmdCap_ExtendDesktop)
    {
-      window->setPosition(getDesktopPosition());
+      //window->setPosition(getDesktopPosition());
    }
 }
 
@@ -471,26 +472,18 @@ void OculusVRHMDDevice::onEndFrame()
    mFrameReady = false;
 }
 
-void OculusVRHMDDevice::getRenderViewTransform(MatrixF *transform) const
+void OculusVRHMDDevice::getFrameEyePose(DisplayPose *outPose, U32 eyeId) const
 {
    // Directly set the rotation and position from the eye transforms
-   for (int i=0; i<2; i++)
-   {
-      const OVR::Posef pose = mCurrentEyePoses[i];
-      const OVR::Quatf orientation = pose.Rotation;
-      const OVR::Vector3f position = pose.Translation;
+   ovrPosef pose = mCurrentEyePoses[eyeId];
+   OVR::Quatf orientation = pose.Orientation;
+   const OVR::Vector3f position = pose.Position;
 
-      MatrixF trans(1);
-      Point3F pos = Point3F(-position.z, position.x, position.y);
-      trans.setPosition(pos);
+   EulerF rotEuler;
+   OculusVRUtil::convertRotation(orientation, rotEuler);
 
-      MatrixF rot(1);
-      OVR::Matrix4f orientMat(orientation);
-      OculusVRUtil::convertRotation(orientMat.M, rot);
-
-      transform[i] = rot * trans;
-   }
-
+   outPose->orientation = rotEuler;
+   outPose->position = Point3F(-position.z, position.x, position.y);
 }
 
 void OculusVRHMDDevice::onDeviceDestroy()

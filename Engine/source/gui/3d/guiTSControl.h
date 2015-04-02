@@ -63,6 +63,7 @@ public:
 
 protected:
    static U32     smFrameCount;
+   static bool    smUseLatestDisplayTransform;
    F32            mCameraZRot;
    F32            mForceFOV;
 
