@@ -62,22 +62,6 @@ function enableOculusVRDisplay(%gameConnection, %trueStereoRendering)
    PlayGui.renderStyle = "stereo side by side";
    setOptimalOVRCanvasSize(0, Canvas);
    
-   if(%trueStereoRendering)
-   {
-      if($pref::OculusVR::UseChromaticAberrationCorrection)
-      {
-         OVRBarrelDistortionChromaPostFX.isEnabled = true;
-      }
-      else
-      {
-         OVRBarrelDistortionPostFX.isEnabled = true;
-      }
-   }
-   else
-   {
-      OVRBarrelDistortionMonoPostFX.isEnabled = true;
-   }
-   
    // Reset all sensors
    ovrResetAllSensors();
 }
@@ -107,7 +91,7 @@ function setStandardOculusVRControlScheme(%gameConnection)
    else
    {
       // A HMD is connected so have the mouse and gamepad only add to yaw
-      %gameConnection.setControlSchemeParameters(true, true, false);
+      %gameConnection.setControlSchemeParameters(true, false, false);
    }
 }
 

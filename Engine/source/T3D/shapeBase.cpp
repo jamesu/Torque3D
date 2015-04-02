@@ -1986,13 +1986,13 @@ void ShapeBase::getEyeCameraTransform(IDisplayDevice *displayDevice, U32 eyeId, 
    getCameraTransform(&fakePos, &cameraTransform);
 
    QuatF baserot = cameraTransform;
-   QuatF qrot = newPose.orientation;
+   QuatF qrot = QuatF(newPose.orientation);
    QuatF concatRot;
    concatRot.mul(baserot, qrot);
    concatRot.setMatrix(&temp);
-   temp.setPosition(concatRot.mulP(newPose.position, &rotEyePos));
+   temp.setPosition(cameraTransform.getPosition() + concatRot.mulP(newPose.position, &rotEyePos));
 
-   *outMat = cameraTransform * temp;
+   *outMat = temp;
 }
 
 DisplayPose ShapeBase::calcCameraDeltaPose(GameConnection *con, DisplayPose inPose)
