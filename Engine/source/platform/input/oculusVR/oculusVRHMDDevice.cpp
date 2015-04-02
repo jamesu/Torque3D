@@ -415,7 +415,7 @@ static bool sInFrame = false; // protects against recursive onStartFrame calls
 
 void OculusVRHMDDevice::onStartFrame()
 {
-   if (!mIsValid || !mDevice || !mDrawCanvas || sInFrame)
+   if (!mIsValid || !mDevice || !mDrawCanvas || sInFrame || mFrameReady)
       return;
 
    sInFrame = true;
