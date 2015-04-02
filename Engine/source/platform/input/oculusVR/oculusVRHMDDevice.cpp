@@ -191,7 +191,9 @@ void OculusVRHMDDevice::setOptimalDisplaySize(GuiCanvas *canvas)
    // Need to move window over to the rift side of the desktop
    if (mDevice->HmdCaps & ovrHmdCap_ExtendDesktop)
    {
-      //window->setPosition(getDesktopPosition());
+#ifndef OCULUS_WINDOW_DEBUG
+      window->setPosition(getDesktopPosition());
+#endif
    }
 }
 
