@@ -2016,7 +2016,7 @@ DisplayPose ShapeBase::calcCameraDeltaPose(GameConnection *con, DisplayPose inPo
          outPose.orientation.x -= M_2PI_F;
 
       // Yaw
-      outPose.orientation.z += inPose.orientation.z;
+      outPose.orientation.z = inPose.orientation.z;
 
       // Constrain the range of mRot.z
       while (outPose.orientation.z < -M_PI_F) 

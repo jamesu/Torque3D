@@ -45,6 +45,8 @@ function createCanvas(%windowTitle)
    {
       displayWindow = $platform !$= "windows";
    };
+
+   $GameCanvas = %foo;
    
    // Set the window title
    if (isObject(Canvas))

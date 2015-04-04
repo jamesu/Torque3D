@@ -235,6 +235,7 @@ GameConnection::GameConnection()
 
 GameConnection::~GameConnection()
 {
+   setDisplayDevice(NULL);
    delete mAuthInfo;
    for(U32 i = 0; i < mConnectArgc; i++)
       dFree(mConnectArgv[i]);

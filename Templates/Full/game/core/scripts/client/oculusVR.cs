@@ -24,10 +24,90 @@
 if(!isFunction(isOculusVRDeviceActive))
    return;
 
+function setupOculusActionMaps()
+{
+   if (isObject(OculusWarningMap))
+      return;
 
-new ActionMap(OculusWarningMap);
+   new ActionMap(OculusWarningMap);
+   new ActionMap(OculusCanvasMap);
 
-OculusWarningMap.bind(keyboard, space, dismissOculusVRWarnings);
+   OculusWarningMap.bind(keyboard, space, dismissOculusVRWarnings);
+
+   OculusCanvasMap.bind( mouse, xaxis, oculusYaw );
+   OculusCanvasMap.bind( mouse, yaxis, oculusPitch );
+   OculusCanvasMap.bind( mouse, button0, oculusClick );
+}
+
+function oculusYaw(%val)
+{
+   OculusCanvas.cursorNudge(%val * 0.10, 0);
+}
+
+function oculusPitch(%val)
+{
+   OculusCanvas.cursorNudge(0, %val * 0.10);
+}
+
+function oculusClick(%active)
+{
+   OculusCanvas.cursorClick(0, %active);  
+}
+
+function GuiOffscreenCanvas::checkCursor(%this)
+{
+   %count = %this.getCount();
+   for(%i = 0; %i < %count; %i++)
+   {
+      %control = %this.getObject(%i);
+      if ((%control.noCursor $= "") || !%control.noCursor)
+      {
+         %this.cursorOn();
+         return true;
+      }
+   }
+   // If we get here, every control requested a hidden cursor, so we oblige.
+
+   %this.cursorOff();
+   return false;
+}
+
+function GuiOffscreenCanvas::pushDialog(%this, %ctrl, %layer, %center)
+{
+   Parent::pushDialog(%this, %ctrl, %layer, %center);
+   %cursorVisible = %this.checkCursor();
+
+   if (%cursorVisible)
+   {
+      echo("OffscreenCanvas visible");
+      OculusCanvasMap.pop();
+      OculusCanvasMap.push();
+   }
+   else
+   {
+      echo("OffscreenCanvas not visible");
+      OculusCanvasMap.pop();
+   }
+}
+
+function GuiOffscreenCanvas::popDialog(%this, %ctrl)
+{
+   Parent::popDialog(%this, %ctrl);
+   %cursorVisible = %this.checkCursor();
+
+   if (%cursorVisible)
+   {
+      echo("OffscreenCanvas visible");
+      OculusCanvasMap.pop();
+      OculusCanvasMap.push();
+   }
+   else
+   {
+      echo("OffscreenCanvas not visible");
+      OculusCanvasMap.pop();
+   }
+}
+
 
 //-----------------------------------------------------------------------------
 
@@ -66,6 +146,31 @@ function enableOculusVRDisplay(%gameConnection, %trueStereoRendering)
    setOVRHMDAsGameConnectionDisplayDevice(%gameConnection);
    PlayGui.renderStyle = "stereo side by side";
    setOptimalOVRCanvasSize(Canvas);
+
+   if (!isObject(OculusCanvas))
+   {
+      new GuiOffscreenCanvas(OculusCanvas) {
+         targetSize = "512 512";
+         targetName = "oculusCanvas";
+         dynamicTarget = true;
+      };
+   }
+
+   if (!isObject(OculusVROverlay))
+   {
+      exec("./oculusVROverlay.gui");
+   }
+
+   OculusCanvas.setContent(OculusVROverlay);
+   OculusCanvas.setCursor(DefaultCursor);
+   PlayGui.setStereoGui(OculusCanvas);
+   OculusCanvas.setCursorPos("128 128");
+   OculusCanvas.cursorOff();
+   $GameCanvas = OculusCanvas;
+
+   %ext = Canvas.getExtent();
+   $OculusMouseScaleX = 512.0 / 1920.0;
+   $OculusMouseScaleY = 512.0 / 1060.0;
    
    //$gfx::wireframe = true;
    // Reset all sensors
@@ -76,13 +181,15 @@ function enableOculusVRDisplay(%gameConnection, %trueStereoRendering)
 // and barrel distortion for the Rift.
 function disableOculusVRDisplay(%gameConnection)
 {
+   OculusCanvas.popDialog();
    OculusWarningMap.pop();
+   $GameCanvas = Canvas;
 
-   %gameConnection.clearDisplayDevice();
+   if (isObject(gameConnection))
+   {
+      %gameConnection.clearDisplayDevice();
+   }
    PlayGui.renderStyle = "standard";
-   OVRBarrelDistortionPostFX.isEnabled = false;
-   OVRBarrelDistortionChromaPostFX.isEnabled = false;
-   OVRBarrelDistortionMonoPostFX.isEnabled = false;
 }
 
 // Helper function to set the standard Rift control scheme.  You could place

@@ -45,6 +45,7 @@ public:
    virtual void getFrameEyePose(IDevicePose *pose, U32 eye) const = 0;
 
    virtual bool providesEyeOffsets() const = 0;
+   /// Returns eye offset not taking into account any position tracking info
    virtual void getEyeOffsets(Point3F *dest) const = 0;
 
    virtual bool providesFovPorts() const = 0;

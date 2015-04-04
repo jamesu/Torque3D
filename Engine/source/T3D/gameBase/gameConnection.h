@@ -285,7 +285,7 @@ public:
    
    bool hasDisplayDevice() const { return mDisplayDevice != NULL; }
    IDisplayDevice* getDisplayDevice() const { return mDisplayDevice; }
-   void setDisplayDevice(IDisplayDevice* display) { mDisplayDevice = display; }
+   void setDisplayDevice(IDisplayDevice* display) { if (mDisplayDevice) mDisplayDevice->setDrawCanvas(NULL); mDisplayDevice = display; }
    void clearDisplayDevice() { mDisplayDevice = NULL; }
 
    void setControlSchemeParameters(bool absoluteRotation, bool addYawToAbsRot, bool addPitchToAbsRot);

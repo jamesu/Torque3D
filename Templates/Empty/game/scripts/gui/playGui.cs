@@ -43,6 +43,7 @@ function PlayGui::onWake(%this)
    // just update the action map here
    moveMap.push();
 
+   setupOculusActionMaps();
    if (ovrIsDisplayingWarning())
    {
       OculusWarningMap.push();

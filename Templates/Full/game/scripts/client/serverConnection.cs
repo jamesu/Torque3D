@@ -180,6 +180,8 @@ function GameConnection::onConnectRequestTimedOut(%this)
 
 function disconnect()
 {
+   disableOculusVRDisplay(ServerConnection);
+   
    // We need to stop the client side simulation
    // else physics resources will not cleanup properly.
    physicsStopSimulation( "client" );

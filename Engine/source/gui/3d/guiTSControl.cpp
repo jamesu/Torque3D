@@ -22,6 +22,7 @@
 
 #include "platform/platform.h"
 #include "gui/3d/guiTSControl.h"
+#include "gui/core/guiOffscreenCanvas.h"
 
 #include "console/engineAPI.h"
 #include "scene/sceneManager.h"
@@ -35,9 +36,11 @@
 #include "postFx/postEffectManager.h"
 #include "gfx/gfxTransformSaver.h"
 #include "gfx/gfxDrawUtil.h"
+#include "gfx/gfxDebugEvent.h"
 
 extern GFXTextureObject *gLastStereoTexture;
 
+#define TS_OVERLAY_SCREEN_WIDTH 0.75
 
 IMPLEMENT_CONOBJECT( GuiTSCtrl );
 
@@ -520,6 +523,97 @@ void GuiTSCtrl::onRender(Point2I offset, const RectI &updateRect)
    renderWorld(updateRect);
    DebugDrawer::get()->render();
 
+   // Render the canvas overlay if its available
+   if (mRenderStyle == RenderStyleStereoSideBySide && mStereoGuiTarget.getPointer())
+   {
+      GFXDEBUGEVENT_SCOPE( StereoGui_Render, ColorI( 255, 0, 0 ) );
+      MatrixF proj(1);
+      
+      Frustum originalFrustum = GFX->getFrustum();
+      GFXTextureObject *texObject = mStereoGuiTarget->getTexture(0);
+      const FovPort *currentFovPort = GFX->getSteroFovPort();
+      const MatrixF *eyeTransforms = GFX->getStereoEyeTransforms();
+      const MatrixF *worldEyeTransforms = GFX->getInverseStereoEyeTransforms();
+      const Point3F *eyeOffset = GFX->getStereoEyeOffsets();
+
+      for (U32 i=0; i<2; i++)
+      {
+         GFX->activateStereoTarget(i);
+         Frustum gfxFrustum = originalFrustum;
+         const F32 frustumDepth = gfxFrustum.getNearDist();
+         MathUtils::makeFovPortFrustum(&gfxFrustum, true, gfxFrustum.getNearDist(), gfxFrustum.getFarDist(), currentFovPort[i], eyeTransforms[i]);
+         GFX->setFrustum(gfxFrustum);
+
+         MatrixF eyeWorldTrans(1);
+         eyeWorldTrans.setPosition(Point3F(eyeOffset[i].x,eyeOffset[i].y,eyeOffset[i].z));
+         MatrixF eyeWorld(1);
+         eyeWorld.mul(eyeWorldTrans);
+         eyeWorld.inverse();
+         
+         GFX->setWorldMatrix(eyeWorld);
+         GFX->setViewMatrix(MatrixF::Identity);
+
+         if (!mStereoOverlayVB.getPointer())
+         {
+            mStereoOverlayVB.set(GFX, 4, GFXBufferTypeStatic);
+            GFXVertexPCT *verts = mStereoOverlayVB.lock(0, 4);
+
+            F32 texLeft   = 0.0f;
+            F32 texRight  = 1.0f;
+            F32 texTop    = 1.0f;
+            F32 texBottom = 0.0f;
+
+            F32 rectRatio = gfxFrustum.getWidth() / gfxFrustum.getHeight();
+            F32 rectWidth = gfxFrustum.getWidth() * TS_OVERLAY_SCREEN_WIDTH;
+            F32 rectHeight = rectWidth * rectRatio;
+
+            F32 screenLeft   = -rectWidth * 0.5;
+            F32 screenRight  = rectWidth * 0.5;
+            F32 screenTop    = -rectHeight * 0.5;
+            F32 screenBottom = rectHeight * 0.5;
+
+            const F32 fillConv = 0.0f;
+            const F32 frustumDepth = gfxFrustum.getNearDist() + 0.012;
+            verts[0].point.set( screenLeft  - fillConv, frustumDepth, screenTop    - fillConv );
+            verts[1].point.set( screenRight - fillConv, frustumDepth, screenTop    - fillConv );
+            verts[2].point.set( screenLeft  - fillConv, frustumDepth, screenBottom - fillConv );
+            verts[3].point.set( screenRight - fillConv, frustumDepth, screenBottom - fillConv );
+
+            verts[0].color = verts[1].color = verts[2].color = verts[3].color = ColorI(255,255,255,255);
+
+            verts[0].texCoord.set( texLeft,  texTop );
+            verts[1].texCoord.set( texRight, texTop );
+            verts[2].texCoord.set( texLeft,  texBottom );
+            verts[3].texCoord.set( texRight, texBottom );
+
+            mStereoOverlayVB.unlock();
+         }
+
+         if (!mStereoGuiSB.getPointer())
+         {
+            // DrawBitmapStretchSR
+            GFXStateBlockDesc bitmapStretchSR;
+            bitmapStretchSR.setCullMode(GFXCullNone);
+            bitmapStretchSR.setZReadWrite(false, false);
+            bitmapStretchSR.setBlend(true, GFXBlendSrcAlpha, GFXBlendInvSrcAlpha);
+            bitmapStretchSR.samplersDefined = true;
+
+            bitmapStretchSR.samplers[0] = GFXSamplerStateDesc::getClampLinear();
+            bitmapStretchSR.samplers[0].minFilter = GFXTextureFilterPoint;
+            bitmapStretchSR.samplers[0].mipFilter = GFXTextureFilterPoint;
+            bitmapStretchSR.samplers[0].magFilter = GFXTextureFilterPoint;
+
+            mStereoGuiSB = GFX->createStateBlock(bitmapStretchSR);
+         }
+
+         GFX->setVertexBuffer(mStereoOverlayVB);
+         GFX->setStateBlock(mStereoGuiSB);
+         GFX->setTexture( 0, texObject );
+         GFX->setupGenericShaders( GFXDevice::GSModColorTexture );
+         GFX->drawPrimitive( GFXTriangleStrip, 0, 2 );
+      }
+   }
+
 	// Restore the previous matrix state before
    // we begin rendering the child controls.
    saver.restore();
@@ -532,6 +626,7 @@ void GuiTSCtrl::onRender(Point2I offset, const RectI &updateRect)
    
    if(mRenderStyle == RenderStyleStereoSideBySide && gLastStereoTexture)
    {
+      GFX->setClipRect(updateRect);
       GFX->getDrawUtil()->drawBitmapStretch(gLastStereoTexture, updateRect);
    }
 
@@ -571,6 +666,12 @@ void GuiTSCtrl::drawLineList( const Vector<Point3F> &points, const ColorI color,
 {
    for ( S32 i = 0; i < points.size() - 1; i++ )
       drawLine( points[i], points[i+1], color, width );
+}
+
+
+void GuiTSCtrl::setStereoGui(GuiOffscreenCanvas *canvas)
+{
+   mStereoGuiTarget = canvas ? canvas->getTarget() : NULL;
 }
 
 //=============================================================================
@@ -620,4 +721,11 @@ DefineEngineMethod( GuiTSCtrl, calculateViewDistance, F32, ( F32 radius ),,
    "@return The distance from the viewpoint at which the given radius would be fully visible." )
 {
    return object->calculateViewDistance( radius );
+}
+
+DefineEngineMethod( GuiTSCtrl, setStereoGui, void, ( GuiOffscreenCanvas* canvas ),,
+   "Sets the current stereo texture to an offscreen canvas\n"
+   "@param canvas The desired canvas." )
+{
+   object->setStereoGui(canvas);
 }

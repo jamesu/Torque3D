@@ -170,10 +170,10 @@ public:
 
    void getFovPorts(FovPort *dest) const { dMemcpy(dest, mCurrentFovPorts, sizeof(mCurrentFovPorts)); }
    
-   /// Returns eye offsets in torque coordinate space, i.e. z being up, y being left-right, and x being depth (forward).
+   /// Returns eye offsets in torque coordinate space, i.e. z being up, x being left-right, and y being depth (forward).
    void getEyeOffsets(Point3F *offsets) const { 
-      offsets[0] = Point3F(-mCurrentEyePoses[0].Position.z, mCurrentEyePoses[0].Position.x, mCurrentEyePoses[0].Position.y); 
-      offsets[1] = Point3F(-mCurrentEyePoses[1].Position.z, mCurrentEyePoses[1].Position.x, mCurrentEyePoses[1].Position.y); }
+      offsets[0] = Point3F(-mEyeRenderDesc[0].HmdToEyeViewOffset.x, mEyeRenderDesc[0].HmdToEyeViewOffset.z, -mEyeRenderDesc[0].HmdToEyeViewOffset.y); 
+      offsets[1] = Point3F(-mEyeRenderDesc[1].HmdToEyeViewOffset.x, mEyeRenderDesc[1].HmdToEyeViewOffset.z, -mEyeRenderDesc[1].HmdToEyeViewOffset.y); }
 
    void getFrameEyePose(DisplayPose *outPose, U32 eyeId) const;
 

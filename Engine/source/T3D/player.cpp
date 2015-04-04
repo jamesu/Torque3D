@@ -5611,31 +5611,13 @@ DisplayPose Player::calcCameraDeltaPose(GameConnection *con, DisplayPose inPose)
       {
          // Rotate head
          outPose.orientation.z = (inPose.orientation.z - mLastAbsoluteYaw);
-
-         // Constrain the range of mHead.z
-         while (outPose.orientation.z < 0.0f)
-            outPose.orientation.z += M_2PI_F;
-         while (outPose.orientation.z > M_2PI_F)
-            outPose.orientation.z -= M_2PI_F;
       }
       else
       {
          // Rotate body
          outPose.orientation.z = (inPose.orientation.z - mLastAbsoluteYaw);
-
-         // Constrain the range of mHead.z
-         while (outPose.orientation.z < 0.0f)
-            outPose.orientation.z += M_2PI_F;
-         while (outPose.orientation.z > M_2PI_F)
-            outPose.orientation.z -= M_2PI_F;
       }
 
-
-      // Constrain the range of mRot.z
-      while (outPose.orientation.z < -M_PI_F) 
-         outPose.orientation.z += M_2PI_F;
-      while (outPose.orientation.z > M_PI_F) 
-         outPose.orientation.z -= M_2PI_F;
 
       // Bank
       if (mDataBlock->cameraCanBank)

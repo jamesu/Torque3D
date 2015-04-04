@@ -33,6 +33,8 @@
 #include "..\src\OVR_CAPI_D3D.h"
 #endif
 
+//#define OCULUS_DEBUG_FRAME
+
 GFXTextureObject *gLastStereoTexture = NULL;
 
 OculusVRHMDDevice::OculusVRHMDDevice() :
@@ -86,7 +88,7 @@ void OculusVRHMDDevice::set(ovrHmd hmd)
    mCurrentCaps = mSupportedCaps & (ovrHmdCap_DynamicPrediction | ovrHmdCap_LowPersistence | (!mVsync ? ovrHmdCap_NoVSync : 0));
 
    mSupportedDistortionCaps = hmd->DistortionCaps;
-   mCurrentDistortionCaps	= mSupportedDistortionCaps & (ovrDistortionCap_Chromatic | ovrDistortionCap_TimeWarp | ovrDistortionCap_Vignette | ovrDistortionCap_Overdrive);
+   mCurrentDistortionCaps	= mSupportedDistortionCaps & (ovrDistortionCap_Chromatic | /*ovrDistortionCap_TimeWarp | */ovrDistortionCap_Vignette | ovrDistortionCap_Overdrive);
 	
    mTimewarp = mSupportedDistortionCaps & ovrDistortionCap_TimeWarp;
 
@@ -419,8 +421,10 @@ void OculusVRHMDDevice::onStartFrame()
       return;
 
    sInFrame = true;
-
+   
+#ifndef OCULUS_DEBUG_FRAME
    ovrHmd_BeginFrame(mDevice, 0);
+#endif
 
    ovrVector3f hmdToEyeViewOffset[2] = { mEyeRenderDesc[0].HmdToEyeViewOffset, mEyeRenderDesc[1].HmdToEyeViewOffset };
    ovrHmd_GetEyePoses(mDevice, 0, hmdToEyeViewOffset, mCurrentEyePoses, &mLastTrackingState);
@@ -437,6 +441,7 @@ void OculusVRHMDDevice::onEndFrame()
    Point2I eyeSize;
    GFXTarget *windowTarget = mDrawCanvas->getPlatformWindow()->getGFXTarget();
 
+#ifndef OCULUS_DEBUG_FRAME
    GFXD3D9Device *d3d9GFX = dynamic_cast<GFXD3D9Device*>(GFX);
    if (d3d9GFX && mEyeRT[0].getPointer())
    {
@@ -470,6 +475,7 @@ void OculusVRHMDDevice::onEndFrame()
       GFX->clear(GFXClearZBuffer | GFXClearStencil | GFXClearTarget, ColorI(255,0,0), 1.0f, 0);
       ovrHmd_EndFrame(mDevice, mCurrentEyePoses, (ovrTexture*)(&eyeTextures[0]));
    }
+#endif
 
    mFrameReady = false;
 }
@@ -485,7 +491,7 @@ void OculusVRHMDDevice::getFrameEyePose(DisplayPose *outPose, U32 eyeId) const
    OculusVRUtil::convertRotation(orientation, rotEuler);
 
    outPose->orientation = rotEuler;
-   outPose->position = Point3F(-position.z, position.x, position.y);
+   outPose->position = Point3F(-position.x, position.z, -position.y);
 }
 
 void OculusVRHMDDevice::onDeviceDestroy()

@@ -777,8 +777,8 @@ public:
    /// Returns the number of simultaneous render targets supported by the device.
    virtual U32 getNumRenderTargets() const = 0;
 
-   virtual void setShader( GFXShader *shader ) {}
-   virtual void disableShaders() {} // TODO Remove when T3D 4.0
+   virtual void setShader( GFXShader *shader, bool force = false ) {}
+   virtual void disableShaders( bool force = false ) {} // TODO Remove when T3D 4.0
 
    /// Set the buffer! (Actual set happens on the next draw call, just like textures, state blocks, etc)
    void setShaderConstBuffer(GFXShaderConstBuffer* buffer);

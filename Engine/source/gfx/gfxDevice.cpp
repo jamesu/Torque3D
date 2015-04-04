@@ -361,6 +361,11 @@ void GFXDevice::updateStates(bool forceSetAll /*=false*/)
          rememberToEndScene = true;
       }
 
+      if (forceSetAll)
+      {
+         mViewportDirty = true;
+      }
+
       setMatrix( GFXMatrixProjection, mProjectionMatrix );
       setMatrix( GFXMatrixWorld, mWorldMatrix[mWorldStackSize] );
       setMatrix( GFXMatrixView, mViewMatrix );

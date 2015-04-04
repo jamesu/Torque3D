@@ -30,7 +30,13 @@
 #include "math/mMath.h"
 #endif
 
+
+#ifndef _MATTEXTURETARGET_H_
+#include "materials/matTextureTarget.h"
+#endif
+
 class IDisplayDevice;
+class GuiOffscreenCanvas;
 
 struct CameraQuery
 {
@@ -92,7 +98,11 @@ protected:
 
    /// The last camera query set in onRender.
    /// @see getLastCameraQuery
-   CameraQuery mLastCameraQuery;	
+   CameraQuery mLastCameraQuery;
+
+   NamedTexTargetRef mStereoGuiTarget;
+   GFXVertexBufferHandle<GFXVertexPCT> mStereoOverlayVB;
+   GFXStateBlockRef mStereoGuiSB;
    
 public:
    
@@ -165,6 +175,8 @@ public:
    static const U32& getFrameCount() { return smFrameCount; }
 
    bool shouldRenderChildControls() { return mRenderStyle == RenderStyleStandard; }
+
+   void setStereoGui(GuiOffscreenCanvas *canvas);
 
    DECLARE_CONOBJECT(GuiTSCtrl);
    DECLARE_CATEGORY( "Gui 3D" );
