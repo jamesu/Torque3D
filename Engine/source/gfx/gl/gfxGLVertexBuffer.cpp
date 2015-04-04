@@ -73,6 +73,7 @@ GFXGLVertexBuffer::~GFXGLVertexBuffer()
 
 void GFXGLVertexBuffer::lock( U32 vertexStart, U32 vertexEnd, void **vertexPtr )
 {
+   AssertFatal(mBufferType != GFXBufferTypeSubBuffer, "Cannot lock buffer of type GFXBufferTypeSubBuffer");
    PROFILE_SCOPE(GFXGLVertexBuffer_lock);
 
    if( mBufferType == GFXBufferTypeVolatile )
@@ -138,7 +139,7 @@ void GFXGLVertexBuffer::prepare(U32 stream, U32 divisor)
 {
    if( GFXGL->mCapabilities.vertexAttributeBinding )
    {      
-      glBindVertexBuffer( stream, mBuffer, mBufferOffset, mVertexSize );
+      glBindVertexBuffer( stream, mBuffer, mBufferOffset + mBufferVertexOffset, mVertexSize );
       glVertexBindingDivisor( stream, divisor );
       return;
    }
@@ -180,6 +181,27 @@ void GFXGLVertexBuffer::resurrect()
    
    delete[] mZombieCache;
    mZombieCache = NULL;
+}
+
+GFXVertexBuffer* GFXGLVertexBuffer::createOffsettedBuffer(const GFXVertexFormat *vertexFormat, U32 numVerts, U32 offset)
+{
+   AssertFatal(mBufferType < GFXBufferTypeVolatile, "Invalid buffer type for sub buffer");
+   
+   GFXGLVertexBuffer *buffer = new GFXGLVertexBuffer(mDevice,
+                                                     numVerts,
+                                                     vertexFormat,
+                                                     vertexFormat->getSizeInBytes(),
+                                                     GFXBufferTypeSubBuffer);
+   
+   buffer->registerResourceWithDevice(mDevice);
+   buffer->resurrect();
+   
+   buffer->mVertexOffset = offset;
+   buffer->mStorage = mStorage;
+   
+   AssertFatal(!mStorage.isNull(), "No storage");
+   
+   return buffer;
 }
 
 namespace

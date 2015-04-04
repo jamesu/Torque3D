@@ -55,6 +55,8 @@ public:
    virtual void zombify();
    virtual void resurrect();
 
+   GFXVertexBuffer* createOffsettedBuffer(const GFXVertexFormat *vertexFormat, U32 numVerts, U32 offset) const;
+
 private:
    friend class GFXGLDevice;
 	/// GL buffer handle

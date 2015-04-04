@@ -112,3 +112,21 @@ void GFXD3D9PrimitiveBuffer::resurrect()
         usage , GFXD3D9IndexFormat[GFXIndexFormat16], pool, &ib, 0),
         "GFXD3D9PrimitiveBuffer::resurrect - Failed to allocate an index buffer.");
 }
+
+GFXPrimitiveBuffer* GFXD3D9PrimitiveBuffer::createOffsettedBuffer(U32 primitiveCount, U32 indexCount, U32 indexOffset)
+{
+   AssertFatal(mBufferType < GFXBufferTypeVolatile, "Sub buffer should be generated from a buffer of type GFXBufferTypeStatic");
+   
+   GFXD3D9PrimitiveBuffer *buffer = new GFXD3D9PrimitiveBuffer(mDevice,
+                                                               indexCount,
+                                                               primitiveCount,
+                                                               GFXBufferTypeSubBuffer);
+   
+   buffer->registerResourceWithDevice(mDevice);
+   buffer->resurrect();
+   
+   buffer->mIndexOffset = indexOffset;
+   buffer->ib = ib;
+   
+   return buffer;
+}

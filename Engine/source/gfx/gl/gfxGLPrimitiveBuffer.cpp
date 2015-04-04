@@ -65,6 +65,8 @@ GFXGLPrimitiveBuffer::~GFXGLPrimitiveBuffer()
 
 void GFXGLPrimitiveBuffer::lock(U32 indexStart, U32 indexEnd, void **indexPtr)
 {
+   AssertFatal(mBufferType != GFXBufferTypeSubBuffer, "Cannot lock buffer of type GFXBufferTypeSubBuffer");
+
    if( mBufferType == GFXBufferTypeVolatile )
    {
       AssertFatal(indexStart == 0, "");
@@ -158,6 +160,24 @@ void GFXGLPrimitiveBuffer::resurrect()
    
    delete[] mZombieCache;
    mZombieCache = NULL;
+}
+
+GFXPrimitiveBuffer* GFXGLPrimitiveBuffer::createOffsettedBuffer(U32 primitiveCount, U32 indexCount, U32 indexOffset)
+{
+   AssertFatal(mBufferType < GFXBufferTypeVolatile, "Invalid buffer type for sub buffer");
+   
+   GFXGLPrimitiveBuffer *buffer = new GFXGLPrimitiveBuffer(mDevice,
+                                                          indexCount,
+                                                          primitiveCount,
+                                                          GFXBufferTypeSubBuffer);
+   
+   buffer->registerResourceWithDevice(mDevice);
+   buffer->resurrect();
+   
+   buffer->mIndexOffset = indexOffset;
+   buffer->mStorage = mStorage;
+   
+   return buffer;
 }
 
 namespace

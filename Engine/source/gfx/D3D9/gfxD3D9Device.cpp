@@ -597,6 +597,9 @@ void GFXD3D9Device::setVertexStream( U32 stream, GFXVertexBuffer *buffer )
          mVolatileVB = NULL;
    }
 
+   U32 offset = d3dBuffer && stream != 0 ? d3dBuffer->mVolatileStart * d3dBuffer->mVertexSize : 0;
+   if (d3dBuffer) offset += d3dBuffer->mVertexOffset;
+
    // NOTE: We do not use the stream offset here for stream 0
    // as that feature is *supposedly* not as well supported as 
    // using the start index in drawPrimitive.
@@ -606,7 +609,7 @@ void GFXD3D9Device::setVertexStream( U32 stream, GFXVertexBuffer *buffer )
    
    D3D9Assert( mD3DDevice->SetStreamSource(  stream, 
                                              d3dBuffer ? d3dBuffer->vb : NULL,
-                                             d3dBuffer && stream != 0 ? d3dBuffer->mVolatileStart * d3dBuffer->mVertexSize : 0, 
+                                             offset, 
                                              d3dBuffer ? d3dBuffer->mVertexSize : 0 ),
                                              "GFXD3D9Device::setVertexStream - Failed to set stream source." );
 }
@@ -678,7 +681,7 @@ void GFXD3D9Device::drawIndexedPrimitive( GFXPrimitiveType primType,
       startVertex, 
       /* mCurrentPB->mVolatileStart + */ minIndex,
       numVerts, 
-      mCurrentPB->mVolatileStart + startIndex, 
+      mCurrentPB->mVolatileStart + mCurrentPB->mIndexOffset + startIndex, 
       primitiveCount ), "Failed to draw indexed primitive" );
 
    mDeviceStatistics.mDrawCalls++;
