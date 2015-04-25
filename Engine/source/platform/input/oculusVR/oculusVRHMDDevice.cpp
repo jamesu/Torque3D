@@ -30,7 +30,7 @@
 // Use D3D9 for win32
 #ifdef TORQUE_OS_WIN
 #define OVR_D3D_VERSION 9
-#include "..\src\OVR_CAPI_D3D.h"
+#include "OVR_CAPI_D3D.h"
 #endif
 
 //#define OCULUS_DEBUG_FRAME
@@ -88,7 +88,7 @@ void OculusVRHMDDevice::set(ovrHmd hmd)
    mCurrentCaps = mSupportedCaps & (ovrHmdCap_DynamicPrediction | ovrHmdCap_LowPersistence | (!mVsync ? ovrHmdCap_NoVSync : 0));
 
    mSupportedDistortionCaps = hmd->DistortionCaps;
-   mCurrentDistortionCaps	= mSupportedDistortionCaps & (ovrDistortionCap_Chromatic | /*ovrDistortionCap_TimeWarp | */ovrDistortionCap_Vignette | ovrDistortionCap_Overdrive);
+   mCurrentDistortionCaps	= mSupportedDistortionCaps & (/*ovrDistortionCap_TimeWarp | */ovrDistortionCap_Vignette | ovrDistortionCap_Overdrive);
 	
    mTimewarp = mSupportedDistortionCaps & ovrDistortionCap_TimeWarp;
 
@@ -194,7 +194,7 @@ void OculusVRHMDDevice::setOptimalDisplaySize(GuiCanvas *canvas)
    if (mDevice->HmdCaps & ovrHmdCap_ExtendDesktop)
    {
 #ifndef OCULUS_WINDOW_DEBUG
-      window->setPosition(getDesktopPosition());
+      //window->setPosition(getDesktopPosition());
 #endif
    }
 }

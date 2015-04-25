@@ -27,7 +27,7 @@
 #include "math/mMatrix.h"
 #include "math/mQuat.h"
 #include "math/mPoint2.h"
-#include "OVR.h"
+#include "OVR_CAPI_0_5_0.h"
 
 struct OculusVRSensorData
 {

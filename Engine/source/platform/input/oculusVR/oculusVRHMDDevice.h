@@ -31,9 +31,10 @@
 #include "platform/input/oculusVR/oculusVRConstants.h"
 #include "platform/types.h"
 #include "gfx/gfxTextureHandle.h"
-#include "OVR.h"
 #include "math/mRect.h"
 #include "gfx/gfxDevice.h"
+
+#include "OVR_CAPI_0_5_0.h"
 
 class GuiCanvas;
 class GameConnection;

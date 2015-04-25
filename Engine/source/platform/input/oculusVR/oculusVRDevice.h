@@ -33,7 +33,7 @@
 #include "math/mQuat.h"
 #include "math/mPoint4.h"
 #include "gfx/gfxDevice.h"
-#include "OVR.h"
+#include "OVR_CAPI_0_5_0.h"
 
 #define DEFAULT_RIFT_UNIT 0
 

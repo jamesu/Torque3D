@@ -28,9 +28,6 @@
 #include "math/mSphere.h"
 #include "platform/profiler.h"
 
-
-#include "OVR.h"
-
 static const MatrixF sGFXProjRotMatrix( EulerF( (M_PI_F / 2.0f), 0.0f, 0.0f ) );
 
 
