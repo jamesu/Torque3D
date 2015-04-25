@@ -274,6 +274,14 @@ bool OculusVRSensorDevice::process(U32 deviceType, bool generateRotAsAngAxis, bo
          INPUTMGR->buildInputEvent(deviceType, OculusVRConstants::DefaultOVRBase, SI_POS, OVR_SENSORMAGNETOMETER[mActionCodeIndex], SI_MOVE, currentBuffer->mMagnetometer);
    }
 
+   if (diff & OculusVRSensorData::DIFF_STATUS)
+   {
+      if (Con::isFunction("onOculusStatusUpdate"))
+      {
+         Con::executef("onOculusStatusUpdate", Con::getIntArg(ts.StatusFlags));
+      }
+   }
+
    return true;
 }
 

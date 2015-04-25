@@ -45,10 +45,6 @@ public:
    // If no HMD is present simulate it being available
    static bool smSimulateHMD;
 
-   // Use the chromatic aberration correction version of the barrel
-   // distortion shader.
-   static bool smUseChromaticAberrationCorrection;
-
    // Type of rotation events to broadcast
    static bool smGenerateAngleAxisRotationEvents;
    static bool smGenerateEulerRotationEvents;
@@ -75,11 +71,11 @@ protected:
    // Discovered HMD devices
    Vector<OculusVRHMDDevice*> mHMDDevices;
 
-   // Discovered sensor devices
-   Vector<OculusVRSensorDevice*> mSensorDevices;
-
    /// Is the device active
    bool mActive;
+
+   /// Which HMD is the active one
+   U32 mActiveDeviceId;
 
 protected:
    void cleanUp();
@@ -91,10 +87,6 @@ protected:
    void addHMDDevice(ovrHmd hmd);
 
    void createSimulatedHMD();
-
-   void addSensorDevice(ovrHmd sensor);
-
-   void createSimulatedSensor();
 
 public:
    OculusVRDevice();
@@ -130,7 +122,7 @@ public:
    void setHMDCurrentIPD(U32 index, F32 ipd);
 
    // Sensors
-   U32 getSensorCount() const { return mSensorDevices.size(); }
+   U32 getSensorCount() const { return mHMDDevices.size(); }
    const OculusVRSensorDevice* getSensorDevice(U32 index) const;
    EulerF getSensorEulerRotation(U32 index);
    VectorF getSensorAcceleration(U32 index);

@@ -32,6 +32,7 @@ OculusVRSensorData::OculusVRSensorData()
 void OculusVRSensorData::reset()
 {
    mDataSet = false;
+   mStatusFlags = 0;
 }
 
 void OculusVRSensorData::setData(ovrTrackingState& data, const F32& maxAxisRadius)
@@ -67,6 +68,7 @@ void OculusVRSensorData::setData(ovrTrackingState& data, const F32& maxAxisRadiu
    OVR::Vector3f mag = data.RawSensorData.Magnetometer;
    OculusVRUtil::convertMagnetometer(mag, mMagnetometer);
 
+   mStatusFlags = data.StatusFlags;
    mDataSet = true;
 }
 
@@ -87,6 +89,7 @@ void OculusVRSensorData::simulateData(const F32& maxAxisRadius)
    mAngVelocity.zero();
    mMagnetometer.zero();
 
+   mStatusFlags = 0;
    mDataSet = true;
 }
 
@@ -125,6 +128,11 @@ U32 OculusVRSensorData::compare(OculusVRSensorData* other, bool doRawCompare)
       {
          result |= DIFF_MAG;
       }
+   }
+
+   if (other->mStatusFlags != mStatusFlags)
+   {
+      result |= DIFF_STATUS;
    }
 
    return result;

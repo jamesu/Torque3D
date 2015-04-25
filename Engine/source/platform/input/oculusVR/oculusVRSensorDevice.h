@@ -81,6 +81,7 @@ protected:
    // Has position tracking been disabled
    bool     mPositionTrackingDisabled;
 
+   // Last tracking status
    U32 mLastStatus;
 
    // Assigned by the OculusVRDevice

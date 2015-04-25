@@ -40,6 +40,7 @@ struct OculusVRSensorData
       DIFF_ANGVEL          = (1<<4),
       DIFF_MAG             = (1<<5),
       DIFF_POS             = (1<<6),
+      DIFF_STATUS          = (1<<7),
 
       DIFF_ROTAXIS = (DIFF_ROTAXISX | DIFF_ROTAXISY),
       DIFF_RAW = (DIFF_ACCEL | DIFF_ANGVEL | DIFF_MAG),
@@ -62,6 +63,8 @@ struct OculusVRSensorData
    VectorF mAcceleration;
    EulerF  mAngVelocity;
    VectorF mMagnetometer;
+
+   U32 mStatusFlags;
 
    OculusVRSensorData();
 

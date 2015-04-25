@@ -117,6 +117,13 @@ function oculusSensorMetricsCallback()
           "  rot: " @ getOVRSensorEulerRotation(0);
 }
 
+
+//-----------------------------------------------------------------------------
+function onOculusStatusUpdate(%status)
+{
+   $LastOculusTrackingState = %status;
+}
+
 //-----------------------------------------------------------------------------
 
 // Call this function from createCanvas() to have the Canvas attach itself

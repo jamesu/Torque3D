@@ -22,11 +22,12 @@
 
 #include "platform/input/oculusVR/oculusVRHMDDevice.h"
 #include "platform/input/oculusVR/oculusVRDevice.h"
-#include "gfx/D3D9/gfxD3D9Device.h"
+#include "platform/input/oculusVR/oculusVRSensorDevice.h"
 #include "postFx/postEffectCommon.h"
 #include "gui/core/guiCanvas.h"
 #include "platform/input/oculusVR/oculusVRUtil.h"
 
+#include "gfx/D3D9/gfxD3D9Device.h"
 // Use D3D9 for win32
 #ifdef TORQUE_OS_WIN
 #define OVR_D3D_VERSION 9
@@ -56,6 +57,8 @@ mWindowSize(1280,800)
    mDrawCanvas = NULL;
    mFrameReady = false;
    mConnection = NULL;
+   mSensor = NULL;
+   mActionCodeIndex = 0;
 }
 
 OculusVRHMDDevice::~OculusVRHMDDevice()
@@ -67,6 +70,12 @@ void OculusVRHMDDevice::cleanUp()
 {
    onDeviceDestroy();
 
+   if (mSensor)
+   {
+      delete mSensor;
+      mSensor = NULL;
+   }
+
    if(mDevice)
    {
       ovrHmd_Destroy(mDevice);
@@ -76,8 +85,10 @@ void OculusVRHMDDevice::cleanUp()
    mIsValid = false;
 }
 
-void OculusVRHMDDevice::set(ovrHmd hmd)
+void OculusVRHMDDevice::set(ovrHmd hmd, U32 actionCodeIndex)
 {
+   cleanUp();
+
    mIsValid = false;
    mIsSimulation = false;
    mRenderConfigurationDirty = true;
@@ -129,13 +140,20 @@ void OculusVRHMDDevice::set(ovrHmd hmd)
       mWindowSize = Point2I(1100, 618);
    }
 
+   mActionCodeIndex = actionCodeIndex;
+
    mIsValid = true;
+
+   mSensor = new OculusVRSensorDevice();
+   mSensor->set(mDevice, mActionCodeIndex);
 
    updateCaps();
 }
 
 void OculusVRHMDDevice::createSimulation(SimulationTypes simulationType)
 {
+   cleanUp();
+
    if(simulationType == ST_RIFT_PREVIEW)
    {
       createSimulatedPreviewRift();
@@ -162,6 +180,9 @@ void OculusVRHMDDevice::createSimulatedPreviewRift()
    mLensSeparation = 0.064000003f;
    mProfileInterpupillaryDistance = 0.064000003f;
    mInterpupillaryDistance = mProfileInterpupillaryDistance;
+
+   mSensor = new OculusVRSensorDevice();
+   mSensor->createSimulation(OculusVRSensorDevice::ST_RIFT_PREVIEW, mActionCodeIndex);
 }
 
 void OculusVRHMDDevice::setIPD(F32 ipd)

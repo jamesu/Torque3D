@@ -39,6 +39,7 @@
 class GuiCanvas;
 class GameConnection;
 struct DisplayPose;
+class OculusVRSensorDevice;
 
 class OculusVRHMDDevice
 {
@@ -108,6 +109,9 @@ protected:
 
    GameConnection *mConnection;
 
+   OculusVRSensorDevice *mSensor;
+   U32 mActionCodeIndex;
+
 protected:
    void updateRenderInfo();
 
@@ -120,7 +124,7 @@ public:
    void cleanUp();
 
    // Set the HMD properties based on information from the OVR device
-   void set(ovrHmd hmd);
+   void set(ovrHmd hmd, U32 actionCodeIndex);
 
    // Sets optimal display size for canvas
    void setOptimalDisplaySize(GuiCanvas *canvas);
@@ -228,6 +232,8 @@ public:
 
    // Canvas we should be drawing
    GuiCanvas *mDrawCanvas;
+
+   OculusVRSensorDevice *getSensorDevice() { return mSensor; }
 };
 
 #endif   // _OCULUSVRHMDDEVICE_H_
