@@ -24,6 +24,8 @@
 #include "platform/input/oculusVR/oculusVRSensorData.h"
 #include "platform/input/oculusVR/oculusVRUtil.h"
 #include "platform/platformInput.h"
+#include"console/simBase.h"
+#include "console/engineAPI.h" 
 
 U32 OculusVRSensorDevice::OVR_SENSORROT[OculusVRConstants::MaxSensors] = {0};
 U32 OculusVRSensorDevice::OVR_SENSORROTANG[OculusVRConstants::MaxSensors] = {0};
@@ -278,7 +280,7 @@ bool OculusVRSensorDevice::process(U32 deviceType, bool generateRotAsAngAxis, bo
    {
       if (Con::isFunction("onOculusStatusUpdate"))
       {
-         Con::executef("onOculusStatusUpdate", Con::getIntArg(ts.StatusFlags));
+         Con::executef("onOculusStatusUpdate", ts.StatusFlags);
       }
    }
 
