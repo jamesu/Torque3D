@@ -38,7 +38,7 @@
 #include "gfx/gfxDrawUtil.h"
 #include "gfx/gfxDebugEvent.h"
 
-extern GFXTextureObject *gLastStereoTexture;
+GFXTextureObject *gLastStereoTexture = NULL;
 
 #define TS_OVERLAY_SCREEN_WIDTH 0.75
 
@@ -465,8 +465,6 @@ void GuiTSCtrl::onRender(Point2I offset, const RectI &updateRect)
       // Activate stereo RT
       GFX->activateStereoTarget(-1);
    }
-
-   // TODO: do per-target stereo rendering (i.e. activateStereoTarget X, render, activateStereoTarget Y, render ...)
 
    // Clear the zBuffer so GUI doesn't hose object rendering accidentally
    GFX->clear( GFXClearZBuffer , ColorI(20,20,20), 1.0f, 0 );

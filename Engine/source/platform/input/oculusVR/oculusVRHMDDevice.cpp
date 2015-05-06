@@ -38,7 +38,7 @@
 #define OCULUS_USE_GL
 #endif
 
-GFXTextureObject *gLastStereoTexture = NULL;
+extern GFXTextureObject *gLastStereoTexture;
 
 OculusVRHMDDevice::OculusVRHMDDevice() :
 mWindowSize(1280,800)

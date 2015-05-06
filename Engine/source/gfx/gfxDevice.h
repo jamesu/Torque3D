@@ -374,11 +374,17 @@ public:
    {
       if (eyeId == -1)
       {
-         setActiveRenderTarget(mStereoTargets[0], true);
+         if (mStereoTargets[0])
+         {
+            setActiveRenderTarget(mStereoTargets[0], true);
+         }
       }
       else
       {
-         setActiveRenderTarget(mStereoTargets[eyeId], false);
+         if (mStereoTargets[eyeId])
+         {
+            setActiveRenderTarget(mStereoTargets[eyeId], false);
+         }
          setViewport(mStereoViewports[eyeId]);
       }
    }

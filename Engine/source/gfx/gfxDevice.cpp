@@ -196,6 +196,9 @@ GFXDevice::GFXDevice()
    #elif defined TORQUE_OS_PS3
       GFXShader::addGlobalMacro( "TORQUE_OS_PS3" );            
    #endif
+
+   mStereoTargets[0] = NULL;
+   mStereoTargets[1] = NULL;
 }
 
 GFXDrawUtil* GFXDevice::getDrawUtil()
