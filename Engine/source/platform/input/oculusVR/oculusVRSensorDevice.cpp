@@ -39,7 +39,6 @@ U32 OculusVRSensorDevice::OVR_SENSORPOSITION[OculusVRConstants::MaxSensors] = {0
 OculusVRSensorDevice::OculusVRSensorDevice()
 {
    mIsValid = false;
-   mIsSimulation = false;
    mDevice = NULL;
    mCurrentTrackingCaps = 0;
    mSupportedTrackingCaps = 0;
@@ -108,43 +107,6 @@ void OculusVRSensorDevice::set(ovrHmd sensor, S32 actionCodeIndex)
    updateTrackingCaps();
 }
 
-void OculusVRSensorDevice::createSimulation(SimulationTypes simulationType, S32 actionCodeIndex)
-{
-   if(simulationType == ST_RIFT_PREVIEW)
-   {
-      createSimulatedPreviewRift(actionCodeIndex);
-   }
-}
-
-void OculusVRSensorDevice::createSimulatedPreviewRift(S32 actionCodeIndex)
-{
-   mIsValid = false;
-   mIsSimulation = true;
-   mYawCorrectionDisabled = true;
-
-   // DeviceInfo
-   mProductName = "Tracker DK";
-   mManufacturer = "Oculus VR, Inc.";
-   mVersion = 0;
-
-   // SensorInfo
-   mVendorId = 10291;
-   mProductId = 1;
-   mSerialNumber = "000000000000";
-
-   mActionCodeIndex = actionCodeIndex;
-
-   if(mActionCodeIndex >= OculusVRConstants::MaxSensors)
-   {
-      // Cannot declare more sensors than we are able to handle
-      mIsValid = false;
-   }
-   else
-   {
-      mIsValid = true;
-   }
-}
-
 void OculusVRSensorDevice::buildCodeTable()
 {
    // Obtain all of the device codes
@@ -207,14 +169,7 @@ bool OculusVRSensorDevice::process(U32 deviceType, bool generateRotAsAngAxis, bo
    // Store the current data from the sensor and compare with previous data
    U32 diff;
    OculusVRSensorData* currentBuffer = (mPrevData == mDataBuffer[0]) ? mDataBuffer[1] : mDataBuffer[0];
-   if(!mIsSimulation)
-   {
-      currentBuffer->setData(ts, maxAxisRadius);
-   }
-   else
-   {
-      currentBuffer->simulateData(maxAxisRadius);
-   }
+   currentBuffer->setData(ts, maxAxisRadius);
    diff = mPrevData->compare(currentBuffer, generateRawSensor);
 
    // Update the previous data pointer.  We do this here in case someone calls our

@@ -72,27 +72,6 @@ void OculusVRSensorData::setData(ovrTrackingState& data, const F32& maxAxisRadiu
    mDataSet = true;
 }
 
-void OculusVRSensorData::simulateData(const F32& maxAxisRadius)
-{
-   // Sensor rotation
-   mRot.identity();
-   mRotQuat.identity();
-   mRotEuler.zero();
-
-   mPosition = Point3F(0,0,0);
-
-   // Sensor rotation as axis
-   OculusVRUtil::calculateAxisRotation(mRot, maxAxisRadius, mRotAxis);
-
-   // Sensor raw values
-   mAcceleration.zero();
-   mAngVelocity.zero();
-   mMagnetometer.zero();
-
-   mStatusFlags = 0;
-   mDataSet = true;
-}
-
 U32 OculusVRSensorData::compare(OculusVRSensorData* other, bool doRawCompare)
 {
    S32 result = DIFF_NONE;

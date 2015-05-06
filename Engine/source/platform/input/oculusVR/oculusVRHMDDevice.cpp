@@ -42,7 +42,6 @@ OculusVRHMDDevice::OculusVRHMDDevice() :
 mWindowSize(1280,800)
 {
    mIsValid = false;
-   mIsSimulation = false;
    mDevice = NULL;
    mSupportedDistortionCaps = 0;
    mCurrentDistortionCaps = 0;
@@ -90,7 +89,6 @@ void OculusVRHMDDevice::set(ovrHmd hmd, U32 actionCodeIndex)
    cleanUp();
 
    mIsValid = false;
-   mIsSimulation = false;
    mRenderConfigurationDirty = true;
 
    mDevice = hmd;
@@ -148,41 +146,6 @@ void OculusVRHMDDevice::set(ovrHmd hmd, U32 actionCodeIndex)
    mSensor->set(mDevice, mActionCodeIndex);
 
    updateCaps();
-}
-
-void OculusVRHMDDevice::createSimulation(SimulationTypes simulationType)
-{
-   cleanUp();
-
-   if(simulationType == ST_RIFT_PREVIEW)
-   {
-      createSimulatedPreviewRift();
-   }
-}
-
-void OculusVRHMDDevice::createSimulatedPreviewRift()
-{
-   mIsValid = true;
-   mIsSimulation = true;
-
-   mProductName = "Oculus Rift DK1-SLA1";
-   mManufacturer = "Oculus VR";
-   mVersion = 0;
-
-   mDisplayDeviceName = "";
-
-   mResolution.x = 1280;
-   mResolution.y = 800;
-
-   mScreenSize.x = 0.14975999f;
-   mScreenSize.y = 0.093599997f;
-
-   mLensSeparation = 0.064000003f;
-   mProfileInterpupillaryDistance = 0.064000003f;
-   mInterpupillaryDistance = mProfileInterpupillaryDistance;
-
-   mSensor = new OculusVRSensorDevice();
-   mSensor->createSimulation(OculusVRSensorDevice::ST_RIFT_PREVIEW, mActionCodeIndex);
 }
 
 void OculusVRHMDDevice::setIPD(F32 ipd)

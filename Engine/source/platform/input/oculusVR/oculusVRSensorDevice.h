@@ -37,11 +37,6 @@ struct OculusVRSensorData;
 class OculusVRSensorDevice
 {
 public:
-   enum SimulationTypes {
-      ST_RIFT_PREVIEW,
-   };
-
-public:
    // Action codes
    static U32 OVR_SENSORROT[OculusVRConstants::MaxSensors];       // SI_ROT
 
@@ -58,8 +53,6 @@ public:
 
 protected:
    bool mIsValid;
-
-   bool mIsSimulation;
 
    ovrHmd mDevice;
    U32 mCurrentTrackingCaps;
@@ -94,9 +87,6 @@ protected:
    // for the sensor
    OculusVRSensorData* mPrevData;
 
-protected:
-   void createSimulatedPreviewRift(S32 actionCodeIndex);
-
 public:
    OculusVRSensorDevice();
    virtual ~OculusVRSensorDevice();
@@ -108,11 +98,7 @@ public:
    // Set the sensor properties based on information from the OVR device
    void set(ovrHmd sensor, S32 actionCodeIndex);
 
-   // Set the sensor properties based on a simulation of the given type
-   void createSimulation(SimulationTypes simulationType, S32 actionCodeIndex);
-
    bool isValid() const {return mIsValid;}
-   bool isSimulated() {return mIsSimulation;}
 
    bool process(U32 deviceType, bool generateRotAsAngAxis, bool generateRotAsEuler, bool generateRotationAsAxisEvents, bool generatePositionEvents, F32 maxAxisRadius, bool generateRawSensor);
 

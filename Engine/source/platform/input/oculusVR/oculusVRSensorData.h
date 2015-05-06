@@ -74,9 +74,6 @@ struct OculusVRSensorData
    /// Set data based on given sensor fusion
    void setData(ovrTrackingState& data, const F32& maxAxisRadius);
 
-   /// Simulate valid data
-   void simulateData(const F32& maxAxisRadius);
-
    /// Compare this data and given and return differences
    U32 compare(OculusVRSensorData* other, bool doRawCompare);
 };

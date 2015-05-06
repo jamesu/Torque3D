@@ -163,7 +163,8 @@ void OculusVRDevice::addHMDDevice(ovrHmd hmd)
 void OculusVRDevice::createSimulatedHMD()
 {
    OculusVRHMDDevice* hmdd = new OculusVRHMDDevice();
-   hmdd->createSimulation(OculusVRHMDDevice::ST_RIFT_PREVIEW);
+   ovrHmd hmd = ovrHmd_CreateDebug(ovrHmd_DK2);
+   hmdd->set(hmd,mHMDDevices.size());
    mHMDDevices.push_back(hmdd);
 
    Con::printf("   HMD simulated: %s by %s [v%d]", hmdd->getProductName(), hmdd->getManufacturer(), hmdd->getVersion());
@@ -271,7 +272,7 @@ bool OculusVRDevice::providesFrameEyePose() const
    if(!hmd)
       return false;
 
-   return !hmd->isSimulated();
+   return true;
 }
 
 void OculusVRDevice::getFrameEyePose(DisplayPose *outPose, U32 eyeId) const
@@ -316,7 +317,7 @@ bool OculusVRDevice::providesFovPorts() const
    if(!hmd)
       return Point3F::Zero;
 
-   return !hmd->isSimulated();
+   return true;
 }
 
 void OculusVRDevice::getFovPorts(FovPort *out) const
@@ -624,26 +625,6 @@ DefineEngineFunction(getOVRHMDCount, S32, (),,
    }
 
    return OCULUSVRDEV->getHMDCount();
-}
-
-DefineEngineFunction(isOVRHMDSimulated, bool, (S32 index),,
-   "@brief Determines if the requested OVR HMD is simulated or real.\n\n"
-   "@param index The HMD index.\n"
-   "@return True if the HMD is simulated.\n"
-   "@ingroup Game")
-{
-   if(!ManagedSingleton<OculusVRDevice>::instanceOrNull())
-   {
-      return true;
-   }
-
-   const OculusVRHMDDevice* hmd = OCULUSVRDEV->getHMDDevice(index);
-   if(!hmd)
-   {
-      return true;
-   }
-
-   return hmd->isSimulated();
 }
 
 DefineEngineFunction(getOVRHMDProductName, const char*, (S32 index),,

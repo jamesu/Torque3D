@@ -51,7 +51,6 @@ public:
 protected:
    bool mIsValid;
 
-   bool mIsSimulation;
    bool mVsync;
    bool mTimewarp;
 
@@ -115,8 +114,6 @@ protected:
 protected:
    void updateRenderInfo();
 
-   void createSimulatedPreviewRift();
-
 public:
    OculusVRHMDDevice();
    ~OculusVRHMDDevice();
@@ -129,11 +126,7 @@ public:
    // Sets optimal display size for canvas
    void setOptimalDisplaySize(GuiCanvas *canvas);
 
-   // Set the HMD properties based on a simulation of the given type
-   void createSimulation(SimulationTypes simulationType);
-
    bool isValid() const {return mIsValid;}
-   bool isSimulated() const {return mIsSimulation;}
 
    const char* getProductName() const { return mProductName.c_str(); }
    const char* getManufacturer() const { return mManufacturer.c_str(); }
