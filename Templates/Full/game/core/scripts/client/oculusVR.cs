@@ -113,8 +113,7 @@ function GuiOffscreenCanvas::popDialog(%this, %ctrl)
 
 function oculusSensorMetricsCallback()
 {
-   return "  | OVR Sensor 0 |" @ 
-          "  rot: " @ getOVRSensorEulerRotation(0);
+   return ovrDumpMetrics(0);
 }
 
 
@@ -204,7 +203,7 @@ function disableOculusVRDisplay(%gameConnection)
 // you call enableOculusVRDisplay().
 function setStandardOculusVRControlScheme(%gameConnection)
 {
-   if(isOVRHMDSimulated(0))
+   if($OculusVR::SimulateInput)
    {
       // We are simulating a HMD so allow the mouse and gamepad to control
       // both yaw and pitch.

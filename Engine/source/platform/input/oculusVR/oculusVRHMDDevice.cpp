@@ -32,9 +32,11 @@
 #ifdef TORQUE_OS_WIN
 #define OVR_D3D_VERSION 9
 #include "OVR_CAPI_D3D.h"
+#define OCULUS_USE_D3D
+#else
+#include "OVR_CAPI_GL.h"
+#define OCULUS_USE_GL
 #endif
-
-//#define OCULUS_DEBUG_FRAME
 
 GFXTextureObject *gLastStereoTexture = NULL;
 
@@ -97,7 +99,7 @@ void OculusVRHMDDevice::set(ovrHmd hmd, U32 actionCodeIndex)
    mCurrentCaps = mSupportedCaps & (ovrHmdCap_DynamicPrediction | ovrHmdCap_LowPersistence | (!mVsync ? ovrHmdCap_NoVSync : 0));
 
    mSupportedDistortionCaps = hmd->DistortionCaps;
-   mCurrentDistortionCaps	= mSupportedDistortionCaps & (/*ovrDistortionCap_TimeWarp | */ovrDistortionCap_Vignette | ovrDistortionCap_Overdrive);
+   mCurrentDistortionCaps   = mSupportedDistortionCaps & (ovrDistortionCap_TimeWarp | ovrDistortionCap_Vignette | ovrDistortionCap_Overdrive);
 	
    mTimewarp = mSupportedDistortionCaps & ovrDistortionCap_TimeWarp;
 
@@ -117,7 +119,7 @@ void OculusVRHMDDevice::set(ovrHmd hmd, U32 actionCodeIndex)
 
    mProfileInterpupillaryDistance = ovrHmd_GetFloat(hmd, OVR_KEY_IPD, OVR_DEFAULT_IPD);
    mLensSeparation = ovrHmd_GetFloat(hmd, "LensSeparation", 0);
-	ovrHmd_GetFloatArray(hmd, "ScreenSize", &mScreenSize.x, 2);
+   ovrHmd_GetFloatArray(hmd, "ScreenSize", &mScreenSize.x, 2);
 
    dMemcpy(mCurrentFovPorts, mDevice->DefaultEyeFov, sizeof(mDevice->DefaultEyeFov));
 
@@ -175,10 +177,10 @@ void OculusVRHMDDevice::setOptimalDisplaySize(GuiCanvas *canvas)
    }
 
    // Need to move window over to the rift side of the desktop
-   if (mDevice->HmdCaps & ovrHmdCap_ExtendDesktop)
+   if (mDevice->HmdCaps & ovrHmdCap_ExtendDesktop && !OculusVRDevice::smWindowDebug)
    {
 #ifndef OCULUS_WINDOW_DEBUG
-      //window->setPosition(getDesktopPosition());
+        window->setPosition(getDesktopPosition());
 #endif
    }
 }
@@ -267,6 +269,35 @@ bool OculusVRHMDDevice::setupTargets()
    return true;
 }
 
+String OculusVRHMDDevice::dumpMetrics()
+{
+   StringBuilder sb;
+
+   EulerF rot = mSensor->getEulerRotation();
+   Point3F pos = mSensor->getPosition();
+   FovPort eyeFov[2];
+   this->getFovPorts(eyeFov);
+
+   mSensor->getPositionTrackingAvailable();
+
+   F32 ipd = this->getIPD();
+   U32 lastStatus = mSensor->getLastTrackingStatus();
+
+   sb.format("   | OVR Sensor %i | rot: %f %f %f, pos: %f %f %f, FOV (%f %f %f %f, %f %f %f %f), IPD %f, Track:%s%s, Disort:%s%s%s",
+             mActionCodeIndex,
+             rot.x, rot.y, rot.z,
+             pos.x, pos.y, pos.z,
+             eyeFov[0].upTan, eyeFov[0].downTan, eyeFov[0].leftTan, eyeFov[0].rightTan, eyeFov[1].upTan, eyeFov[1].downTan, eyeFov[1].leftTan, eyeFov[1].rightTan,
+             getIPD(),
+             lastStatus & ovrStatus_OrientationTracked ? " ORIENT" : "",
+             lastStatus & ovrStatus_PositionTracked ? " POS" : "",
+             mCurrentDistortionCaps & ovrDistortionCap_TimeWarp ? " TIMEWARP" : "",
+             mCurrentDistortionCaps & ovrDistortionCap_Vignette ? " VIGNETTE" : "",
+             mCurrentDistortionCaps & ovrDistortionCap_Overdrive ? " OVERDRIVE" : "");
+
+   return sb.data();
+}
+
 void OculusVRHMDDevice::updateRenderInfo()
 {
    // Check console values first
@@ -291,6 +322,7 @@ void OculusVRHMDDevice::updateRenderInfo()
    // Reset
    ovrHmd_ConfigureRendering(mDevice, NULL, 0, NULL, NULL);
 
+#ifdef OCULUS_USE_D3D
    // Generate render target textures
    GFXD3D9Device *d3d9GFX = dynamic_cast<GFXD3D9Device*>(GFX);
    if (d3d9GFX)
@@ -317,6 +349,42 @@ void OculusVRHMDDevice::updateRenderInfo()
          return;
       }
    }
+#endif
+
+#ifdef OCULUS_USE_GL
+   // Generate render target textures
+   GFXGLDevice *glGFX = dynamic_cast<GFXGLDevice*>(GFX);
+   if (glGFX)
+   {
+      ovrGLConfig cfg;
+      cfg.OGL.Header.API = ovrRenderAPI_OpenGL;
+      cfg.OGL.Header.Multisample = 0;
+      cfg.OGL.Header.BackBufferSize = OVR::Sizei(backbufferSize.x, backbufferSize.y);
+
+#ifdef WIN32
+      cfg.OGL.Window = GetActiveWindow();//window->getPlatformDrawable();
+      cfg.OGL.DC = wglGetCurrentDC();
+#else
+      cfg.OGL.Disp = NULL;
+#endif
+
+      // Finally setup!
+      if (!setupTargets())
+      {
+         onDeviceDestroy();
+         return;
+      }
+
+      ovrHmd_AttachToWindow(mDevice, window->getPlatformDrawable(), NULL, NULL);
+
+      if (!ovrHmd_ConfigureRendering( mDevice, &cfg.Config, mCurrentDistortionCaps, eyeFov, mEyeRenderDesc ))
+      {
+         Con::errorf("Couldn't configure oculus rendering!");
+         return;
+      }
+   }
+#endif
+
 
    mRenderConfigurationDirty = false;
 }
@@ -385,14 +453,32 @@ void OculusVRHMDDevice::updateCaps()
    if (!mIsValid || !mDevice)
       return;
 
-   mCurrentDistortionCaps = 0;
-   mCurrentCaps = 0;
+   U32 oldDistortionCaps = mCurrentDistortionCaps;
    
    // Distortion
-   if (mTimewarp) mCurrentDistortionCaps |= ovrDistortionCap_TimeWarp;
+   if (mTimewarp)
+   {
+      mCurrentDistortionCaps |= ovrDistortionCap_TimeWarp;
+   }
+   else
+   {
+      mCurrentDistortionCaps &= ~ovrDistortionCap_TimeWarp;
+   }
+
+   if (oldDistortionCaps != mCurrentDistortionCaps)
+   {
+      mRenderConfigurationDirty = true;
+   }
 
    // Device
-   if (!mVsync) mCurrentCaps |= ovrHmdCap_NoVSync;
+   if (!mVsync)
+   {
+      mCurrentCaps |= ovrHmdCap_NoVSync;
+   }
+   else
+   {
+      mCurrentCaps &= ~ovrHmdCap_NoVSync;
+   }
    
    ovrHmd_SetEnabledCaps(mDevice, mCurrentCaps);
 }
@@ -426,6 +512,8 @@ void OculusVRHMDDevice::onEndFrame()
    GFXTarget *windowTarget = mDrawCanvas->getPlatformWindow()->getGFXTarget();
 
 #ifndef OCULUS_DEBUG_FRAME
+   
+#ifdef OCULUS_USE_D3D
    GFXD3D9Device *d3d9GFX = dynamic_cast<GFXD3D9Device*>(GFX);
    if (d3d9GFX && mEyeRT[0].getPointer())
    {
@@ -459,6 +547,44 @@ void OculusVRHMDDevice::onEndFrame()
       GFX->clear(GFXClearZBuffer | GFXClearStencil | GFXClearTarget, ColorI(255,0,0), 1.0f, 0);
       ovrHmd_EndFrame(mDevice, mCurrentEyePoses, (ovrTexture*)(&eyeTextures[0]));
    }
+#endif
+
+#ifdef OCULUS_USE_GL
+   GFXGLDevice *glGFX = dynamic_cast<GFXGLDevice*>(GFX);
+   if (glGFX && mEyeRT[0].getPointer())
+   {
+      // Left
+      ovrGLTexture eyeTextures[2];
+      eyeSize = mEyeTexture[0].getWidthHeight();
+      eyeTextures[0].OGL.Header.API = ovrRenderAPI_GL;
+      eyeTextures[0].OGL.Header.RenderViewport.Pos.x = mEyeViewport[0].point.x;
+      eyeTextures[0].OGL.Header.RenderViewport.Pos.y = mEyeViewport[0].point.y;
+      eyeTextures[0].OGL.Header.RenderViewport.Size.w = mEyeViewport[0].extent.x;
+      eyeTextures[0].OGL.Header.RenderViewport.Size.h = mEyeViewport[0].extent.y;
+      eyeTextures[0].OGL.Header.TextureSize.w = eyeSize.x;
+      eyeTextures[0].OGL.Header.TextureSize.h = eyeSize.y;
+      eyeTextures[0].OGL.TexId = mEyeRT[0].getPointer() ? static_cast<GFXGLTextureObject*>(mEyeTexture[0].getPointer())->getHandle() : 0;
+
+      // Right
+      eyeSize = mEyeTexture[1].getWidthHeight();
+      eyeTextures[1].OGL.Header.API = ovrRenderAPI_GL;
+      eyeTextures[1].OGL.Header.RenderViewport.Pos.x = mEyeViewport[1].point.x;
+      eyeTextures[1].OGL.Header.RenderViewport.Pos.y = mEyeViewport[1].point.y;
+      eyeTextures[1].OGL.Header.RenderViewport.Size.w = mEyeViewport[1].extent.x;
+      eyeTextures[1].OGL.Header.RenderViewport.Size.h = mEyeViewport[1].extent.y;
+      eyeTextures[1].OGL.Header.TextureSize.w = eyeSize.x;
+      eyeTextures[1].OGL.Header.TextureSize.h = eyeSize.y;
+      eyeTextures[0].OGL.TexId = mEyeRT[1].getPointer() ? static_cast<GFXGLTextureObject*>(mEyeTexture[1].getPointer())->getHandle() : 0;
+
+      // Submit!
+      GFX->disableShaders();
+
+      GFX->setActiveRenderTarget(windowTarget);
+      GFX->clear(GFXClearZBuffer | GFXClearStencil | GFXClearTarget, ColorI(255,0,0), 1.0f, 0);
+      ovrHmd_EndFrame(mDevice, mCurrentEyePoses, (ovrTexture*)(&eyeTextures[0]));
+   }
+#endif
+
 #endif
 
    mFrameReady = false;

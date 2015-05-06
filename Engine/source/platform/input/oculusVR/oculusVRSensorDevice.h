@@ -125,7 +125,12 @@ public:
    bool getMagnetometerCalibrationAvailable() const;
 
    // Is position tracking data available for this sensor
+   bool getOrientationTrackingAvailable() const;
+
+   // Is position tracking data available for this sensor
    bool getPositionTrackingAvailable() const;
+
+   U32 getLastTrackingStatus() const { return mLastStatus; }
 
    const char* getProductName() { return mProductName.c_str(); }
    const char* getManufacturer() { return mManufacturer.c_str(); }

@@ -299,6 +299,14 @@ bool OculusVRSensorDevice::getMagnetometerCalibrationAvailable() const
    return (mSupportedTrackingCaps & ovrTrackingCap_MagYawCorrection) != 0;
 }
 
+bool OculusVRSensorDevice::getOrientationTrackingAvailable() const
+{
+   if(!mIsValid)
+      return false;
+
+   return (mSupportedTrackingCaps & ovrTrackingCap_Orientation) != 0;
+}
+
 bool OculusVRSensorDevice::getPositionTrackingAvailable() const
 {
    if(!mIsValid)
@@ -335,6 +343,7 @@ EulerF OculusVRSensorDevice::getRawEulerRotation()
    // Sensor rotation in Euler format
    EulerF rot;
    OculusVRUtil::convertRotation(orientation, rot);
+   return rot;
 }
 
 VectorF OculusVRSensorDevice::getAcceleration()
@@ -365,6 +374,16 @@ EulerF OculusVRSensorDevice::getAngularVelocity()
    OculusVRUtil::convertAngularVelocity(v, vel);
 
    return vel;
+}
+
+Point3F OculusVRSensorDevice::getPosition()
+{
+   if(!mIsValid)
+      return Point3F();
+   
+   ovrTrackingState ts = ovrHmd_GetTrackingState(mDevice, ovr_GetTimeInSeconds());
+   OVR::Vector3f v = ts.HeadPose.ThePose.Position;
+   return Point3F(-v.x, v.z, -v.y);
 }
 
 void OculusVRSensorDevice::updateTrackingCaps()

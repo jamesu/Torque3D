@@ -362,14 +362,6 @@ void GuiTSCtrl::onRender(Point2I offset, const RectI &updateRect)
          Point3F pos = mLastCameraQuery.cameraMatrix.getPosition();
          Point3F rotEyePos;
 
-         /* DEBUG
-         static F32 YAdd = 0;
-         YAdd += 0.05;
-         if (YAdd > 2)
-            YAdd = 0;
-         mLastCameraQuery.eyeOffset[1].x = YAdd;
-         */
-
          myTransforms[0].setPosition(pos + qrot.mulP(mLastCameraQuery.eyeOffset[0], &rotEyePos));
          myTransforms[1].setPosition(pos + qrot.mulP(mLastCameraQuery.eyeOffset[1], &rotEyePos));
       }
@@ -382,11 +374,6 @@ void GuiTSCtrl::onRender(Point2I offset, const RectI &updateRect)
          renderSize = mLastCameraQuery.stereoViewports[0].extent;
          renderingToTarget = true;
       }
-   }
-   else if (mRenderStyle == RenderStyleStereoRenderTargets)
-   {
-      GFX->setCurrentRenderStyle(GFXDevice::RS_StereoRenderTargets);
-      // TODO
    }
    else
    {

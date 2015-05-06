@@ -195,6 +195,8 @@ public:
    virtual void setCurrentConnection(GameConnection *connection) { mConnection = connection; }
    virtual GameConnection* getCurrentConnection() { return mConnection; }
 
+   String dumpMetrics();
+
    // Stereo RT
    GFXTexHandle mStereoTexture;
    GFXTexHandle mStereoDepthTexture;

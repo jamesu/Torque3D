@@ -64,7 +64,11 @@ public:
    // should be buffered.
    static bool smGenerateWholeFrameEvents;
 
+   /// Determines desired pixel density for render target
    static F32 smDesiredPixelDensity;
+
+   /// Determined if the window is moved to the oculus display
+   static bool smWindowDebug;
 
 protected:
 
@@ -136,6 +140,8 @@ public:
 
    bool isDiplayingWarning();
    void dismissWarning();
+
+   String dumpMetrics(U32 idx);
 
 
    void setDrawCanvas(GuiCanvas *canvas);

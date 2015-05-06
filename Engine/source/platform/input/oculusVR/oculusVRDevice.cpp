@@ -79,6 +79,8 @@ bool OculusVRDevice::smGenerateWholeFrameEvents = false;
 
 F32 OculusVRDevice::smDesiredPixelDensity = 1.0f;
 
+bool OculusVRDevice::smWindowDebug = false;
+
 OculusVRDevice::OculusVRDevice()
 {
    // From IInputDevice
@@ -132,8 +134,12 @@ void OculusVRDevice::staticInit()
       "@brief Indicates that a whole frame event should be generated and frames should be buffered.\n\n"
 	   "@ingroup Game");
 
-   Con::addVariable("OcuulusVR::desiredPixelDensity", TypeF32, &smDesiredPixelDensity,
+   Con::addVariable("OculusVR::desiredPixelDensity", TypeF32, &smDesiredPixelDensity,
       "@brief Specifies the desired pixel density of the render target. \n\n"
+      "@ingroup Game");
+
+   Con::addVariable("OculusVR::windowDebug", TypeBool, &smWindowDebug, 
+      "@brief Specifies if the window should stay on the main display for debugging. \n\n"
       "@ingroup Game");
 }
 
@@ -506,6 +512,11 @@ void OculusVRDevice::dismissWarning()
    {
       mHMDDevices[i]->dismissWarning();
    }
+}
+
+String OculusVRDevice::dumpMetrics(U32 idx)
+{
+   return mHMDDevices[idx]->dumpMetrics();
 }
 
 void OculusVRDevice::setDrawCanvas(GuiCanvas *canvas)
@@ -955,6 +966,18 @@ DefineEngineFunction(ovrDismissWarnings, void, (),,
    }
 
    OCULUSVRDEV->dismissWarning();
+}
+
+DefineEngineFunction(ovrDumpMetrics, String, (S32 idx),(0),
+   "@brief dumps sensor metrics.\n\n"
+   "@ingroup Game")
+{
+   if(!ManagedSingleton<OculusVRDevice>::instanceOrNull())
+   {
+      return "";
+   }
+
+   return OCULUSVRDEV->dumpMetrics(idx);
 }
 
 bool OculusVRDevice::_handleDeviceEvent( GFXDevice::GFXDeviceEventType evt )

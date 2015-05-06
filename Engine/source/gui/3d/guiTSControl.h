@@ -63,8 +63,7 @@ class GuiTSCtrl : public GuiContainer
 public:
    enum RenderStyles {
       RenderStyleStandard           = 0,
-      RenderStyleStereoSideBySide   = (1<<0),
-      RenderStyleStereoRenderTargets = (1<<1)
+      RenderStyleStereoSideBySide   = (1<<0)
    };
 
 protected:
