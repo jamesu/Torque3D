@@ -81,6 +81,8 @@ F32 OculusVRDevice::smDesiredPixelDensity = 1.0f;
 
 bool OculusVRDevice::smWindowDebug = false;
 
+F32 OculusVRDevice::smPositionTrackingScale = 1.0f;
+
 OculusVRDevice::OculusVRDevice()
 {
    // From IInputDevice

@@ -20,6 +20,7 @@
 // IN THE SOFTWARE.
 //-----------------------------------------------------------------------------
 
+#include "platform/input/oculusVR/oculusVRDevice.h"
 #include "platform/input/oculusVR/oculusVRSensorData.h"
 #include "platform/input/oculusVR/oculusVRUtil.h"
 #include "console/console.h"
@@ -43,6 +44,7 @@ void OculusVRSensorData::setData(ovrTrackingState& data, const F32& maxAxisRadiu
    OVR::Vector3f position = data.HeadPose.ThePose.Position;
 
    mPosition = Point3F(-position.z, position.x, position.y);
+   mPosition *= OculusVRDevice::smPositionTrackingScale;
 
    OVR::Matrix4f orientMat(orientation);
    OculusVRUtil::convertRotation(orientMat.M, mRot);

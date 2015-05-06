@@ -70,6 +70,8 @@ public:
    /// Determined if the window is moved to the oculus display
    static bool smWindowDebug;
 
+   static F32 smPositionTrackingScale;
+
 protected:
 
    // Discovered HMD devices

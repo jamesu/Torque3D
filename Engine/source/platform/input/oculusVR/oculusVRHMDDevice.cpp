@@ -499,6 +499,13 @@ void OculusVRHMDDevice::onStartFrame()
    ovrVector3f hmdToEyeViewOffset[2] = { mEyeRenderDesc[0].HmdToEyeViewOffset, mEyeRenderDesc[1].HmdToEyeViewOffset };
    ovrHmd_GetEyePoses(mDevice, 0, hmdToEyeViewOffset, mCurrentEyePoses, &mLastTrackingState);
 
+   for (U32 i=0; i<2; i++)
+   {
+      mCurrentEyePoses[i].Position.x *= OculusVRDevice::smPositionTrackingScale;
+      mCurrentEyePoses[i].Position.y *= OculusVRDevice::smPositionTrackingScale;
+      mCurrentEyePoses[i].Position.z *= OculusVRDevice::smPositionTrackingScale;
+   }
+
    sInFrame = false;
    mFrameReady = true;
 }
