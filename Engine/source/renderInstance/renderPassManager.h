@@ -377,6 +377,11 @@ struct MeshRenderInst : public RenderInst
    U32 mNodeTransformCount;
    /// }
 
+#ifdef TORQUE_ENABLE_GFXDEBUGEVENTS
+   const char *meshName;
+   const char *objectName;
+#endif
+
    void clear();
 };
 

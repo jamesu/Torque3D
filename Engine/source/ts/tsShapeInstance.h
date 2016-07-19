@@ -126,7 +126,7 @@ class TSShapeInstance
      /// @{
 
      /// Render!  This draws the base-textured object.
-      virtual void render( S32 objectDetail, TSMaterialList *, TSRenderState &rdata, F32 alpha );      
+      virtual void render( S32 objectDetail, TSMaterialList *, TSRenderState &rdata, F32 alpha, const char *meshName );      
      /// @}
 
      /// @name Collision Routines
@@ -170,7 +170,7 @@ class TSShapeInstance
       MeshObjectInstance();
       virtual ~MeshObjectInstance() {}
 
-      void render( S32 objectDetail, TSMaterialList *, TSRenderState &rdata, F32 alpha );
+      void render( S32 objectDetail, TSMaterialList *, TSRenderState &rdata, F32 alpha, const char *meshName );
 
       /// Gets the mesh with specified detail level
       TSMesh * getMesh(S32 num) const { return num<object->numMeshes ? *(meshList+num) : NULL; }

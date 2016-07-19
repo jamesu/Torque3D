@@ -615,7 +615,7 @@ void GFXGLDevice::drawIndexedPrimitive(   GFXPrimitiveType primType,
 
    preDrawPrimitive();
 
-   U16* buf = (U16*)static_cast<GFXGLPrimitiveBuffer*>(mCurrentPrimitiveBuffer.getPointer())->getBuffer() + startIndex + mCurrentPrimitiveBuffer->mIndexOffset;
+   U16* buf = (U16*)static_cast<GFXGLPrimitiveBuffer*>(mCurrentPrimitiveBuffer.getPointer())->getBuffer() + startIndex + mCurrentPrimitiveBuffer->mVolatileStart;
 
    const U32 baseVertex = mCurrentVB[0]->mBufferVertexOffset;
 

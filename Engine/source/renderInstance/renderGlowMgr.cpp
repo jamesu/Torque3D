@@ -246,9 +246,9 @@ void RenderGlowMgr::render( SceneRenderState *state )
             glowMat->setTransforms(matrixSet, state);
 
             // Setup HW skinning transforms if applicable
-            if (mat->usesHardwareSkinning() && passRI->mNodeTransforms)
+            if (glowMat->usesHardwareSkinning())
             {
-               mat->setNodeTransforms(passRI->mNodeTransforms, passRI->mNodeTransformCount);
+               glowMat->setNodeTransforms(passRI->mNodeTransforms, passRI->mNodeTransformCount);
             }
 
             glowMat->setSceneInfo(state, sgData);

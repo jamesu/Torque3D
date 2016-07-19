@@ -42,7 +42,7 @@ extern TSShape* loadColladaShape(const Torque::Path &path);
 #endif
 
 /// most recent version -- this is the version we write
-S32 TSShape::smVersion = 26;
+S32 TSShape::smVersion = 27;
 /// the version currently being read...valid only during a read
 S32 TSShape::smReadVersion = -1;
 const U32 TSShape::smMostRecentExporterVersion = DTS_EXPORTER_CURRENT_VERSION;
@@ -70,6 +70,7 @@ TSShape::TSShape()
    mSequencesConstructed = false;
    mShapeData = NULL;
    mShapeDataSize = 0;
+   mShapeIsDirty = true;
 
    mUseDetailFromScreenError = false;
 
@@ -547,114 +548,311 @@ void TSShape::init()
          detailCollisionAccelerators[dca] = NULL;
    }
 
+   // Assign mesh parents & format
+   for (Vector<TSMesh*>::iterator iter = meshes.begin(); iter != meshes.end(); iter++)
+   {
+      TSMesh *mesh = *iter;
+      if (!mesh)
+         continue;
+
+      if (mesh->parentMesh >= 0)
+      {
+         mesh->parentMeshObject = meshes[mesh->parentMesh];
+      }
+      else
+      {
+         mesh->parentMeshObject = NULL;
+      }
+
+      mesh->mVertexFormat = &mVertexFormat;
+   }
+
    initVertexFeatures();
    initMaterialList();
+}
+
+void TSShape::initVertexBuffers()
+{
+   // Assumes mVertexData is valid
+   if (!mShapeVertexData.vertexDataReady)
+   {
+      AssertFatal(false, "WTF");
+   }
+
+   if (mShapeVertexBuffer.isValid())
+      return;
+
+   U32 destIndices = 0;
+   U32 destPrims = 0;
+
+   for (Vector<TSMesh*>::iterator iter = meshes.begin(); iter != meshes.end(); iter++)
+   {
+      TSMesh *mesh = *iter;
+      if (!mesh ||
+         (mesh->getMeshType() != TSMesh::StandardMeshType &&
+            mesh->getMeshType() != TSMesh::SkinMeshType))
+         continue;
+
+      destIndices += mesh->indices.size();
+      destPrims += mesh->primitives.size();
+   }
+
+   mShapeVertexBuffer.set(GFX, mVertexSize, &mVertexFormat, mShapeVertexData.size / mVertexSize, GFXBufferTypeStatic);
+
+   U8 *vertexData = mShapeVertexData.base;
+   U8 *vertPtr = mShapeVertexBuffer.lock();
+   dMemcpy(vertPtr, mShapeVertexData.base, mShapeVertexData.size);
+   mShapeVertexBuffer.unlock();
+
+   // Also the IBO
+   mShapeVertexIndices.set(GFX, destIndices, destPrims, GFXBufferTypeStatic);
+   U16 *indicesStart = NULL;
+   mShapeVertexIndices.lock(&indicesStart, NULL);
+   U16 *ibIndices = indicesStart;
+   GFXPrimitive *piInput = mShapeVertexIndices->mPrimitiveArray;
+   U32 vertStart = 0;
+   U32 primStart = 0;
+   U32 indStart = 0;
+
+   // Create VBO
+   for (Vector<TSMesh*>::iterator iter = meshes.begin(); iter != meshes.end(); iter++)
+   {
+      TSMesh *mesh = *iter;
+      if (!mesh ||
+         (mesh->getMeshType() != TSMesh::StandardMeshType &&
+            mesh->getMeshType() != TSMesh::SkinMeshType))
+         continue;
+
+      // Make the offset vbo
+      mesh->mVertBufferOffset = vertStart;
+      mesh->mPrimBufferOffset = primStart;
+
+      // Dump primitives to locked buffer
+      mesh->dumpPrimitives(vertStart, indStart, piInput, ibIndices);
+
+      vertStart += mesh->mNumVerts;
+      primStart += mesh->primitives.size();
+      indStart += mesh->indices.size();
+
+      mesh->mVB = mShapeVertexBuffer;
+      mesh->mPB = mShapeVertexIndices;
+
+      // Advance
+      piInput += mesh->primitives.size();
+      ibIndices += mesh->indices.size();
+
+      // Clear verts list and such
+      mesh->clearEditable();
+
+      if (TSSkinMesh::smDebugSkinVerts && mesh->getMeshType() == TSMesh::SkinMeshType)
+      {
+         static_cast<TSSkinMesh*>(mesh)->printVerts();
+      }
+   }
+
+   // Verify prims
+
+   U32 vertsInBuffer = mShapeVertexData.size / mVertexSize;
+   U32 primsInBuffer = piInput - mShapeVertexIndices->mPrimitiveArray;
+   U32 indsInBuffer = ibIndices - indicesStart;
+
+   for (U32 i = 0; i < primStart; i++)
+   {
+      GFXPrimitive &prim = mShapeVertexIndices->mPrimitiveArray[i];
+
+      if (prim.type != GFXTriangleList && prim.type != GFXTriangleStrip)
+      {
+         AssertFatal(false, "Unexpected triangle list");
+      }
+
+      if (prim.type == GFXTriangleStrip)
+         continue;
+
+      AssertFatal(prim.startVertex < vertsInBuffer, "wrong start vertex");
+      AssertFatal((prim.startVertex + prim.numVertices) <= vertsInBuffer, "too many verts");
+      AssertFatal(prim.startIndex + (prim.numPrimitives * 3) <= indsInBuffer, "too many inds");
+
+      for (U32 i = prim.startIndex; i < prim.startIndex + (prim.numPrimitives * 3); i++)
+      {
+         if (indicesStart[i] >= vertsInBuffer)
+         {
+            AssertFatal(false, "vert not in buffer");
+         }
+         U16 idx = indicesStart[i];
+         if (idx < prim.minIndex)
+         {
+            AssertFatal(false, "index out of minIndex range");
+         }
+      }
+   }
+
+   mShapeVertexIndices.unlock();
 }
 
 void TSShape::initVertexFeatures()
 {
    bool hasColors = false;
    bool hasTexcoord2 = false;
-   U32 maxBonesPerVert = 0;
+   bool hasSkin = false;
+   U32 vertStart = 0;
+   U32 primStart = 0;
+   U32 indStart = 0;
 
-   Vector<TSMesh*>::iterator iter = meshes.begin();
-   for ( ; iter != meshes.end(); iter++ )
+   if (!mShapeIsDirty)
    {
-      TSMesh *mesh = *iter;
-      if (  mesh &&
-            (  mesh->getMeshType() == TSMesh::StandardMeshType ||
-               mesh->getMeshType() == TSMesh::SkinMeshType ) )
-      {
-         if ( mesh->mVertexData.isReady() )
-         {
-            hasColors |= mesh->mHasColor;
-            hasTexcoord2 |= mesh->mHasTVert2;
-         }
-         else
-         {
-            hasColors |= !mesh->colors.empty();
-            hasTexcoord2 |= !mesh->tverts2.empty();
-         }
+      // Init format from basic format
+      mVertexFormat.clear();
+      mBasicVertexFormat.getFormat(mVertexFormat);
+      mVertexSize = mVertexFormat.getSizeInBytes();
 
-         if (smUseHardwareSkinning && mesh->getMeshType() == TSMesh::SkinMeshType)
+      for (Vector<TSMesh*>::iterator iter = meshes.begin(); iter != meshes.end(); iter++)
+      {
+         TSMesh *mesh = *iter;
+         if (mesh &&
+            (mesh->getMeshType() == TSMesh::StandardMeshType ||
+               mesh->getMeshType() == TSMesh::SkinMeshType))
          {
-            // Setup the node index list now so we know how many bones we're using for the vertex format
-            static_cast<TSSkinMesh*>(mesh)->createBatchData();
-            U32 maxBones = static_cast<TSSkinMesh*>(mesh)->getMaxBonesPerVert();
-            maxBonesPerVert = maxBones > maxBonesPerVert ? maxBones : maxBonesPerVert;
+            if (mesh->getMeshType() == TSMesh::SkinMeshType)
+            {
+               static_cast<TSSkinMesh*>(mesh)->createBatchData(); // TODO: remove the need for this
+            }
+
+            mesh->mVertSize = mVertexFormat.getSizeInBytes();
+
+            // Set buffer
+            if (mesh->mVertSize > 0 && !mesh->mIsEditable && !mesh->mVertexData.isReady())
+            {
+               U32 boneOffset = 0;
+               U32 colorOffset = 0;
+
+               if (mBasicVertexFormat.boneOffset >= 0)
+               {
+                  boneOffset = mBasicVertexFormat.boneOffset;
+               }
+
+               if (mBasicVertexFormat.colorOffset >= 0)
+               {
+                  colorOffset = mBasicVertexFormat.colorOffset;
+               }
+
+               // Initialize the vertex data
+               mesh->mVertexData.set(mShapeVertexData.base + mesh->mVertOffset, mesh->mVertSize, mesh->mNumVerts, colorOffset, boneOffset, false);
+               mesh->mVertexData.setReady(true);
+            }
          }
       }
+
+      // Make sure VBO is init'd
+      initVertexBuffers();
+      return;
    }
 
-   mVertexFormat.clear();
-  
-   // __TSMeshVertexBase
-   mVertexFormat.addElement( GFXSemantic::POSITION, GFXDeclType_Float3 );
-   mVertexFormat.addElement( GFXSemantic::TANGENTW, GFXDeclType_Float, 3 );
-   mVertexFormat.addElement( GFXSemantic::NORMAL, GFXDeclType_Float3 );
-   mVertexFormat.addElement( GFXSemantic::TANGENT, GFXDeclType_Float3 );
-   mVertexFormat.addElement( GFXSemantic::TEXCOORD, GFXDeclType_Float2, 0 );
+   // Cleanout VBO
+   mShapeVertexBuffer = NULL;
 
-   // __TSMeshVertex_3xUVColor
-   if(hasTexcoord2 || hasColors)
+   // Make sure mesh has verts stored in mesh data, we're recreating the buffer
+   if (mShapeIsDirty)
    {
-       mVertexFormat.addElement( GFXSemantic::TEXCOORD, GFXDeclType_Float2, 1 );
-       mVertexFormat.addElement( GFXSemantic::COLOR, GFXDeclType_Color );
-   }
-   
-   // __TSMeshVertex_BoneData * maxBonesPerVert
-   U32 idx = 0;
-   for (U32 i=0; i<maxBonesPerVert; i += 4, idx++)
-   {
-      mVertexFormat.addElement( GFXSemantic::BLENDINDICES, GFXDeclType_UByte4, idx );
-      mVertexFormat.addElement( GFXSemantic::BLENDWEIGHT, GFXDeclType_Float4, idx );
-   }
+      TSBasicVertexFormat basicFormat;
+      mBasicVertexFormat = basicFormat;
 
-   // Make sure data is padded for SSE2
-   mVertSize = mVertexFormat.getSizeInBytes();
-
-   if (mVertSize % 16 != 0)
-   {
-      U32 idx = 0;
-      S32 paddedSize = ( mVertSize + ( 16 - 1 ) ) & (~( 16 - 1 ));
-
-      paddedSize -= mVertSize;
-      while (paddedSize > 0)
+      for (Vector<TSMesh*>::iterator iter = meshes.begin(); iter != meshes.end(); iter++)
       {
-         mVertexFormat.addElement( GFXSemantic::PADDING, GFXDeclType_Float, idx++ );
-         paddedSize -= 4;
+         TSMesh *mesh = *iter;
+         if (mesh &&
+            (mesh->getMeshType() == TSMesh::StandardMeshType ||
+               mesh->getMeshType() == TSMesh::SkinMeshType))
+         {
+            if (mesh->getMeshType() == TSMesh::SkinMeshType)
+            {
+               static_cast<TSSkinMesh*>(mesh)->createBatchData(); // TODO: remove the need for this
+            }
+
+            (*iter)->makeEditable(true);
+            mBasicVertexFormat.addMeshRequirements(mesh);
+         }
       }
+
+      mVertexFormat.clear();
+      mBasicVertexFormat.getFormat(mVertexFormat);
+      mVertexSize = mVertexFormat.getSizeInBytes();
    }
 
-   // Make sure data is padded for SSE2
-   mVertSize = mVertexFormat.getSizeInBytes();
+   U32 destVertex = 0;
+   U32 destIndices = 0;
 
    // Go fix up meshes to include defaults for optional features
    // and initialize them if they're not a skin mesh.
-   iter = meshes.begin();
-   for ( ; iter != meshes.end(); iter++ )
+   U32 count = 0;
+   for (Vector<TSMesh*>::iterator iter = meshes.begin(); iter != meshes.end(); iter++)
    {
       TSMesh *mesh = *iter;
-      if (  !mesh ||
-            (  mesh->getMeshType() != TSMesh::StandardMeshType &&
-               mesh->getMeshType() != TSMesh::SkinMeshType ) )
+      if (!mesh ||
+         (mesh->getMeshType() != TSMesh::StandardMeshType &&
+            mesh->getMeshType() != TSMesh::SkinMeshType))
          continue;
 
-      // Set the flags.
-      mesh->mVertexFormat = &mVertexFormat;
-      mesh->mVertSize = mVertSize;
+      mesh->mVertSize = mVertexFormat.getSizeInBytes();
 
-      // Create and fill aligned data structure
-      mesh->convertToAlignedMeshData();
+      // Make sure destVertex and destIndices is aligned
 
-      if (mesh->getMeshType() == TSMesh::SkinMeshType)
-      {
-         static_cast<TSSkinMesh*>(mesh)->setupVertexTransforms();
-      }
+      //AssertFatal(mesh->getNumVerts() != 0, "no verts");
 
-      // Init the vertex buffer.
-      mesh->createVBIB();
+      destVertex += mesh->mVertSize * mesh->getNumVerts();
+      destIndices += mesh->indices.size();
+
+      // Make sure next size is aligned
+      destVertex = (destVertex + (16 - 1)) & (~(16 - 1));
+
+      count += 1;
    }
+
+   // Don't set up if we have no meshes
+   if (count == 0)
+   {
+      mShapeVertexData.set(NULL, 0);
+      mShapeVertexData.vertexDataReady = false;
+      return;
+   }
+
+   // Now we can create the VBO
+   U8 *vertexData = (U8*)dMalloc_aligned(destVertex, 16);
+   U8 *vertexDataPtr = vertexData;
+   mShapeVertexData.set(vertexData, destVertex);
+
+   // Create VBO
+   count = 0;
+   for (Vector<TSMesh*>::iterator iter = meshes.begin(); iter != meshes.end(); iter++)
+   {
+      TSMesh *mesh = *iter;
+      U32 idx = iter - meshes.begin();
+
+      if (!mesh ||
+         (mesh->getMeshType() != TSMesh::StandardMeshType &&
+            mesh->getMeshType() != TSMesh::SkinMeshType))
+         continue;
+
+      // Dump everything
+      mesh->mVertexData.setReady(false);
+      mesh->convertToAlignedMeshData(vertexDataPtr);
+      mesh->mVertOffset = vertexDataPtr - vertexData;
+
+      // Advance
+      count += 1;
+      vertexDataPtr += mesh->mVertSize * mesh->mNumVerts;
+
+      U32 alignOffset = vertexDataPtr - vertexData;
+      alignOffset = (alignOffset + (16 - 1)) & (~(16 - 1)); // align
+      vertexDataPtr = vertexData + alignOffset;
+
+      // Clear verts list and such
+      mesh->clearEditable();
+   }
+
+   mShapeIsDirty = false;
+   mShapeVertexData.vertexDataReady = true;
+
+   initVertexBuffers();
 }
 
 void TSShape::setupBillboardDetails( const String &cachePath )
@@ -1159,6 +1357,43 @@ void TSShape::assembleShape()
 
    tsalloc.checkGuard();
 
+   if (TSShape::smReadVersion >= 27)
+   {
+      // Vertex format is set here
+      S8 *vboData = NULL;
+      S32 vboSize = 0;
+
+      mBasicVertexFormat.readAlloc(&tsalloc);
+      mVertexFormat.clear();
+      mBasicVertexFormat.getFormat(mVertexFormat);
+      mVertexSize = mVertexFormat.getSizeInBytes();
+
+      vboSize = tsalloc.get32();
+      vboData = tsalloc.getPointer8(vboSize);
+
+      mShapeIsDirty = vboSize == 0;
+
+      if (tsalloc.getBuffer() && vboSize > 0)
+      {
+         U8 *vertexData = (U8*)dMalloc_aligned(vboSize, 16);
+         U8 *vertexDataPtr = vertexData;
+         dMemcpy(vertexData, vboData, vboSize);
+         mShapeVertexData.set(vertexData, vboSize);
+         mShapeVertexData.vertexDataReady = true;
+         mShapeIsDirty = false;
+      }
+      else
+      {
+         mShapeVertexData.set(NULL, 0);
+         mShapeIsDirty = true;
+      }
+   }
+   else
+   {
+      mShapeVertexData.set(NULL, 0);
+      mShapeIsDirty = true;
+   }
+
    // about to read in the meshes...first must allocate some scratch space
    S32 scratchSize = getMax(numSkins,numMeshes);
    TSMesh::smVertsList.setSize(scratchSize);
@@ -1441,6 +1676,19 @@ void TSShape::disassembleShape()
          tsalloc.copyToBuffer32( (S32*)&details[i], legacyDetailSize32 );
    }
    tsalloc.setGuard();
+
+   if (TSShape::smVersion >= 27)
+   {
+      // Vertex format now included with mesh data. Note this doesn't include index data which
+      // is constructed directly in the buffer from the meshes
+      S8 *vboData = NULL;
+      S32 vboSize = 0;
+
+      mBasicVertexFormat.writeAlloc(&tsalloc);
+
+      tsalloc.set32(mShapeVertexData.size);
+      tsalloc.copyToBuffer8((S8*)mShapeVertexData.base, mShapeVertexData.size);
+   }
 
    // read in the meshes (sans skins)...
    bool * isMesh = new bool[numMeshes]; // funny business because decals are pretend meshes (legacy issue)

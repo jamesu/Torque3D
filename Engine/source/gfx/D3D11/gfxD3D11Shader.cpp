@@ -150,9 +150,11 @@ bool GFXD3D11ConstBufferLayout::set(const ParamDesc& pd, const GFXShaderConstTyp
       (
       (pd.constType == GFXSCT_Float2x2 ||
       pd.constType == GFXSCT_Float3x3 ||
+      pd.constType == GFXSCT_Float4x3 ||
       pd.constType == GFXSCT_Float4x4) &&
       (constType == GFXSCT_Float2x2 ||
       constType == GFXSCT_Float3x3 ||
+      constType == GFXSCT_Float4x3 ||
       constType == GFXSCT_Float4x4)
       ), "Mismatched const type!");
 
@@ -161,6 +163,7 @@ bool GFXD3D11ConstBufferLayout::set(const ParamDesc& pd, const GFXShaderConstTyp
    {
    case GFXSCT_Float2x2:
    case GFXSCT_Float3x3:
+   case GFXSCT_Float4x3:
    case GFXSCT_Float4x4:
       return setMatrix(pd, constType, size, data, basePointer);
       break;
@@ -214,6 +217,9 @@ bool GFXD3D11ConstBufferLayout::setMatrix(const ParamDesc& pd, const GFXShaderCo
          break;
       case GFXSCT_Float3x3 : 
          csize = 44; //This takes up 16+16+12
+         break;
+      case GFXSCT_Float4x3:
+         csize = 48;
          break;
       default:
          AssertFatal(false, "Unhandled case!");
@@ -1191,19 +1197,13 @@ bool GFXD3D11Shader::_convertShaderVariable(const D3D11_SHADER_TYPE_DESC &typeDe
       case D3D_SVC_MATRIX_ROWS:
       case D3D_SVC_MATRIX_COLUMNS:
       {
-         switch (typeDesc.Columns)
+         switch (typeDesc.Rows)
          {
          case 3:
-            if (typeDesc.Rows == 3)
-            {
-               desc.constType = GFXSCT_Float3x3;
-            }
+            desc.constType = typeDesc.Columns == 4 ? GFXSCT_Float3x4 : GFXSCT_Float3x3;
             break;
          case 4:
-            if (typeDesc.Rows == 4)
-            {
-               desc.constType = GFXSCT_Float4x4;
-            }
+            desc.constType = typeDesc.Columns == 3 ? GFXSCT_Float4x3 : GFXSCT_Float4x4;
             break;
          }
       }
@@ -1512,6 +1512,9 @@ U32 GFXD3D11Shader::getAlignmentValue(const GFXShaderConstType constType) const
          return mRowSizeF * 2;
          break;
       case GFXSCT_Float3x3 : 
+         return mRowSizeF * 3;
+         break;
+      case GFXSCT_Float4x3:
          return mRowSizeF * 3;
          break;
       case GFXSCT_Float4x4 :

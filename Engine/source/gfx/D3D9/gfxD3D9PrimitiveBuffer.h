@@ -65,8 +65,6 @@ class GFXD3D9PrimitiveBuffer : public GFXPrimitiveBuffer
       // GFXResource interface
       virtual void zombify();
       virtual void resurrect();
-
-      GFXPrimitiveBuffer* createOffsettedBuffer(U32 primitiveCount, U32 indexCount, U32 indexOffset);
 };
 
 inline GFXD3D9PrimitiveBuffer::GFXD3D9PrimitiveBuffer(   GFXDevice *device, 

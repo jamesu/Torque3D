@@ -183,27 +183,6 @@ void GFXGLVertexBuffer::resurrect()
    mZombieCache = NULL;
 }
 
-GFXVertexBuffer* GFXGLVertexBuffer::createOffsettedBuffer(const GFXVertexFormat *vertexFormat, U32 numVerts, U32 offset)
-{
-   AssertFatal(mBufferType < GFXBufferTypeVolatile, "Invalid buffer type for sub buffer");
-   
-   GFXGLVertexBuffer *buffer = new GFXGLVertexBuffer(mDevice,
-                                                     numVerts,
-                                                     vertexFormat,
-                                                     vertexFormat->getSizeInBytes(),
-                                                     GFXBufferTypeSubBuffer);
-   
-   buffer->registerResourceWithDevice(mDevice);
-   buffer->resurrect();
-   
-   buffer->mVertexOffset = offset;
-   buffer->mStorage = mStorage;
-   
-   AssertFatal(!mStorage.isNull(), "No storage");
-   
-   return buffer;
-}
-
 namespace
 {   
    bool onGFXDeviceSignal( GFXDevice::GFXDeviceEventType type )

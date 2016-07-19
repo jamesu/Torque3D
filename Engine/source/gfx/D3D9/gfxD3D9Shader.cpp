@@ -210,6 +210,10 @@ bool GFXD3D9ShaderBufferLayout::setMatrix(const ParamDesc& pd, const GFXShaderCo
             dMemcpy(currDestPointer, currSourcePointer, csize);            
             ret = true;
          }
+         else if (pd.constType == GFXSCT_Float4x3)
+         {
+            ret = true;
+         }
 
          currDestPointer += csize;
          currSourcePointer += sizeof(MatrixF);

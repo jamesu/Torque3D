@@ -535,8 +535,8 @@ void TSShapeInstance::render( const TSRenderState &rdata, S32 dl, F32 intraDL )
    {
       TSRenderState objState = rdata;
       // following line is handy for debugging, to see what part of the shape that it is rendering
-      // const char *name = mShape->names[ mMeshObjects[i].object->nameIndex ];
-      mMeshObjects[i].render( od, mMaterialList, objState, mAlphaAlways ? mAlphaAlwaysValue : 1.0f );
+      const char *name = mShape->names[ mMeshObjects[i].object->nameIndex ];
+      mMeshObjects[i].render( od, mMaterialList, objState, mAlphaAlways ? mAlphaAlwaysValue : 1.0f, name );
    }
 }
 
@@ -713,7 +713,7 @@ S32 TSShapeInstance::setDetailFromScreenError( F32 errorTolerance )
 // Object (MeshObjectInstance & PluginObjectInstance) render methods
 //-------------------------------------------------------------------------------------
 
-void TSShapeInstance::ObjectInstance::render( S32, TSMaterialList *, TSRenderState &rdata, F32 alpha )
+void TSShapeInstance::ObjectInstance::render( S32, TSMaterialList *, TSRenderState &rdata, F32 alpha, const char *meshName )
 {
    AssertFatal(0,"TSShapeInstance::ObjectInstance::render:  no default render method.");
 }
@@ -721,7 +721,8 @@ void TSShapeInstance::ObjectInstance::render( S32, TSMaterialList *, TSRenderSta
 void TSShapeInstance::MeshObjectInstance::render(  S32 objectDetail, 
                                                    TSMaterialList *materials, 
                                                    TSRenderState &rdata, 
-                                                   F32 alpha )
+                                                   F32 alpha,
+                                                   const char *meshName )
 {
    PROFILE_SCOPE( TSShapeInstance_MeshObjectInstance_render );
 
@@ -768,7 +769,7 @@ void TSShapeInstance::MeshObjectInstance::render(  S32 objectDetail,
                   isSkinDirty,
                   *mTransforms, 
                   mVertexBuffer,
-                  mPrimitiveBuffer );
+                  meshName );
 
    // Update the last render time.
    mLastTime = currTime;

@@ -598,7 +598,6 @@ void GFXD3D9Device::setVertexStream( U32 stream, GFXVertexBuffer *buffer )
    }
 
    U32 offset = d3dBuffer && stream != 0 ? d3dBuffer->mVolatileStart * d3dBuffer->mVertexSize : 0;
-   if (d3dBuffer) offset += d3dBuffer->mVertexOffset;
 
    // NOTE: We do not use the stream offset here for stream 0
    // as that feature is *supposedly* not as well supported as 
@@ -681,7 +680,7 @@ void GFXD3D9Device::drawIndexedPrimitive( GFXPrimitiveType primType,
       startVertex, 
       /* mCurrentPB->mVolatileStart + */ minIndex,
       numVerts, 
-      mCurrentPB->mVolatileStart + mCurrentPB->mIndexOffset + startIndex, 
+      mCurrentPB->mVolatileStart + startIndex, 
       primitiveCount ), "Failed to draw indexed primitive" );
 
    mDeviceStatistics.mDrawCalls++;

@@ -46,7 +46,6 @@ public: //protected:
    GFXDevice *mDevice;
 
    U32 mVolatileStart;
-   U32 mIndexOffset;
 
 #ifdef TORQUE_DEBUG
    // In debug builds we provide a TOC leak tracking system.
@@ -63,8 +62,7 @@ public: //protected:
                         U32 indexCount, 
                         U32 primitiveCount, 
                         GFXBufferType bufferType ) :
-   mVolatileStart(0),
-   mIndexOffset(0)
+   mVolatileStart(0)
    {
       mDevice = device;
       mIndexCount = indexCount;
@@ -128,8 +126,6 @@ public: //protected:
    // GFXResource interface
    /// The resource should put a description of itself (number of vertices, size/width of texture, etc.) in buffer
    virtual const String describeSelf() const; 
-   
-   virtual GFXPrimitiveBuffer* createOffsettedBuffer(U32 primitiveCount, U32 indexCount, U32 indexOffset) const { return NULL; }  
 };
 
 class GFXPrimitiveBufferHandle : public StrongRefPtr<GFXPrimitiveBuffer>

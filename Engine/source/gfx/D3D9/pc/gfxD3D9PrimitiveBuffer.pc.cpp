@@ -27,7 +27,6 @@
 void GFXD3D9PrimitiveBuffer::lock(U32 indexStart, U32 indexEnd, void **indexPtr)
 {
    AssertFatal(!mLocked, "GFXD3D9PrimitiveBuffer::lock - Can't lock a primitive buffer more than once!");
-   AssertFatal(mBufferType != GFXBufferTypeSubBuffer, "Cannot lock buffer of type GFXBufferTypeSubBuffer");
 
    mLocked = true;
    U32 flags=0;

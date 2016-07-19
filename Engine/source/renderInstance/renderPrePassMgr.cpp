@@ -431,7 +431,7 @@ void RenderPrePassMgr::render( SceneRenderState *state )
             mat->setTransforms(matrixSet, state);
 
             // Setup HW skinning transforms if applicable
-            if (mat->usesHardwareSkinning() && passRI->mNodeTransforms)
+            if (mat->usesHardwareSkinning())
             {
                mat->setNodeTransforms(passRI->mNodeTransforms, passRI->mNodeTransformCount);
             }

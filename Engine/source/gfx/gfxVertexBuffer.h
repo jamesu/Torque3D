@@ -58,9 +58,6 @@ public:
    U32   lockedVertexEnd;
    void* lockedVertexPtr;
    U32   mVolatileStart;
-   
-   /// Offset in storage
-   U32   mVertexOffset;
 
    GFXVertexBuffer(  GFXDevice *device, 
                      U32 numVerts, 
@@ -69,12 +66,9 @@ public:
                      GFXBufferType bufferType )
       :  mDevice( device ),
          mVolatileStart( 0 ),
-         mVertexOffset( 0 ),        
          mNumVerts( numVerts ),
          mVertexSize( vertexSize ),
-         mBufferType( bufferType ),
-         mDevice( device ),
-         mVolatileStart( 0 )
+         mBufferType( bufferType )
    {
       if ( vertexFormat )
       {
@@ -90,7 +84,7 @@ public:
    // GFXResource
    virtual const String describeSelf() const;
 
-   GFXVertexBuffer* createOffsettedBuffer(const GFXVertexFormat *vertexFormat, U32 numVerts, U32 offset) const;
+   virtual GFXVertexBuffer* createOffsettedBuffer(const GFXVertexFormat *vertexFormat, U32 numVerts, U32 offset) { return NULL; }
 };
 
 

@@ -50,8 +50,6 @@ enum GFXBufferType
                    ///< only used once.  They can be resized without any performance penalty.
 
       GFXBufferTypeImmutable, ///< Immutable buffers must specify the data when creating the buffer. Cannot be modified.
-   
-      GFXBufferTypeSubBuffer, ///< Static buffer offset in parent buffer
 
       GFXBufferType_COUNT ///< Number of buffer types.
 };

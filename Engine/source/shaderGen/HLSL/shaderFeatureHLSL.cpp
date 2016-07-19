@@ -3044,7 +3044,7 @@ void HardwareSkinningFeatureHLSL::processVert(   Vector<ShaderComponent*> &compo
    meta->addStatement( new GenOp( "   @ = 0.0;\r\n", new DecOp( posePos ) ) );  
    meta->addStatement( new GenOp( "   @ = 0.0;\r\n", new DecOp( poseNormal ) ) );
    meta->addStatement( new GenOp( "   @;\r\n", new DecOp( poseMat ) ) );
-   meta->addStatement( new GenOp( "   @;\r\n", new DecOp( poseRotMat ) ) );
+   meta->addStatement(new GenOp("   @;\r\n   int i;\r\n", new DecOp(poseRotMat)));
 
    for (U32 i=0; i<numIndices; i++)
    {
@@ -3055,11 +3055,11 @@ void HardwareSkinningFeatureHLSL::processVert(   Vector<ShaderComponent*> &compo
       AssertFatal(inIndices && inWeights, "Something went wrong here");
       AssertFatal(poseMat && nodeTransforms && posePos && inPosition && inWeights && poseNormal && inNormal && poseRotMat, "Something went REALLY wrong here");
       
-      meta->addStatement( new GenOp( "   for (int i=0; i<4; i++) {\r\n" ) );
+      meta->addStatement( new GenOp( "   for (i=0; i<4; i++) {\r\n" ) );
          meta->addStatement( new GenOp( "      int poseIdx = int(@[i]);\r\n", inIndices ) );
          meta->addStatement( new GenOp( "      float poseWeight = @[i];\r\n", inWeights) );
          meta->addStatement( new GenOp( "      @ = @[poseIdx];\r\n", poseMat, nodeTransforms) );
-         meta->addStatement( new GenOp( "      @ = @;\r\n", poseRotMat, poseMat) );
+         meta->addStatement( new GenOp( "      @ = (float3x3)@;\r\n", poseRotMat, poseMat) );
          meta->addStatement( new GenOp( "      @ += (mul(float4(@, 1), @)).xyz * poseWeight;\r\n", posePos, inPosition, poseMat) );
          meta->addStatement( new GenOp( "      @ += (mul(@,@) * poseWeight);\r\n", poseNormal, inNormal, poseRotMat) );
       meta->addStatement( new GenOp( "   }\r\n" ) );
@@ -3068,4 +3068,6 @@ void HardwareSkinningFeatureHLSL::processVert(   Vector<ShaderComponent*> &compo
    // Assign new position and normal
    meta->addStatement( new GenOp( "   @ = @;\r\n", inPosition, posePos ) );
    meta->addStatement( new GenOp( "   @ = normalize(@);\r\n", inNormal, poseNormal ) );
+
+   output = meta;
 }

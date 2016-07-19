@@ -96,6 +96,28 @@ typedef GFX360MemVertexBufferHandle<__NullVertexStruct> TSVertexBufferHandle;
 typedef GFXVertexBufferDataHandle TSVertexBufferHandle;
 #endif
 
+class TSMesh;
+class TSShapeAlloc;
+
+/// @name Vertex format serialization
+/// {
+struct TSBasicVertexFormat
+{
+   S16 texCoordOffset;
+   S16 boneOffset;
+   S16 colorOffset;
+   S16 numBones;
+
+   TSBasicVertexFormat();
+   TSBasicVertexFormat(TSMesh *mesh);
+   void getFormat(GFXVertexFormat &fmt);
+
+   void writeAlloc(TSShapeAlloc* alloc);
+   void readAlloc(TSShapeAlloc* alloc);
+
+   void addMeshRequirements(TSMesh *mesh);
+};
+/// }
 
 ///
 class TSMesh
@@ -110,17 +132,23 @@ class TSMesh
    Point3F mCenter;
    F32 mRadius;
    F32 mVisibility;
-   bool mDynamic;
 
+
+protected:
+   bool mIsEditable;
    const GFXVertexFormat *mVertexFormat;
 
+public:
+   U32 mVertOffset;
    U32 mVertSize;
 
-   TSVertexBufferHandle mVB;
-   GFXPrimitiveBufferHandle mPB;
+protected:
 
-   void _convertToAlignedMeshData( TSMeshVertexArray &vertexData, const Vector<Point3F> &_verts, const Vector<Point3F> &_norms );
-   void _createVBIB( TSVertexBufferHandle &vb, GFXPrimitiveBufferHandle &pb );
+   void _convertToAlignedMeshData(U8 *outVertPtr, const Vector<Point3F> &_verts, const Vector<Point3F> &_norms);
+   void _updateVBIB(TSVertexBufferHandle &vb);
+
+   void updateVertexBuffer(TSVertexBufferHandle &vb);
+   void updatePrimitiveBuffer(GFXPrimitiveBufferHandle &pb);
 
   public:
 
@@ -137,10 +165,13 @@ class TSMesh
       /// flags (stored with meshType)...
       Billboard = BIT(31), HasDetailTexture = BIT(30),
       BillboardZAxis = BIT(29), UseEncodedNormals = BIT(28),
-      FlagMask = Billboard|BillboardZAxis|HasDetailTexture|UseEncodedNormals
+      HasColor = BIT(27), HasTVert2 = BIT(26),
+      FlagMask = Billboard|BillboardZAxis|HasDetailTexture|UseEncodedNormals|HasColor|HasTVert2
    };
 
    U32 getMeshType() const { return meshType & TypeMask; }
+   U32 getHasColor() const { return meshType & HasColor; }
+   U32 getHasTVert2() const { return meshType & HasTVert2; }
    void setFlags(U32 flag) { meshType |= flag; }
    void clearFlags(U32 flag) { meshType &= ~flag; }
    U32 getFlags( U32 flag = 0xFFFFFFFF ) const { return meshType & flag; }
@@ -151,6 +182,14 @@ class TSMesh
    S32 numFrames;
    S32 numMatFrames;
    S32 vertsPerFrame;
+
+   TSMesh *parentMeshObject; ///< Current parent object instance
+
+   U32 mVertBufferOffset;
+   U32 mPrimBufferOffset;
+
+   GFXVertexBufferDataHandle mVB;
+   GFXPrimitiveBufferHandle mPB;
 
    /// @name Aligned Vertex Data 
    /// @{
@@ -182,16 +221,12 @@ class TSMesh
    {
       Point2F _tvert2;
       GFXVertexColor _color;
-      F32 _tvert3;  // Unused, but needed for alignment purposes
       
       const Point2F &tvert2() const { return _tvert2; }
       void tvert2(const Point2F& c) { _tvert2 = c; }
       
       const GFXVertexColor &color() const { return _color; }
       void color(const GFXVertexColor &c) { _color = c; }
-      
-      const F32 &tvert3() const { return _tvert3; }
-      void tvert3(const F32 c) { _tvert3 = c; }
    };
    
    struct __TSMeshIndex_List {
@@ -275,12 +310,9 @@ class TSMesh
       inline U32 getBoneOffset() const { return boneOffset; }
    };
 
-   bool mHasColor;
-   bool mHasTVert2;
-
    TSMeshVertexArray mVertexData;
-   dsize_t mNumVerts;
-   virtual void convertToAlignedMeshData();
+   U32 mNumVerts;
+   virtual void convertToAlignedMeshData(U8 *outVerts);
    /// @}
 
    /// @name Vertex data
@@ -331,16 +363,16 @@ class TSMesh
 
    /// This is used by sgShadowProjector to render the 
    /// mesh directly, skipping the render manager.
-   virtual void render( TSVertexBufferHandle &vb, GFXPrimitiveBufferHandle &pb );
+   virtual void render( TSVertexBufferHandle &vb );
    void innerRender( TSVertexBufferHandle &vb, GFXPrimitiveBufferHandle &pb );
    virtual void render( TSMaterialList *, 
                         const TSRenderState &data,
                         bool isSkinDirty,
                         const Vector<MatrixF> &transforms, 
                         TSVertexBufferHandle &vertexBuffer,
-                        GFXPrimitiveBufferHandle &primitiveBuffer );
+                        const char *meshName);
 
-   void innerRender( TSMaterialList *, const TSRenderState &data, TSVertexBufferHandle &vb, GFXPrimitiveBufferHandle &pb );
+   void innerRender( TSMaterialList *, const TSRenderState &data, TSVertexBufferHandle &vb, GFXPrimitiveBufferHandle &pb, const char *meshName );
 
    /// @}
 
@@ -378,12 +410,13 @@ class TSMesh
    static const Point3F& decodeNormal( U8 ncode ) { return smU8ToNormalTable[ncode]; }
    /// @}
 
+   virtual U32 getMaxBonesPerVert() { return 0; }
+
    /// persist methods...
    virtual void assemble( bool skip );
    static TSMesh* assembleMesh( U32 meshType, bool skip );
    virtual void disassemble();
 
-   void createVBIB();
    void createTangents(const Vector<Point3F> &_verts, const Vector<Point3F> &_norms);
    void findTangent( U32 index1, 
                      U32 index2, 
@@ -402,6 +435,8 @@ class TSMesh
    /// have less that this count of verts.
    static S32 smMaxInstancingVerts;
 
+   static MatrixF smDummyNodeTransform;
+
    /// convert primitives on load...
    void convertToTris(const TSDrawPrimitive *primitivesIn, const S32 *indicesIn,
                       S32 numPrimIn, S32 & numPrimOut, S32 & numIndicesOut,
@@ -415,6 +450,8 @@ class TSMesh
 
    /// Moves vertices from the vertex buffer back into the split vert lists
    void makeEditable(bool clearVertexData);
+
+   void clearEditable();
 
    /// methods used during assembly to share vertexand other info
    /// between meshes (and for skipping detail levels on load)
@@ -456,6 +493,9 @@ class TSMesh
    bool buildConvexOpcode( const MatrixF &mat, const Box3F &bounds, Convex *c, Convex *list );
    bool buildPolyListOpcode( const S32 od, AbstractPolyList *polyList, const Box3F &nodeBox, TSMaterialList *materials );
    bool castRayOpcode( const Point3F &start, const Point3F &end, RayInfo *rayInfo, TSMaterialList *materials );
+
+   void dumpPrimitives(U32 startVertex, U32 startIndex, GFXPrimitive *piArray, U16* ibIndices);
+   virtual U32 getNumVerts();
 
    static const F32 VISIBILITY_EPSILON; 
 };
@@ -555,9 +595,13 @@ public:
    void setupVertexTransforms();
 
    /// Returns maximum bones used per vertex
-   U32 getMaxBonesPerVert();
+   virtual U32 getMaxBonesPerVert();
 
-   virtual void convertToAlignedMeshData();
+   virtual void convertToAlignedMeshData(U8 *outVerts);
+
+   virtual U32 getNumVerts();
+
+   void printVerts();
 
 public:
    typedef TSMesh Parent;
@@ -572,19 +616,19 @@ public:
    Vector<S32> vertexIndex;
 
    /// set verts and normals...
-   void updateSkin( const Vector<MatrixF> &transforms, TSVertexBufferHandle &instanceVB, GFXPrimitiveBufferHandle &instancePB );
+   void updateSkin( const Vector<MatrixF> &transforms, TSVertexBufferHandle &instanceVB );
 
    /// update bone transforms for this mesh
    void updateSkinBones( const Vector<MatrixF> &transforms, Vector<MatrixF>& destTransforms );
 
    // render methods..
-   void render( TSVertexBufferHandle &instanceVB, GFXPrimitiveBufferHandle &instancePB );
+   void render( TSVertexBufferHandle &instanceVB );
    void render(   TSMaterialList *, 
                   const TSRenderState &data,
                   bool isSkinDirty,
                   const Vector<MatrixF> &transforms, 
                   TSVertexBufferHandle &vertexBuffer,
-                  GFXPrimitiveBufferHandle &primitiveBuffer );
+                  const char *meshName );
 
    // collision methods...
    bool buildPolyList( S32 frame, AbstractPolyList *polyList, U32 &surfaceKey, TSMaterialList *materials );
@@ -604,6 +648,8 @@ public:
    static Vector<S32*>     smBoneIndexList;
    static Vector<F32*>     smWeightList;
    static Vector<S32*>     smNodeIndexList;
+
+   static bool smDebugSkinVerts;
 
    TSSkinMesh();
 };

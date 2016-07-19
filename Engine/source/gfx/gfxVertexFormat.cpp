@@ -170,21 +170,20 @@ bool GFXVertexFormat::hasColor() const
    return mHasColor;
 }
 
-<<<<<<< HEAD
 bool GFXVertexFormat::hasInstancing() const
 {
    if (mDirty)
       const_cast<GFXVertexFormat*>(this)->_updateDirty();
 
    return mHasInstancing;
-=======
+}
+
 bool GFXVertexFormat::hasBlendIndices() const
 {
    if ( mDirty )
       const_cast<GFXVertexFormat*>(this)->_updateDirty();
    
    return mHasBlendIndices;
->>>>>>> 0291ff3... Add in basic support for specifying blend elements & padding in D3D9
 }
 
 U32 GFXVertexFormat::getNumBlendIndices() const

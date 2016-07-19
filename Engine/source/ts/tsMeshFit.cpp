@@ -327,8 +327,6 @@ TSMesh* MeshFit::createTriMesh( F32* verts, S32 numVerts, U32* indices, S32 numT
    mesh->numMatFrames = 1;
    mesh->vertsPerFrame = numVerts;
    mesh->setFlags(0);
-   mesh->mHasColor = false;
-   mesh->mHasTVert2 = false;
    mesh->mNumVerts = numVerts;
 
    mesh->indices.reserve( numTris * 3 );

@@ -50,6 +50,25 @@ struct CollisionShapeInfo
    PhysicsCollision *colShape;
 };
 
+/// Data storage helper for main shape buffer
+struct TSShapeVertexArray
+{
+   U8 *base;
+   U32 size;
+   bool vertexDataReady;
+
+   TSShapeVertexArray() : base(NULL), size(0), vertexDataReady(false) {}
+   virtual ~TSShapeVertexArray() { set(NULL, 0); }
+
+   virtual void set(void *b, U32 s, bool autoFree = true)
+   {
+      if (base && autoFree)
+         dFree_aligned(base);
+      base = reinterpret_cast<U8 *>(b);
+      size = s;
+   }
+};
+
 /// TSShape stores generic data for a 3space model.
 ///
 /// TSShape and TSShapeInstance act in conjunction to allow the rendering and
@@ -381,10 +400,8 @@ class TSShape
    /// The GFX vertex format for all detail meshes in the shape.
    /// @see initVertexFeatures()
    GFXVertexFormat mVertexFormat;
-
-   /// The GFX vertex size in bytes for all detail meshes in the shape.
-   /// @see initVertexFeatures()
-   U32 mVertSize;
+   TSBasicVertexFormat mBasicVertexFormat;
+   U32 mVertexSize;
 
    /// Is true if this shape contains skin meshes.
    bool mHasSkinMesh;
@@ -393,6 +410,15 @@ class TSShape
 
    S8* mShapeData;
    U32 mShapeDataSize;
+
+
+   // Processed vertex data
+   TSShapeVertexArray mShapeVertexData;
+   GFXVertexBufferDataHandle mShapeVertexBuffer;
+   GFXPrimitiveBufferHandle mShapeVertexIndices;
+
+   bool mShapeIsDirty; ///< Marks if the shape VBO needs to be regenerated
+
 
    // shape class has few methods --
    // just constructor/destructor, io, and lookup methods
@@ -405,6 +431,8 @@ class TSShape
    bool preloadMaterialList(const Torque::Path &path); ///< called to preload and validate the materials in the mat list
 
    void setupBillboardDetails( const String &cachePath );
+   
+   void initVertexBuffers();
 
    /// Called from init() to calcuate the GFX vertex features for
    /// all detail meshes in the shape.
@@ -525,8 +553,6 @@ class TSShape
    bool hasTranslucency() const { return (mFlags & HasTranslucency)!=0; }
 
    const GFXVertexFormat* getVertexFormat() const { return &mVertexFormat; }
-
-   U32 getVertexSize() const { return mVertSize; }
 
    /// @}
 

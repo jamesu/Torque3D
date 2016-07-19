@@ -48,7 +48,6 @@ void GFXD3D9VertexBuffer::lock(U32 vertexStart, U32 vertexEnd, void **vertexPtr)
    PROFILE_SCOPE(GFXD3D9VertexBuffer_lock);
 
    AssertFatal(lockedVertexStart == 0 && lockedVertexEnd == 0, "Cannot lock a buffer more than once!");
-   AssertFatal(mBufferType != GFXBufferTypeSubBuffer, "Cannot lock buffer of type GFXBufferTypeSubBuffer");
 
    U32 flags = 0;
 
@@ -228,25 +227,4 @@ void GFXD3D9VertexBuffer::resurrect()
          NULL ),
          "GFXD3D9VertexBuffer::resurrect - Failed to allocate VB" );
    }
-}
-
-GFXVertexBuffer* GFXD3D9VertexBuffer::createOffsettedBuffer(const GFXVertexFormat *vertexFormat, U32 numVerts, U32 offset)
-{
-   AssertFatal(mBufferType < GFXBufferTypeVolatile, "Sub buffer should be generated from a buffer of type GFXBufferTypeStatic");
-   
-   GFXD3D9VertexBuffer *buffer = new GFXD3D9VertexBuffer(mDevice,
-                                                         numVerts,
-                                                         vertexFormat,
-                                                         vertexFormat->getSizeInBytes(),
-                                                         GFXBufferTypeSubBuffer);
-   
-   buffer->registerResourceWithDevice(mDevice);
-   buffer->resurrect();
-   
-   buffer->mVertexOffset = offset;
-   buffer->vb = vb;
-   
-   AssertFatal(vb != NULL, "No buffer");
-   
-   return buffer;
 }

@@ -73,8 +73,6 @@ public:
    // GFXResource interface
    virtual void zombify();
    virtual void resurrect();
-
-   GFXVertexBuffer *createOffsettedBuffer(const GFXVertexFormat *vertexFormat, U32 numVerts, U32 offset);
 };
 
 //-----------------------------------------------------------------------------
