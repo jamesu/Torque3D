@@ -528,16 +528,58 @@ void TSShapeInstance::render( const TSRenderState &rdata, S32 dl, F32 intraDL )
       return;
    }
 
-   // run through the meshes   
    S32 start = rdata.isNoRenderNonTranslucent() ? mShape->subShapeFirstTranslucentObject[ss] : mShape->subShapeFirstObject[ss];
-   S32 end   = rdata.isNoRenderTranslucent() ? mShape->subShapeFirstTranslucentObject[ss] : mShape->subShapeFirstObject[ss] + mShape->subShapeNumObjects[ss];
+   S32 end = rdata.isNoRenderTranslucent() ? mShape->subShapeFirstTranslucentObject[ss] : mShape->subShapeFirstObject[ss] + mShape->subShapeNumObjects[ss];
+   TSVertexBufferHandle *realBuffer;
+
+   if (TSShape::smUseHardwareSkinning)
+   {
+      realBuffer = &mShape->mShapeVertexBuffer;
+   }
+   else
+   {
+      realBuffer = &mSoftwareVertexBuffer;
+      if (realBuffer->getPointer() == NULL) mShape->getVertexBuffer(*realBuffer);
+
+      if (bufferNeedsUpdate(od, start, end))
+      {
+         U8 *buffer = realBuffer->lock();
+         if (!buffer)
+            return;
+
+         // Base vertex data
+         dMemcpy(buffer, mShape->mShapeVertexData.base, mShape->mShapeVertexData.size);
+
+         // Apply skinned verts (where applicable)
+         for (i = start; i < end; i++)
+         {
+            mMeshObjects[i].updateVertexBuffer(od, buffer);
+         }
+
+         realBuffer->unlock();
+      }
+   }
+
+   // run through the meshes
    for (i=start; i<end; i++)
    {
       TSRenderState objState = rdata;
       // following line is handy for debugging, to see what part of the shape that it is rendering
       const char *name = mShape->names[ mMeshObjects[i].object->nameIndex ];
-      mMeshObjects[i].render( od, mMaterialList, objState, mAlphaAlways ? mAlphaAlwaysValue : 1.0f, name );
+      mMeshObjects[i].render( od, *realBuffer, mMaterialList, objState, mAlphaAlways ? mAlphaAlwaysValue : 1.0f, name );
    }
+}
+
+bool TSShapeInstance::bufferNeedsUpdate(S32 objectDetail, S32 start, S32 end)
+{
+   // run through the meshes
+   for (U32 i = start; i<end; i++)
+   {
+      if (mMeshObjects[i].bufferNeedsUpdate(objectDetail))
+         return true;
+   }
+
+   return false;
 }
 
 void TSShapeInstance::setCurrentDetail( S32 dl, F32 intraDL )
@@ -713,12 +755,23 @@ S32 TSShapeInstance::setDetailFromScreenError( F32 errorTolerance )
 // Object (MeshObjectInstance & PluginObjectInstance) render methods
 //-------------------------------------------------------------------------------------
 
-void TSShapeInstance::ObjectInstance::render( S32, TSMaterialList *, TSRenderState &rdata, F32 alpha, const char *meshName )
+void TSShapeInstance::ObjectInstance::render( S32, TSVertexBufferHandle &vb, TSMaterialList *, TSRenderState &rdata, F32 alpha, const char *meshName )
 {
    AssertFatal(0,"TSShapeInstance::ObjectInstance::render:  no default render method.");
 }
 
+void TSShapeInstance::ObjectInstance::updateVertexBuffer( S32 objectDetail, U8 *buffer )
+{
+   AssertFatal(0, "TSShapeInstance::ObjectInstance::updateVertexBuffer:  no default vertex buffer update method.");
+}
+
+bool TSShapeInstance::ObjectInstance::bufferNeedsUpdate( S32 objectDetai )
+{
+   return false;
+}
+
 void TSShapeInstance::MeshObjectInstance::render(  S32 objectDetail, 
+                                                   TSVertexBufferHandle &vb,
                                                    TSMaterialList *materials, 
                                                    TSRenderState &rdata, 
                                                    F32 alpha,
@@ -768,13 +821,40 @@ void TSShapeInstance::MeshObjectInstance::render(  S32 objectDetail,
                   rdata, 
                   isSkinDirty,
                   *mTransforms, 
-                  mVertexBuffer,
+                  vb,
                   meshName );
 
    // Update the last render time.
    mLastTime = currTime;
 
    GFX->popWorldMatrix();
+}
+
+void TSShapeInstance::MeshObjectInstance::updateVertexBuffer(S32 objectDetail, U8 *buffer)
+{
+   PROFILE_SCOPE(TSShapeInstance_MeshObjectInstance_updateVertexBuffer);
+
+   if (forceHidden || ((visible) <= 0.01f))
+      return;
+
+   TSMesh *mesh = getMesh(objectDetail);
+   if (!mesh)
+      return;
+
+   // Update the buffer here
+   if (mesh->getMeshType() == TSMesh::SkinMeshType)
+   {
+      static_cast<TSSkinMesh*>(mesh)->updateSkinBuffer(*mTransforms, buffer);
+   }
+
+   mLastTime = Sim::getCurrentTime();
+}
+
+bool TSShapeInstance::MeshObjectInstance::bufferNeedsUpdate( S32 objectDetail )
+{
+   TSMesh *mesh = getMesh(objectDetail);
+   const U32 currTime = Sim::getCurrentTime();
+   return mesh->getMeshType() == TSMesh::SkinMeshType && currTime != mLastTime;
 }
 
 TSShapeInstance::MeshObjectInstance::MeshObjectInstance() 

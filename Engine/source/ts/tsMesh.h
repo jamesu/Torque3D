@@ -107,10 +107,12 @@ struct TSBasicVertexFormat
    S16 boneOffset;
    S16 colorOffset;
    S16 numBones;
+   S16 vertexSize;
 
    TSBasicVertexFormat();
    TSBasicVertexFormat(TSMesh *mesh);
    void getFormat(GFXVertexFormat &fmt);
+   void calculateSize();
 
    void writeAlloc(TSShapeAlloc* alloc);
    void readAlloc(TSShapeAlloc* alloc);
@@ -145,10 +147,6 @@ public:
 protected:
 
    void _convertToAlignedMeshData(U8 *outVertPtr, const Vector<Point3F> &_verts, const Vector<Point3F> &_norms);
-   void _updateVBIB(TSVertexBufferHandle &vb);
-
-   void updateVertexBuffer(TSVertexBufferHandle &vb);
-   void updatePrimitiveBuffer(GFXPrimitiveBufferHandle &pb);
 
   public:
 
@@ -255,25 +253,28 @@ protected:
    protected:
       U8 *base;
       dsize_t vertSz;
-      bool vertexDataReady;
       U32 numElements;
       
       U32 colorOffset;
       U32 boneOffset;
-      
+
+      bool vertexDataReady;
+      bool ownsData;
+
    public:
-      TSMeshVertexArray() : base(NULL), vertexDataReady(false), numElements(0), colorOffset(0), boneOffset(0) {}
+      TSMeshVertexArray() : base(NULL), numElements(0), colorOffset(0), boneOffset(0), vertexDataReady(false), ownsData(false) {}
       virtual ~TSMeshVertexArray() { set(NULL, 0, 0, 0, 0); }
       
-      virtual void set( void *b, dsize_t s, U32 n, U32 inColorOffset, U32 inBoneOffset, bool autoFree = true )
+      virtual void set( void *b, dsize_t s, U32 n, U32 inColorOffset, U32 inBoneOffset, bool nowOwnsData = true, bool autoFree = true )
       {
-         if(base && autoFree)
+         if(base && autoFree && ownsData)
             dFree_aligned(base);
          base = reinterpret_cast<U8 *>(b);
          vertSz = s;
          numElements = n;
          colorOffset = inColorOffset;
          boneOffset = inBoneOffset;
+         ownsData = nowOwnsData;
       }
       
       /// Gets pointer to __TSMeshVertexBase for vertex idx
@@ -435,6 +436,7 @@ protected:
    /// have less that this count of verts.
    static S32 smMaxInstancingVerts;
 
+   /// Default node transform for standard meshes which have blend indices
    static MatrixF smDummyNodeTransform;
 
    /// convert primitives on load...
@@ -449,9 +451,10 @@ protected:
                               TSDrawPrimitive *primitivesOut, S32 *indicesOut) const;
 
    /// Moves vertices from the vertex buffer back into the split vert lists
-   void makeEditable(bool clearVertexData);
+   virtual void makeEditable(bool clearVertexData);
 
-   void clearEditable();
+   /// Clears split vertex lists
+   virtual void clearEditable();
 
    /// methods used during assembly to share vertexand other info
    /// between meshes (and for skipping detail levels on load)
@@ -508,7 +511,7 @@ public:
    {
       enum Constants
       {
-         maxBonePerVert = 16,  // Abitrarily chosen
+         maxBonePerVert = 16,  // Assumes a maximum of 4 blocks of bone indices for HW skinning
       };
 
       /// @name Batch by vertex
@@ -536,48 +539,6 @@ public:
       Vector<BatchedVertex> vertexBatchOperations;
       /// @}
 
-      /// @name Batch by Bone Transform
-      /// These are used for batches where each element is a bone transform,
-      /// and verts/normals are batch transformed against each element
-      /// @{
-
-
-      #pragma pack(1)
-
-      dALIGN(
-
-      struct BatchedVertWeight
-      {
-         Point3F vert;   // Do not change the ordering of these members
-         F32 weight;
-         Point3F normal;
-         S32 vidx;
-      }
-
-      ); // dALIGN
-
-      #pragma pack()
-
-      struct BatchedTransform
-      {
-      public:
-         BatchedVertWeight *alignedMem;
-         dsize_t numElements;
-         Vector<BatchedVertWeight> *_tmpVec;
-
-         BatchedTransform() : alignedMem(NULL), numElements(0), _tmpVec(NULL) {}
-         virtual ~BatchedTransform() 
-         { 
-            if(alignedMem) 
-               dFree_aligned(alignedMem); 
-            alignedMem = NULL; 
-            SAFE_DELETE(_tmpVec);
-         }
-      };
-      SparseArray<BatchedTransform> transformBatchOperations;
-      Vector<S32> transformKeys;
-      /// @}
-
       // # = num bones
       Vector<S32> nodeIndex;
       Vector<MatrixF> initialTransforms;
@@ -585,6 +546,10 @@ public:
       // # = numverts
       Vector<Point3F> initialVerts;
       Vector<Point3F> initialNorms;
+
+      bool initialized;
+
+      BatchData() : initialized(false) { ; }
    };
 
    /// This method will build the batch operations and prepare the BatchData
@@ -603,20 +568,28 @@ public:
 
    void printVerts();
 
+   void addWeightsFromVertexBuffer();
+   void makeEditable(bool clearVertexData);
+   void clearEditable();
+
 public:
    typedef TSMesh Parent;
+   
+   /// @name Vertex tuples
+   /// {
+   FreeableVector<F32> weight;      ///< blend weight
+   FreeableVector<S32> boneIndex;   ///< Maps from mesh node to bone in shape
+   FreeableVector<S32> vertexIndex; ///< index of affected vertex
+   /// }
+
+   /// Maximum number of bones referenced by this skin mesh
+   S32 maxBones;
 
    /// Structure containing data needed to batch skinning
    BatchData batchData;
-   bool batchDataInitialized;
-   
-   /// vectors that define the vertex, weight, bone tuples
-   Vector<F32> weight;
-   Vector<S32> boneIndex;
-   Vector<S32> vertexIndex;
 
    /// set verts and normals...
-   void updateSkin( const Vector<MatrixF> &transforms, TSVertexBufferHandle &instanceVB );
+   void updateSkinBuffer( const Vector<MatrixF> &transforms, U8 *buffer );
 
    /// update bone transforms for this mesh
    void updateSkinBones( const Vector<MatrixF> &transforms, Vector<MatrixF>& destTransforms );
@@ -640,6 +613,14 @@ public:
    /// persist methods...
    void assemble( bool skip );
    void disassemble();
+
+   /// Helper method to add a blend tuple for a vertex
+   inline void addWeightForVert(U32 vi, U32 bi, F32 w)
+   {
+      weight.push_back(w);
+      boneIndex.push_back(bi);
+      vertexIndex.push_back(vi);
+   }
 
    /// variables used during assembly (for skipping mesh detail levels
    /// on load and for sharing verts between meshes)

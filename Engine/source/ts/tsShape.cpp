@@ -579,9 +579,6 @@ void TSShape::initVertexBuffers()
       AssertFatal(false, "WTF");
    }
 
-   if (mShapeVertexBuffer.isValid())
-      return;
-
    U32 destIndices = 0;
    U32 destPrims = 0;
 
@@ -597,12 +594,11 @@ void TSShape::initVertexBuffers()
       destPrims += mesh->primitives.size();
    }
 
-   mShapeVertexBuffer.set(GFX, mVertexSize, &mVertexFormat, mShapeVertexData.size / mVertexSize, GFXBufferTypeStatic);
-
-   U8 *vertexData = mShapeVertexData.base;
-   U8 *vertPtr = mShapeVertexBuffer.lock();
-   dMemcpy(vertPtr, mShapeVertexData.base, mShapeVertexData.size);
-   mShapeVertexBuffer.unlock();
+   // Only set this if using hw skinning
+   if (TSShape::smUseHardwareSkinning)
+   {
+      getVertexBuffer(mShapeVertexBuffer);
+   }
 
    // Also the IBO
    mShapeVertexIndices.set(GFX, destIndices, destPrims, GFXBufferTypeStatic);
@@ -650,43 +646,57 @@ void TSShape::initVertexBuffers()
       }
    }
 
+#ifdef TORQUE_DEBUG
    // Verify prims
-
-   U32 vertsInBuffer = mShapeVertexData.size / mVertexSize;
-   U32 primsInBuffer = piInput - mShapeVertexIndices->mPrimitiveArray;
-   U32 indsInBuffer = ibIndices - indicesStart;
-
-   for (U32 i = 0; i < primStart; i++)
+   if (TSSkinMesh::smDebugSkinVerts)
    {
-      GFXPrimitive &prim = mShapeVertexIndices->mPrimitiveArray[i];
+      U32 vertsInBuffer = mShapeVertexData.size / mVertexSize;
+      U32 primsInBuffer = piInput - mShapeVertexIndices->mPrimitiveArray;
+      U32 indsInBuffer = ibIndices - indicesStart;
 
-      if (prim.type != GFXTriangleList && prim.type != GFXTriangleStrip)
+      for (U32 i = 0; i < primStart; i++)
       {
-         AssertFatal(false, "Unexpected triangle list");
-      }
+         GFXPrimitive &prim = mShapeVertexIndices->mPrimitiveArray[i];
 
-      if (prim.type == GFXTriangleStrip)
-         continue;
-
-      AssertFatal(prim.startVertex < vertsInBuffer, "wrong start vertex");
-      AssertFatal((prim.startVertex + prim.numVertices) <= vertsInBuffer, "too many verts");
-      AssertFatal(prim.startIndex + (prim.numPrimitives * 3) <= indsInBuffer, "too many inds");
-
-      for (U32 i = prim.startIndex; i < prim.startIndex + (prim.numPrimitives * 3); i++)
-      {
-         if (indicesStart[i] >= vertsInBuffer)
+         if (prim.type != GFXTriangleList && prim.type != GFXTriangleStrip)
          {
-            AssertFatal(false, "vert not in buffer");
+            AssertFatal(false, "Unexpected triangle list");
          }
-         U16 idx = indicesStart[i];
-         if (idx < prim.minIndex)
+
+         if (prim.type == GFXTriangleStrip)
+            continue;
+
+         AssertFatal(prim.startVertex < vertsInBuffer, "wrong start vertex");
+         AssertFatal((prim.startVertex + prim.numVertices) <= vertsInBuffer, "too many verts");
+         AssertFatal(prim.startIndex + (prim.numPrimitives * 3) <= indsInBuffer, "too many inds");
+
+         for (U32 i = prim.startIndex; i < prim.startIndex + (prim.numPrimitives * 3); i++)
          {
-            AssertFatal(false, "index out of minIndex range");
+            if (indicesStart[i] >= vertsInBuffer)
+            {
+               AssertFatal(false, "vert not in buffer");
+            }
+            U16 idx = indicesStart[i];
+            if (idx < prim.minIndex)
+            {
+               AssertFatal(false, "index out of minIndex range");
+            }
          }
       }
    }
+#endif
 
    mShapeVertexIndices.unlock();
+}
+
+void TSShape::getVertexBuffer(TSVertexBufferHandle &vb)
+{
+   vb.set(GFX, mVertexSize, &mVertexFormat, mShapeVertexData.size / mVertexSize, GFXBufferTypeStatic);
+
+   U8 *vertexData = mShapeVertexData.base;
+   U8 *vertPtr = vb.lock();
+   dMemcpy(vertPtr, mShapeVertexData.base, mShapeVertexData.size);
+   vb.unlock();
 }
 
 void TSShape::initVertexFeatures()
@@ -705,6 +715,8 @@ void TSShape::initVertexFeatures()
       mBasicVertexFormat.getFormat(mVertexFormat);
       mVertexSize = mVertexFormat.getSizeInBytes();
 
+      AssertFatal(mVertexSize == mBasicVertexFormat.vertexSize, "vertex size mismatch");
+
       for (Vector<TSMesh*>::iterator iter = meshes.begin(); iter != meshes.end(); iter++)
       {
          TSMesh *mesh = *iter;
@@ -712,12 +724,13 @@ void TSShape::initVertexFeatures()
             (mesh->getMeshType() == TSMesh::StandardMeshType ||
                mesh->getMeshType() == TSMesh::SkinMeshType))
          {
-            if (mesh->getMeshType() == TSMesh::SkinMeshType)
-            {
-               static_cast<TSSkinMesh*>(mesh)->createBatchData(); // TODO: remove the need for this
-            }
-
             mesh->mVertSize = mVertexFormat.getSizeInBytes();
+
+            // If using software skinning, we need the batch data available
+            if (mesh->getMeshType() == TSMesh::SkinMeshType && !TSShape::smUseHardwareSkinning)
+            {
+               static_cast<TSSkinMesh*>(mesh)->createBatchData();
+            }
 
             // Set buffer
             if (mesh->mVertSize > 0 && !mesh->mIsEditable && !mesh->mVertexData.isReady())
@@ -736,7 +749,7 @@ void TSShape::initVertexFeatures()
                }
 
                // Initialize the vertex data
-               mesh->mVertexData.set(mShapeVertexData.base + mesh->mVertOffset, mesh->mVertSize, mesh->mNumVerts, colorOffset, boneOffset, false);
+               mesh->mVertexData.set(mShapeVertexData.base + mesh->mVertOffset, mesh->mVertSize, mesh->mNumVerts, colorOffset, boneOffset, false, false);
                mesh->mVertexData.setReady(true);
             }
          }
@@ -763,19 +776,23 @@ void TSShape::initVertexFeatures()
             (mesh->getMeshType() == TSMesh::StandardMeshType ||
                mesh->getMeshType() == TSMesh::SkinMeshType))
          {
+            // Make sure we have everything in the vert lists
+            (*iter)->makeEditable(true);
+
+            // We need to setup the batch data to determine the correct amount of bones to use etc
             if (mesh->getMeshType() == TSMesh::SkinMeshType)
             {
-               static_cast<TSSkinMesh*>(mesh)->createBatchData(); // TODO: remove the need for this
+               static_cast<TSSkinMesh*>(mesh)->createBatchData();
             }
 
-            (*iter)->makeEditable(true);
             mBasicVertexFormat.addMeshRequirements(mesh);
          }
       }
 
       mVertexFormat.clear();
       mBasicVertexFormat.getFormat(mVertexFormat);
-      mVertexSize = mVertexFormat.getSizeInBytes();
+      mBasicVertexFormat.vertexSize = mVertexFormat.getSizeInBytes();
+      mVertexSize = mBasicVertexFormat.vertexSize;
    }
 
    U32 destVertex = 0;
@@ -800,9 +817,6 @@ void TSShape::initVertexFeatures()
 
       destVertex += mesh->mVertSize * mesh->getNumVerts();
       destIndices += mesh->indices.size();
-
-      // Make sure next size is aligned
-      destVertex = (destVertex + (16 - 1)) & (~(16 - 1));
 
       count += 1;
    }
@@ -840,10 +854,6 @@ void TSShape::initVertexFeatures()
       // Advance
       count += 1;
       vertexDataPtr += mesh->mVertSize * mesh->mNumVerts;
-
-      U32 alignOffset = vertexDataPtr - vertexData;
-      alignOffset = (alignOffset + (16 - 1)) & (~(16 - 1)); // align
-      vertexDataPtr = vertexData + alignOffset;
 
       // Clear verts list and such
       mesh->clearEditable();
@@ -1367,6 +1377,8 @@ void TSShape::assembleShape()
       mVertexFormat.clear();
       mBasicVertexFormat.getFormat(mVertexFormat);
       mVertexSize = mVertexFormat.getSizeInBytes();
+
+      AssertFatal(mVertexSize == mBasicVertexFormat.vertexSize, "vertex size mismatch");
 
       vboSize = tsalloc.get32();
       vboData = tsalloc.getPointer8(vboSize);
@@ -1907,226 +1919,9 @@ bool TSShape::read(Stream * s)
    delete [] memBuffer32;
 
    if (smInitOnRead)
+   {
       init();
-
-   //if (names.size() == 3 && dStricmp(names[2], "Box") == 0)
-   //{
-   //   Con::errorf("\nnodes.set(dMalloc(%d * sizeof(Node)), %d);", nodes.size(), nodes.size());
-   //   for (U32 i = 0; i < nodes.size(); i++)
-   //   {
-   //      Node& obj = nodes[i];
-
-   //      Con::errorf("   nodes[%d].nameIndex = %d;", i, obj.nameIndex);
-   //      Con::errorf("   nodes[%d].parentIndex = %d;", i, obj.parentIndex);
-   //      Con::errorf("   nodes[%d].firstObject = %d;", i, obj.firstObject);
-   //      Con::errorf("   nodes[%d].firstChild = %d;", i, obj.firstChild);
-   //      Con::errorf("   nodes[%d].nextSibling = %d;", i, obj.nextSibling);
-   //   }
-
-   //   Con::errorf("\nobjects.set(dMalloc(%d * sizeof(Object)), %d);", objects.size(), objects.size());
-   //   for (U32 i = 0; i < objects.size(); i++)
-   //   {
-   //      Object& obj = objects[i];
-
-   //      Con::errorf("   objects[%d].nameIndex = %d;", i, obj.nameIndex);
-   //      Con::errorf("   objects[%d].numMeshes = %d;", i, obj.numMeshes);
-   //      Con::errorf("   objects[%d].startMeshIndex = %d;", i, obj.startMeshIndex);
-   //      Con::errorf("   objects[%d].nodeIndex = %d;", i, obj.nodeIndex);
-   //      Con::errorf("   objects[%d].nextSibling = %d;", i, obj.nextSibling);
-   //      Con::errorf("   objects[%d].firstDecal = %d;", i, obj.firstDecal);
-   //   }
-
-   //   Con::errorf("\nobjectStates.set(dMalloc(%d * sizeof(ObjectState)), %d);", objectStates.size(), objectStates.size());
-   //   for (U32 i = 0; i < objectStates.size(); i++)
-   //   {
-   //      ObjectState& obj = objectStates[i];
-
-   //      Con::errorf("   objectStates[%d].vis = %g;", i, obj.vis);
-   //      Con::errorf("   objectStates[%d].frameIndex = %d;", i, obj.frameIndex);
-   //      Con::errorf("   objectStates[%d].matFrameIndex = %d;", i, obj.matFrameIndex);
-   //   }
-   //   Con::errorf("\nsubShapeFirstNode.set(dMalloc(%d * sizeof(S32)), %d);", subShapeFirstNode.size(), subShapeFirstNode.size());
-   //   for (U32 i = 0; i < subShapeFirstNode.size(); i++)
-   //      Con::errorf("   subShapeFirstNode[%d] = %d;", i, subShapeFirstNode[i]);
-
-   //   Con::errorf("\nsubShapeFirstObject.set(dMalloc(%d * sizeof(S32)), %d);", subShapeFirstObject.size(), subShapeFirstObject.size());
-   //   for (U32 i = 0; i < subShapeFirstObject.size(); i++)
-   //      Con::errorf("   subShapeFirstObject[%d] = %d;", i, subShapeFirstObject[i]);
-
-   //   //Con::errorf("numDetailFirstSkins = %d", detailFirstSkin.size());
-   //   Con::errorf("\nsubShapeNumNodes.set(dMalloc(%d * sizeof(S32)), %d);", subShapeNumNodes.size(), subShapeNumNodes.size());
-   //   for (U32 i = 0; i < subShapeNumNodes.size(); i++)
-   //      Con::errorf("   subShapeNumNodes[%d] = %d;", i, subShapeNumNodes[i]);
-
-   //   Con::errorf("\nsubShapeNumObjects.set(dMalloc(%d * sizeof(S32)), %d);", subShapeNumObjects.size(), subShapeNumObjects.size());
-   //   for (U32 i = 0; i < subShapeNumObjects.size(); i++)
-   //      Con::errorf("   subShapeNumObjects[%d] = %d;", i, subShapeNumObjects[i]);
-
-   //   Con::errorf("\ndetails.set(dMalloc(%d * sizeof(Detail)), %d);", details.size(), details.size());
-   //   for (U32 i = 0; i < details.size(); i++)
-   //   {
-   //      Detail& obj = details[i];
-
-   //      Con::errorf("   details[%d].nameIndex = %d;", i, obj.nameIndex);
-   //      Con::errorf("   details[%d].subShapeNum = %d;", i, obj.subShapeNum);
-   //      Con::errorf("   details[%d].objectDetailNum = %d;", i, obj.objectDetailNum);
-   //      Con::errorf("   details[%d].size = %g;", i, obj.size);
-   //      Con::errorf("   details[%d].averageError = %g;", i, obj.averageError);
-   //      Con::errorf("   details[%d].maxError = %g;", i, obj.maxError);
-   //      Con::errorf("   details[%d].polyCount = %d;", i, obj.polyCount);
-   //   }
-
-   //   Con::errorf("\ndefaultRotations.set(dMalloc(%d * sizeof(Quat16)), %d);", defaultRotations.size(), defaultRotations.size());
-   //   for (U32 i = 0; i < defaultRotations.size(); i++)
-   //   {
-   //      Con::errorf("   defaultRotations[%d].x = %g;", i, defaultRotations[i].x);
-   //      Con::errorf("   defaultRotations[%d].y = %g;", i, defaultRotations[i].y);
-   //      Con::errorf("   defaultRotations[%d].z = %g;", i, defaultRotations[i].z);
-   //      Con::errorf("   defaultRotations[%d].w = %g;", i, defaultRotations[i].w);
-   //   }
-
-   //   Con::errorf("\ndefaultTranslations.set(dMalloc(%d * sizeof(Point3F)), %d);", defaultTranslations.size(), defaultTranslations.size());
-   //   for (U32 i = 0; i < defaultTranslations.size(); i++)
-   //      Con::errorf("   defaultTranslations[%d].set(%g, %g, %g);", i, defaultTranslations[i].x, defaultTranslations[i].y, defaultTranslations[i].z);
-
-   //   Con::errorf("\nsubShapeFirstTranslucentObject.set(dMalloc(%d * sizeof(S32)), %d);", subShapeFirstTranslucentObject.size(), subShapeFirstTranslucentObject.size());
-   //   for (U32 i = 0; i < subShapeFirstTranslucentObject.size(); i++)
-   //      Con::errorf("   subShapeFirstTranslucentObject[%d] = %d;", i, subShapeFirstTranslucentObject[i]);
-
-   //   Con::errorf("\nmeshes.set(dMalloc(%d * sizeof(TSMesh)), %d);", meshes.size(), meshes.size());
-   //   for (U32 i = 0; i < meshes.size(); i++)
-   //   {
-   //      TSMesh* obj = meshes[i];
-
-   //      if (obj)
-   //      {
-   //         Con::errorf("   meshes[%d]->meshType = %d;", i, obj->meshType);
-   //         Con::errorf("   meshes[%d]->mBounds.minExtents.set(%g, %g, %g);", i, obj->mBounds.minExtents.x, obj->mBounds.minExtents.y, obj->mBounds.minExtents.z);
-   //         Con::errorf("   meshes[%d]->mBounds.maxExtents.set(%g, %g, %g);", i, obj->mBounds.maxExtents.x, obj->mBounds.maxExtents.y, obj->mBounds.maxExtents.z);
-   //         Con::errorf("   meshes[%d]->mCenter.set(%g, %g, %g);", i, obj->mCenter.x, obj->mCenter.y, obj->mCenter.z);
-   //         Con::errorf("   meshes[%d]->mRadius = %g;", i, obj->mRadius);
-   //         Con::errorf("   meshes[%d]->mVisibility = %g;", i, obj->mVisibility);
-   //         Con::errorf("   meshes[%d]->mDynamic = %d;", i, obj->mDynamic);
-   //         Con::errorf("   meshes[%d]->parentMesh = %d;", i, obj->parentMesh);
-   //         Con::errorf("   meshes[%d]->numFrames = %d;", i, obj->numFrames);
-   //         Con::errorf("   meshes[%d]->numMatFrames = %d;", i, obj->numMatFrames);
-   //         Con::errorf("   meshes[%d]->vertsPerFrame = %d;", i, obj->vertsPerFrame);
-
-   //         Con::errorf("\n   meshes[%d]->verts.set(dMalloc(%d * sizeof(Point3F)), %d);", obj->verts.size(), obj->verts.size());
-   //         for (U32 j = 0; j < obj->verts.size(); j++)
-   //            Con::errorf("   meshes[%d]->verts[%d].set(%g, %g, %g);", i, j, obj->verts[j].x, obj->verts[j].y, obj->verts[j].z);
-
-   //         Con::errorf("\n   meshes[%d]->norms.set(dMalloc(%d * sizeof(Point3F)), %d);", obj->norms.size(), obj->norms.size());
-   //         for (U32 j = 0; j < obj->norms.size(); j++)
-   //            Con::errorf("   meshes[%d]->norms[%d].set(%g, %g, %g);", i, j, obj->norms[j].x, obj->norms[j].y, obj->norms[j].z);
-
-   //         Con::errorf("\n   meshes[%d]->tverts.set(dMalloc(%d * sizeof(Point2F)), %d);", obj->tverts.size(), obj->tverts.size());
-   //         for (U32 j = 0; j < obj->tverts.size(); j++)
-   //            Con::errorf("   meshes[%d]->tverts[%d].set(%g, %g);", i, j, obj->tverts[j].x, obj->tverts[j].y);
-
-   //         Con::errorf("\n   meshes[%d]->primitives.set(dMalloc(%d * sizeof(TSDrawPrimitive)), %d);", obj->primitives.size(), obj->primitives.size());
-   //         for (U32 j = 0; j < obj->primitives.size(); j++)
-   //         {
-   //            TSDrawPrimitive& prim = obj->primitives[j];
-
-   //            Con::errorf("   meshes[%d]->primitives[%d].start = %d;", i, j, prim.start);
-   //            Con::errorf("   meshes[%d]->primitives[%d].numElements = %d;", i, j, prim.numElements);
-   //            Con::errorf("   meshes[%d]->primitives[%d].matIndex = %d;", i, j, prim.matIndex);
-   //         }
-
-   //         Con::errorf("\n   meshes[%d]->encodedNorms.set(dMalloc(%d * sizeof(U8)), %d);", obj->encodedNorms.size(), obj->encodedNorms.size());
-   //         for (U32 j = 0; j < obj->encodedNorms.size(); j++)
-   //            Con::errorf("   meshes[%d]->encodedNorms[%d] = %c;", i, j, obj->encodedNorms[j]);
-
-   //         Con::errorf("\n   meshes[%d]->indices.set(dMalloc(%d * sizeof(U16)), %d);", obj->indices.size(), obj->indices.size());
-   //         for (U32 j = 0; j < obj->indices.size(); j++)
-   //            Con::errorf("   meshes[%d]->indices[%d] = %d;", i, j, obj->indices[j]);
-
-   //         Con::errorf("\n   meshes[%d]->initialTangents.set(dMalloc(%d * sizeof(Point3F)), %d);", obj->initialTangents.size(), obj->initialTangents.size());
-   //         for (U32 j = 0; j < obj->initialTangents.size(); j++)
-   //            Con::errorf("   meshes[%d]->initialTangents[%d].set(%g, %g, %g);", i, j, obj->initialTangents[j].x, obj->initialTangents[j].y, obj->initialTangents[j].z);
-
-   //         Con::errorf("\n   meshes[%d]->tangents.set(dMalloc(%d * sizeof(Point4F)), %d);", obj->tangents.size(), obj->tangents.size());
-   //         for (U32 j = 0; j < obj->tangents.size(); j++)
-   //            Con::errorf("   meshes[%d]->tangents[%d].set(%g, %g, %g, %g);", i, j, obj->tangents[j].x, obj->tangents[j].y, obj->tangents[j].z, obj->tangents[j].w);
-
-   //         Con::errorf("   meshes[%d]->billboardAxis.set(%g, %g, %g);", i, obj->billboardAxis.x, obj->billboardAxis.y, obj->billboardAxis.z);
-
-   //         Con::errorf("\n   meshes[%d]->planeNormals.set(dMalloc(%d * sizeof(Point3F)), %d);", obj->planeNormals.size(), obj->planeNormals.size());
-   //         for (U32 j = 0; j < obj->planeNormals.size(); j++)
-   //            Con::errorf("   meshes[%d]->planeNormals[%d].set(%g, %g, %g);", i, j, obj->planeNormals[j].x, obj->planeNormals[j].y, obj->planeNormals[j].z);
-
-   //         Con::errorf("\n   meshes[%d]->planeConstants.set(dMalloc(%d * sizeof(F32)), %d);", obj->planeConstants.size(), obj->planeConstants.size());
-   //         for (U32 j = 0; j < obj->planeConstants.size(); j++)
-   //            Con::errorf("   meshes[%d]->planeConstants[%d] = %g;", i, j, obj->planeConstants[j]);
-
-   //         Con::errorf("\n   meshes[%d]->planeMaterials.set(dMalloc(%d * sizeof(U32)), %d);", obj->planeMaterials.size(), obj->planeMaterials.size());
-   //         for (U32 j = 0; j < obj->planeMaterials.size(); j++)
-   //            Con::errorf("   meshes[%d]->planeMaterials[%d] = %d;", i, j, obj->planeMaterials[j]);
-
-   //         Con::errorf("   meshes[%d]->planesPerFrame = %d;", i, obj->planesPerFrame);
-   //         Con::errorf("   meshes[%d]->mergeBufferStart = %d;", i, obj->mergeBufferStart);
-   //      }
-   //   }
-
-   //   Con::errorf("\nalphaIn.set(dMalloc(%d * sizeof(F32)), %d);", alphaIn.size(), alphaIn.size());
-   //   for (U32 i = 0; i < alphaIn.size(); i++)
-   //      Con::errorf("   alphaIn[%d] = %g;", i, alphaIn[i]);
-
-   //   Con::errorf("\nalphaOut.set(dMalloc(%d * sizeof(F32)), %d);", alphaOut.size(), alphaOut.size());
-   //   for (U32 i = 0; i < alphaOut.size(); i++)
-   //      Con::errorf("   alphaOut[%d] = %g;", i, alphaOut[i]);
-
-   //   //Con::errorf("numSequences = %d", sequences.size());
-   //   //Con::errorf("numNodeRotations = %d", nodeRotations.size());
-   //   //Con::errorf("numNodeTranslations = %d", nodeTranslations.size());
-   //   //Con::errorf("numNodeUniformScales = %d", nodeUniformScales.size());
-   //   //Con::errorf("numNodeAlignedScales = %d", nodeAlignedScales.size());
-   //   //Con::errorf("numNodeArbitraryScaleRots = %d", nodeArbitraryScaleRots.size());
-   //   //Con::errorf("numNodeArbitraryScaleFactors = %d", nodeArbitraryScaleFactors.size());
-   //   //Con::errorf("numGroundRotations = %d", groundRotations.size());
-   //   //Con::errorf("numGroundTranslations = %d", groundTranslations.size());
-   //   //Con::errorf("numTriggers = %d", triggers.size());
-   //   //Con::errorf("numBillboardDetails = %d", billboardDetails.size());
-
-   //   //Con::errorf("\nnumDetailCollisionAccelerators = %d", detailCollisionAccelerators.size());
-   //   //for (U32 i = 0; i < detailCollisionAccelerators.size(); i++)
-   //   //{
-   //   //   ConvexHullAccelerator* obj = detailCollisionAccelerators[i];
-
-   //   //   if (obj)
-   //   //   {
-   //   //      Con::errorf("   detailCollisionAccelerators[%d].numVerts = %d", i, obj->numVerts);
-
-   //   //      for (U32 j = 0; j < obj->numVerts; j++)
-   //   //      {
-   //   //         Con::errorf("      verts[%d](%g, %g, %g)", j, obj->vertexList[j].x, obj->vertexList[j].y, obj->vertexList[j].z);
-   //   //         Con::errorf("      norms[%d](%g, %g, %g)", j, obj->normalList[j].x, obj->normalList[j].y, obj->normalList[j].z);
-   //   //         //U8**     emitStrings;
-   //   //      }
-   //   //   }
-   //   //}
-
-   //   Con::errorf("\nnames.setSize(%d);", names.size());
-   //   for (U32 i = 0; i < names.size(); i++)
-   //      Con::errorf("   names[%d] = StringTable->insert(\"%s\");", i, names[i]);
-
-   //   //TSMaterialList * materialList;
-
-   //   Con::errorf("\nradius = %g;", radius);
-   //   Con::errorf("tubeRadius = %g;", tubeRadius);
-   //   Con::errorf("center.set(%g, %g, %g);", center.x, center.y, center.z);
-   //   Con::errorf("bounds.minExtents.set(%g, %g, %g);", bounds.minExtents.x, bounds.minExtents.y, bounds.minExtents.z);
-   //   Con::errorf("bounds.maxExtents.set(%g, %g, %g);", bounds.maxExtents.x, bounds.maxExtents.y, bounds.maxExtents.z);
-
-   //   Con::errorf("\nmExporterVersion = %d;", mExporterVersion);
-   //   Con::errorf("mSmallestVisibleSize = %g;", mSmallestVisibleSize);
-   //   Con::errorf("mSmallestVisibleDL = %d;", mSmallestVisibleDL);
-   //   Con::errorf("mReadVersion = %d;", mReadVersion);
-   //   Con::errorf("mFlags = %d;", mFlags);
-   //   //Con::errorf("data = %d", data);
-   //   Con::errorf("mSequencesConstructed = %d;", mSequencesConstructed);
-   //}
+   }
 
    return true;
 }

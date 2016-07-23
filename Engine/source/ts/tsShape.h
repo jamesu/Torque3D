@@ -414,7 +414,7 @@ class TSShape
 
    // Processed vertex data
    TSShapeVertexArray mShapeVertexData;
-   GFXVertexBufferDataHandle mShapeVertexBuffer;
+   TSVertexBufferHandle mShapeVertexBuffer;
    GFXPrimitiveBufferHandle mShapeVertexIndices;
 
    bool mShapeIsDirty; ///< Marks if the shape VBO needs to be regenerated
@@ -432,7 +432,11 @@ class TSShape
 
    void setupBillboardDetails( const String &cachePath );
    
+   /// Initializes the main vertex buffer
    void initVertexBuffers();
+
+   /// Loads shape vertex data into specified buffer
+   void getVertexBuffer(TSVertexBufferHandle &vb);
 
    /// Called from init() to calcuate the GFX vertex features for
    /// all detail meshes in the shape.

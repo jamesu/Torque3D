@@ -209,7 +209,7 @@ void TSPartInstance::render(S32 od, const TSRenderState &rdata)
    {
       TSRenderState objState = rdata;
       const char *meshName = mSourceShape->mShape->names[mMeshObjects[i]->object->nameIndex];
-      mMeshObjects[i]->render(od,mSourceShape->getMaterialList(),objState,1.0, meshName);
+      mMeshObjects[i]->render(od,mSourceShape->mShape->mShapeVertexBuffer,mSourceShape->getMaterialList(),objState,1.0, meshName);
    }
 }
 

@@ -35,7 +35,7 @@ class SceneRenderState;
 class GFXCubemap;
 class Frustum;
 class LightQuery;
-
+class TSShape;
 
 /// A simple class for passing render state through the pre-render pipeline.
 ///
