@@ -534,12 +534,17 @@ void TSShapeInstance::render( const TSRenderState &rdata, S32 dl, F32 intraDL )
 
    if (TSShape::smUseHardwareSkinning)
    {
+      // For hardware skinning, just using the buffer associated with the shape will work fine
       realBuffer = &mShape->mShapeVertexBuffer;
    }
    else
    {
+      // For software skinning, we need to update our own buffer each frame
       realBuffer = &mSoftwareVertexBuffer;
-      if (realBuffer->getPointer() == NULL) mShape->getVertexBuffer(*realBuffer);
+      if (realBuffer->getPointer() == NULL)
+      {
+         mShape->getVertexBuffer(*realBuffer, GFXBufferTypeDynamic);
+      }
 
       if (bufferNeedsUpdate(od, start, end))
       {

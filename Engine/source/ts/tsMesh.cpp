@@ -1204,7 +1204,7 @@ void TSSkinMesh::updateSkinBuffer( const Vector<MatrixF> &transforms, U8* buffer
 {
    PROFILE_SCOPE(TSSkinMesh_UpdateSkinBuffer);
 
-   AssertFatal(batchData.initialized, "Batch data not initialized. Call createBatchData() before any skin update is called.");
+   AssertFatal(batchData.initialized, "Batch data not initialized. Call createSkinBatchData() before any skin update is called.");
 
    if (TSShape::smUseHardwareSkinning || mNumVerts == 0)
       return;
@@ -1228,14 +1228,7 @@ void TSSkinMesh::updateSkinBuffer( const Vector<MatrixF> &transforms, U8* buffer
    const Point3F *inVerts = batchData.initialVerts.address();
    const Point3F *inNorms = batchData.initialNorms.address();
 
-   if (inVerts == NULL)
-   {
-      batchData.initialized = false;
-      createBatchData(); // shouldn't happen!! TOFIX
-
-      inVerts = batchData.initialVerts.address();
-      inNorms = batchData.initialNorms.address();
-   }
+   AssertFatal(inVerts, "Something went wrong, verts should be valid");
 
    U8 *dest = buffer + mVertOffset;
    if (!dest)
@@ -1289,7 +1282,7 @@ void TSSkinMesh::updateSkinBones( const Vector<MatrixF> &transforms, Vector<Matr
    }
 }
 
-void TSSkinMesh::createBatchData()
+void TSSkinMesh::createSkinBatchData()
 {
    if(batchData.initialized)
       return;
@@ -1319,6 +1312,11 @@ void TSSkinMesh::createBatchData()
       }
 
       addWeightsFromVertexBuffer();
+
+      curVtx = vertexIndex.begin();
+      curBone = boneIndex.begin();
+      curWeight = weight.begin();
+      endVtx = vertexIndex.end();
    }
    else
    {
@@ -3077,7 +3075,7 @@ void TSSkinMesh::convertToAlignedMeshData(U8 *outVerts)
    if (!mVertexData.isReady())
    {
       // Batch data required here
-      createBatchData();
+      createSkinBatchData();
 
       // Dump verts to buffer
       _convertToAlignedMeshData(outVerts, batchData.initialVerts, batchData.initialNorms);
@@ -3085,11 +3083,6 @@ void TSSkinMesh::convertToAlignedMeshData(U8 *outVerts)
       // Setup bones too
       setupVertexTransforms();
    }
-}
-
-U32 TSSkinMesh::getNumVerts()
-{
-   return batchData.initialVerts.size();
 }
 
 U32 TSMesh::getNumVerts()
@@ -3120,7 +3113,7 @@ void TSMesh::_convertToAlignedMeshData(U8 *outVerts, const Vector<Point3F> &_ver
    mNumVerts = _verts.size();
 
    // Initialize the vertex data
-   mVertexData.set(NULL, 0, 0, colorOffset, boneOffset, false, false);
+   mVertexData.set(NULL, 0, 0, colorOffset, boneOffset, false);
    mVertexData.setReady(true);
 
    if (mNumVerts == 0)

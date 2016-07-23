@@ -403,11 +403,6 @@ class TSShape
    TSBasicVertexFormat mBasicVertexFormat;
    U32 mVertexSize;
 
-   /// Is true if this shape contains skin meshes.
-   bool mHasSkinMesh;
-
-   bool mSequencesConstructed;
-
    S8* mShapeData;
    U32 mShapeDataSize;
 
@@ -416,6 +411,8 @@ class TSShape
    TSShapeVertexArray mShapeVertexData;
    TSVertexBufferHandle mShapeVertexBuffer;
    GFXPrimitiveBufferHandle mShapeVertexIndices;
+
+   bool mSequencesConstructed;
 
    bool mShapeIsDirty; ///< Marks if the shape VBO needs to be regenerated
 
@@ -436,7 +433,7 @@ class TSShape
    void initVertexBuffers();
 
    /// Loads shape vertex data into specified buffer
-   void getVertexBuffer(TSVertexBufferHandle &vb);
+   void getVertexBuffer(TSVertexBufferHandle &vb, GFXBufferType bufferType);
 
    /// Called from init() to calcuate the GFX vertex features for
    /// all detail meshes in the shape.

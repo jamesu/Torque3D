@@ -42,7 +42,7 @@ extern TSShape* loadColladaShape(const Torque::Path &path);
 #endif
 
 /// most recent version -- this is the version we write
-S32 TSShape::smVersion = 27;
+S32 TSShape::smVersion = 28;
 /// the version currently being read...valid only during a read
 S32 TSShape::smReadVersion = -1;
 const U32 TSShape::smMostRecentExporterVersion = DTS_EXPORTER_CURRENT_VERSION;
@@ -66,7 +66,6 @@ TSShape::TSShape()
 {
    materialList = NULL;
    mReadVersion = -1; // -1 means constructed from scratch (e.g., in exporter or no read yet)
-   mHasSkinMesh = false;
    mSequencesConstructed = false;
    mShapeData = NULL;
    mShapeDataSize = 0;
@@ -594,10 +593,10 @@ void TSShape::initVertexBuffers()
       destPrims += mesh->primitives.size();
    }
 
-   // Only set this if using hw skinning
+   // For HW skinning we can just use the static buffer
    if (TSShape::smUseHardwareSkinning)
    {
-      getVertexBuffer(mShapeVertexBuffer);
+      getVertexBuffer(mShapeVertexBuffer, GFXBufferTypeStatic);
    }
 
    // Also the IBO
@@ -620,7 +619,6 @@ void TSShape::initVertexBuffers()
          continue;
 
       // Make the offset vbo
-      mesh->mVertBufferOffset = vertStart;
       mesh->mPrimBufferOffset = primStart;
 
       // Dump primitives to locked buffer
@@ -689,9 +687,9 @@ void TSShape::initVertexBuffers()
    mShapeVertexIndices.unlock();
 }
 
-void TSShape::getVertexBuffer(TSVertexBufferHandle &vb)
+void TSShape::getVertexBuffer(TSVertexBufferHandle &vb, GFXBufferType bufferType)
 {
-   vb.set(GFX, mVertexSize, &mVertexFormat, mShapeVertexData.size / mVertexSize, GFXBufferTypeStatic);
+   vb.set(GFX, mVertexSize, &mVertexFormat, mShapeVertexData.size / mVertexSize, bufferType);
 
    U8 *vertexData = mShapeVertexData.base;
    U8 *vertPtr = vb.lock();
@@ -726,12 +724,6 @@ void TSShape::initVertexFeatures()
          {
             mesh->mVertSize = mVertexFormat.getSizeInBytes();
 
-            // If using software skinning, we need the batch data available
-            if (mesh->getMeshType() == TSMesh::SkinMeshType && !TSShape::smUseHardwareSkinning)
-            {
-               static_cast<TSSkinMesh*>(mesh)->createBatchData();
-            }
-
             // Set buffer
             if (mesh->mVertSize > 0 && !mesh->mIsEditable && !mesh->mVertexData.isReady())
             {
@@ -749,8 +741,14 @@ void TSShape::initVertexFeatures()
                }
 
                // Initialize the vertex data
-               mesh->mVertexData.set(mShapeVertexData.base + mesh->mVertOffset, mesh->mVertSize, mesh->mNumVerts, colorOffset, boneOffset, false, false);
+               mesh->mVertexData.set(mShapeVertexData.base + mesh->mVertOffset, mesh->mVertSize, mesh->mNumVerts, colorOffset, boneOffset, false);
                mesh->mVertexData.setReady(true);
+
+               // If using software skinning, we need the batch data available
+               if (mesh->getMeshType() == TSMesh::SkinMeshType && !TSShape::smUseHardwareSkinning)
+               {
+                  static_cast<TSSkinMesh*>(mesh)->createSkinBatchData();
+               }
             }
          }
       }
@@ -764,36 +762,33 @@ void TSShape::initVertexFeatures()
    mShapeVertexBuffer = NULL;
 
    // Make sure mesh has verts stored in mesh data, we're recreating the buffer
-   if (mShapeIsDirty)
+   TSBasicVertexFormat basicFormat;
+   mBasicVertexFormat = basicFormat;
+
+   for (Vector<TSMesh*>::iterator iter = meshes.begin(); iter != meshes.end(); iter++)
    {
-      TSBasicVertexFormat basicFormat;
-      mBasicVertexFormat = basicFormat;
-
-      for (Vector<TSMesh*>::iterator iter = meshes.begin(); iter != meshes.end(); iter++)
+      TSMesh *mesh = *iter;
+      if (mesh &&
+         (mesh->getMeshType() == TSMesh::StandardMeshType ||
+            mesh->getMeshType() == TSMesh::SkinMeshType))
       {
-         TSMesh *mesh = *iter;
-         if (mesh &&
-            (mesh->getMeshType() == TSMesh::StandardMeshType ||
-               mesh->getMeshType() == TSMesh::SkinMeshType))
+         // Make sure we have everything in the vert lists
+         mesh->makeEditable(true);
+
+         // We need the skin batching data here to determine bone counts
+         if (mesh->getMeshType() == TSMesh::SkinMeshType)
          {
-            // Make sure we have everything in the vert lists
-            (*iter)->makeEditable(true);
-
-            // We need to setup the batch data to determine the correct amount of bones to use etc
-            if (mesh->getMeshType() == TSMesh::SkinMeshType)
-            {
-               static_cast<TSSkinMesh*>(mesh)->createBatchData();
-            }
-
-            mBasicVertexFormat.addMeshRequirements(mesh);
+            static_cast<TSSkinMesh*>(mesh)->createSkinBatchData();
          }
-      }
 
-      mVertexFormat.clear();
-      mBasicVertexFormat.getFormat(mVertexFormat);
-      mBasicVertexFormat.vertexSize = mVertexFormat.getSizeInBytes();
-      mVertexSize = mBasicVertexFormat.vertexSize;
+         mBasicVertexFormat.addMeshRequirements(mesh);
+      }
    }
+
+   mVertexFormat.clear();
+   mBasicVertexFormat.getFormat(mVertexFormat);
+   mBasicVertexFormat.vertexSize = mVertexFormat.getSizeInBytes();
+   mVertexSize = mBasicVertexFormat.vertexSize;
 
    U32 destVertex = 0;
    U32 destIndices = 0;
@@ -810,10 +805,6 @@ void TSShape::initVertexFeatures()
          continue;
 
       mesh->mVertSize = mVertexFormat.getSizeInBytes();
-
-      // Make sure destVertex and destIndices is aligned
-
-      //AssertFatal(mesh->getNumVerts() != 0, "no verts");
 
       destVertex += mesh->mVertSize * mesh->getNumVerts();
       destIndices += mesh->indices.size();
@@ -850,10 +841,21 @@ void TSShape::initVertexFeatures()
       mesh->mVertexData.setReady(false);
       mesh->convertToAlignedMeshData(vertexDataPtr);
       mesh->mVertOffset = vertexDataPtr - vertexData;
+      mesh->mVertexData.set(mShapeVertexData.base + mesh->mVertOffset, mesh->mVertSize, mesh->mNumVerts, mBasicVertexFormat.colorOffset, mBasicVertexFormat.boneOffset, false);
+      mesh->mVertexData.setReady(true);
+
+#ifdef TORQUE_DEBUG
+      if (mesh->getMeshType() == TSMesh::SkinMeshType)
+      {
+         AssertFatal(mesh->getMaxBonesPerVert() != 0, "Skin mesh has no bones used, very strange!");
+      }
+#endif
 
       // Advance
       count += 1;
       vertexDataPtr += mesh->mVertSize * mesh->mNumVerts;
+
+      AssertFatal(vertexDataPtr - vertexData <= destVertex, "Vertex data overflow");
 
       // Clear verts list and such
       mesh->clearEditable();
@@ -903,8 +905,6 @@ void TSShape::initMaterialList()
    subShapeFirstTranslucentObject.setSize(numSubShapes);
    #endif
 
-   mHasSkinMesh = false;
-
    S32 i,j,k;
    // for each subshape, find the first translucent object
    // also, while we're at it, set mHasTranslucency
@@ -922,8 +922,6 @@ void TSShape::initMaterialList()
             TSMesh * mesh = meshes[obj.startMeshIndex+j];
             if (!mesh)
                continue;
-
-            mHasSkinMesh |= mesh->getMeshType() == TSMesh::SkinMeshType;
 
             for (k=0; k<mesh->primitives.size(); k++)
             {

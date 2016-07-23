@@ -125,9 +125,142 @@ struct TSBasicVertexFormat
 class TSMesh
 {
    friend class TSShape;
-  public:
-   struct TSMeshVertexArray;
-  protected:
+public:
+
+   /// Helper class for a freeable vector
+   template<class T>
+   class FreeableVector : public Vector<T>
+   {
+   public:
+      bool free_memory() { return Vector<T>::resize(0); }
+
+      FreeableVector<T>& operator=(const Vector<T>& p) { Vector<T>::operator=(p); return *this; }
+      FreeableVector<T>& operator=(const FreeableVector<T>& p) { Vector<T>::operator=(p); return *this; }
+   };
+
+   /// @name Aligned Vertex Data 
+   /// {
+
+#pragma pack(1)
+
+   struct __TSMeshVertexBase
+   {
+      Point3F _vert;
+      F32 _tangentW;
+      Point3F _normal;
+      Point3F _tangent;
+      Point2F _tvert;
+
+      const Point3F &vert() const { return _vert; }
+      void vert(const Point3F &v) { _vert = v; }
+
+      const Point3F &normal() const { return _normal; }
+      void normal(const Point3F &n) { _normal = n; }
+
+      Point4F tangent() const { return Point4F(_tangent.x, _tangent.y, _tangent.z, _tangentW); }
+      void tangent(const Point4F &t) { _tangent = t.asPoint3F(); _tangentW = t.w; }
+
+      const Point2F &tvert() const { return _tvert; }
+      void tvert(const Point2F &tv) { _tvert = tv; }
+   };
+
+   struct __TSMeshVertex_3xUVColor
+   {
+      Point2F _tvert2;
+      GFXVertexColor _color;
+
+      const Point2F &tvert2() const { return _tvert2; }
+      void tvert2(const Point2F& c) { _tvert2 = c; }
+
+      const GFXVertexColor &color() const { return _color; }
+      void color(const GFXVertexColor &c) { _color = c; }
+   };
+
+   struct __TSMeshIndex_List {
+      U8 x;
+      U8 y;
+      U8 z;
+      U8 w;
+   };
+
+   struct __TSMeshVertex_BoneData
+   {
+      __TSMeshIndex_List _indexes;
+      Point4F _weights;
+
+      const __TSMeshIndex_List &index() const { return _indexes; }
+      void index(const __TSMeshIndex_List& c) { _indexes = c; }
+
+      const Point4F &weight() const { return _weights; }
+      void weight(const Point4F &w) { _weights = w; }
+   };
+
+#pragma pack()
+
+   struct TSMeshVertexArray
+   {
+   protected:
+      U8 *base;
+      dsize_t vertSz;
+      U32 numElements;
+
+      U32 colorOffset;
+      U32 boneOffset;
+
+      bool vertexDataReady;
+      bool ownsData;
+
+   public:
+      TSMeshVertexArray() : base(NULL), numElements(0), colorOffset(0), boneOffset(0), vertexDataReady(false), ownsData(false) {}
+      virtual ~TSMeshVertexArray() { set(NULL, 0, 0, 0, 0); }
+
+      virtual void set(void *b, dsize_t s, U32 n, S32 inColorOffset, S32 inBoneOffset, bool nowOwnsData = true)
+      {
+         if (base && ownsData)
+            dFree_aligned(base);
+         base = reinterpret_cast<U8 *>(b);
+         vertSz = s;
+         numElements = n;
+         colorOffset = inColorOffset >= 0 ? inColorOffset : 0;
+         boneOffset = inBoneOffset >= 0 ? inBoneOffset : 0;
+         ownsData = nowOwnsData;
+      }
+
+      /// Gets pointer to __TSMeshVertexBase for vertex idx
+      __TSMeshVertexBase &getBase(int idx) const
+      {
+         AssertFatal(idx < numElements, "Out of bounds access!"); return *reinterpret_cast<__TSMeshVertexBase *>(base + idx * vertSz);
+      }
+
+      /// Gets pointer to __TSMeshVertex_3xUVColor for vertex idx
+      __TSMeshVertex_3xUVColor &getColor(int idx) const
+      {
+         AssertFatal(idx < numElements, "Out of bounds access!"); return *reinterpret_cast<__TSMeshVertex_3xUVColor *>(base + (idx * vertSz) + colorOffset);
+      }
+
+      /// Gets pointer to __TSMeshVertex_BoneData for vertex idx, additionally offsetted by subBoneList 
+      __TSMeshVertex_BoneData &getBone(int idx, int subBoneList) const
+      {
+         AssertFatal(idx < numElements, "Out of bounds access!"); return *reinterpret_cast<__TSMeshVertex_BoneData *>(base + (idx * vertSz) + boneOffset + (sizeof(__TSMeshVertex_BoneData) * subBoneList));
+      }
+
+      /// Returns base address of vertex data
+      __TSMeshVertexBase *address() const
+      {
+         return reinterpret_cast<__TSMeshVertexBase *>(base);
+      }
+
+      U32 size() const { return numElements; }
+      dsize_t mem_size() const { return numElements * vertSz; }
+      dsize_t vertSize() const { return vertSz; }
+      bool isReady() const { return vertexDataReady; }
+      void setReady(bool r) { vertexDataReady = r; }
+
+      inline U32 getColorOffset() const { return colorOffset; }
+      inline U32 getBoneOffset() const { return boneOffset; }
+   };
+
+protected:
 
    U32 meshType;
    Box3F mBounds;
@@ -135,14 +268,26 @@ class TSMesh
    F32 mRadius;
    F32 mVisibility;
 
-
-protected:
-   bool mIsEditable;
    const GFXVertexFormat *mVertexFormat;
 
+   TSMesh *parentMeshObject; ///< Current parent object instance
+
+   U32 mPrimBufferOffset;
+
+   GFXVertexBufferDataHandle mVB;
+   GFXPrimitiveBufferHandle mPB;
+
 public:
+
+   S32 parentMesh; ///< index into shapes mesh list
+   S32 numFrames;
+   S32 numMatFrames;
+   S32 vertsPerFrame;
+
    U32 mVertOffset;
    U32 mVertSize;
+
+   bool mIsEditable;
 
 protected:
 
@@ -176,141 +321,6 @@ protected:
 
    const Point3F* getNormals( S32 firstVert );
 
-   S32 parentMesh; ///< index into shapes mesh list
-   S32 numFrames;
-   S32 numMatFrames;
-   S32 vertsPerFrame;
-
-   TSMesh *parentMeshObject; ///< Current parent object instance
-
-   U32 mVertBufferOffset;
-   U32 mPrimBufferOffset;
-
-   GFXVertexBufferDataHandle mVB;
-   GFXPrimitiveBufferHandle mPB;
-
-   /// @name Aligned Vertex Data 
-   /// @{
-
-#pragma pack(1)
-
-   struct __TSMeshVertexBase
-   {
-      Point3F _vert;
-      F32 _tangentW;
-      Point3F _normal;
-      Point3F _tangent;
-      Point2F _tvert;
-
-      const Point3F &vert() const { return _vert; }
-      void vert(const Point3F &v) { _vert = v; }
-
-      const Point3F &normal() const { return _normal; }
-      void normal(const Point3F &n) { _normal = n; }
-
-      Point4F tangent() const { return Point4F(_tangent.x, _tangent.y, _tangent.z, _tangentW); }
-      void tangent(const Point4F &t) { _tangent = t.asPoint3F(); _tangentW = t.w; }
-
-      const Point2F &tvert() const { return _tvert; }
-      void tvert(const Point2F &tv) { _tvert = tv; }
-   };
-
-   struct __TSMeshVertex_3xUVColor
-   {
-      Point2F _tvert2;
-      GFXVertexColor _color;
-      
-      const Point2F &tvert2() const { return _tvert2; }
-      void tvert2(const Point2F& c) { _tvert2 = c; }
-      
-      const GFXVertexColor &color() const { return _color; }
-      void color(const GFXVertexColor &c) { _color = c; }
-   };
-   
-   struct __TSMeshIndex_List {
-	   U8 x;
-	   U8 y;
-	   U8 z;
-	   U8 w;
-   };
-   
-   struct __TSMeshVertex_BoneData
-   {
-      __TSMeshIndex_List _indexes;
-      Point4F _weights;
-      
-      const __TSMeshIndex_List &index() const { return _indexes; }
-      void index(const __TSMeshIndex_List& c) { _indexes = c; }
-      
-      const Point4F &weight() const { return _weights; }
-      void weight(const Point4F &w) { _weights = w; }
-   };
-   
-#pragma pack()
-
-   struct TSMeshVertexArray
-   {
-   protected:
-      U8 *base;
-      dsize_t vertSz;
-      U32 numElements;
-      
-      U32 colorOffset;
-      U32 boneOffset;
-
-      bool vertexDataReady;
-      bool ownsData;
-
-   public:
-      TSMeshVertexArray() : base(NULL), numElements(0), colorOffset(0), boneOffset(0), vertexDataReady(false), ownsData(false) {}
-      virtual ~TSMeshVertexArray() { set(NULL, 0, 0, 0, 0); }
-      
-      virtual void set( void *b, dsize_t s, U32 n, U32 inColorOffset, U32 inBoneOffset, bool nowOwnsData = true, bool autoFree = true )
-      {
-         if(base && autoFree && ownsData)
-            dFree_aligned(base);
-         base = reinterpret_cast<U8 *>(b);
-         vertSz = s;
-         numElements = n;
-         colorOffset = inColorOffset;
-         boneOffset = inBoneOffset;
-         ownsData = nowOwnsData;
-      }
-      
-      /// Gets pointer to __TSMeshVertexBase for vertex idx
-      __TSMeshVertexBase &getBase(int idx) const
-      {
-         AssertFatal(idx < numElements, "Out of bounds access!"); return *reinterpret_cast<__TSMeshVertexBase *>(base + idx * vertSz);
-      }
-      
-      /// Gets pointer to __TSMeshVertex_3xUVColor for vertex idx
-      __TSMeshVertex_3xUVColor &getColor(int idx) const
-      {
-         AssertFatal(idx < numElements, "Out of bounds access!"); return *reinterpret_cast<__TSMeshVertex_3xUVColor *>(base + (idx * vertSz) + colorOffset);
-      }
-      
-      /// Gets pointer to __TSMeshVertex_BoneData for vertex idx, additionally offsetted by subBoneList 
-      __TSMeshVertex_BoneData &getBone(int idx, int subBoneList) const
-      {
-         AssertFatal(idx < numElements, "Out of bounds access!"); return *reinterpret_cast<__TSMeshVertex_BoneData *>(base + (idx * vertSz) + boneOffset + (sizeof(__TSMeshVertex_BoneData) * subBoneList));
-      }
-      
-      /// Returns base address of vertex data
-      __TSMeshVertexBase *address() const
-      {
-         return reinterpret_cast<__TSMeshVertexBase *>(base);
-      }
-
-      U32 size() const { return numElements; }
-      dsize_t mem_size() const { return numElements * vertSz; }
-      dsize_t vertSize() const { return vertSz; }
-      bool isReady() const { return vertexDataReady; }
-      void setReady(bool r) { vertexDataReady = r; }
-      
-      inline U32 getColorOffset() const { return colorOffset; }
-      inline U32 getBoneOffset() const { return boneOffset; }
-   };
-
    TSMeshVertexArray mVertexData;
    U32 mNumVerts;
    virtual void convertToAlignedMeshData(U8 *outVerts);
@@ -318,16 +328,6 @@ protected:
 
    /// @name Vertex data
    /// @{
-
-   template<class T>
-   class FreeableVector : public Vector<T>
-   {
-   public:
-      bool free_memory() { return Vector<T>::resize(0); }
-
-      FreeableVector<T>& operator=(const Vector<T>& p) { Vector<T>::operator=(p); return *this; }
-      FreeableVector<T>& operator=(const FreeableVector<T>& p) { Vector<T>::operator=(p); return *this; }
-   };
 
    FreeableVector<Point3F> verts;
    FreeableVector<Point3F> norms;
@@ -554,7 +554,7 @@ public:
 
    /// This method will build the batch operations and prepare the BatchData
    /// for use.
-   void createBatchData();
+   void createSkinBatchData();
 
    /// Inserts transform indices and weights into vertex data
    void setupVertexTransforms();
@@ -563,8 +563,6 @@ public:
    virtual U32 getMaxBonesPerVert();
 
    virtual void convertToAlignedMeshData(U8 *outVerts);
-
-   virtual U32 getNumVerts();
 
    void printVerts();
 
