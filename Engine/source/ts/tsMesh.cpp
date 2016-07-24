@@ -2765,7 +2765,7 @@ void TSSkinMesh::assemble( bool skip )
    S32 sz;
    S32 * ptr32;
 
-   if (TSShape::smVersion < 27)
+   if (TSShape::smReadVersion < 27)
    {
       sz = tsalloc.get32();
       S32 numVerts = sz;
