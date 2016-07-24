@@ -859,7 +859,7 @@ bool TSShapeInstance::MeshObjectInstance::bufferNeedsUpdate( S32 objectDetail )
 {
    TSMesh *mesh = getMesh(objectDetail);
    const U32 currTime = Sim::getCurrentTime();
-   return mesh->getMeshType() == TSMesh::SkinMeshType && currTime != mLastTime;
+   return mesh && mesh->getMeshType() == TSMesh::SkinMeshType && currTime != mLastTime;
 }
 
 TSShapeInstance::MeshObjectInstance::MeshObjectInstance() 

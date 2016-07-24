@@ -283,6 +283,9 @@ int main(int argc, const char **argv)
 #include "app/mainLoop.h"
 #include "T3D/gameFunctions.h"
 
+#include <windows.h>
+#include <crtdbg.h>
+
 // Entry point for your game.
 //
 // This is build by default using the "StandardMainLoop" toolkit. Feel free
@@ -299,6 +302,8 @@ S32 TorqueMain(S32 argc, const char **argv)
 
    //   Memory::enableLogging("testMem.log");
    //   Memory::setBreakAlloc(104717);
+
+   _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF | _CRTDBG_CHECK_ALWAYS_DF);
 
    // Initialize the subsystems.
    StandardMainLoop::init();
