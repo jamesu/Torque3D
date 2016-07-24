@@ -83,8 +83,6 @@ public:
 
    // GFXResource
    virtual const String describeSelf() const;
-
-   virtual GFXVertexBuffer* createOffsettedBuffer(const GFXVertexFormat *vertexFormat, U32 numVerts, U32 offset) { return NULL; }
 };
 
 

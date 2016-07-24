@@ -73,7 +73,6 @@ GFXGLVertexBuffer::~GFXGLVertexBuffer()
 
 void GFXGLVertexBuffer::lock( U32 vertexStart, U32 vertexEnd, void **vertexPtr )
 {
-   AssertFatal(mBufferType != GFXBufferTypeSubBuffer, "Cannot lock buffer of type GFXBufferTypeSubBuffer");
    PROFILE_SCOPE(GFXGLVertexBuffer_lock);
 
    if( mBufferType == GFXBufferTypeVolatile )
@@ -139,7 +138,7 @@ void GFXGLVertexBuffer::prepare(U32 stream, U32 divisor)
 {
    if( GFXGL->mCapabilities.vertexAttributeBinding )
    {      
-      glBindVertexBuffer( stream, mBuffer, mBufferOffset + mBufferVertexOffset, mVertexSize );
+      glBindVertexBuffer( stream, mBuffer, mBufferOffset, mVertexSize );
       glVertexBindingDivisor( stream, divisor );
       return;
    }
