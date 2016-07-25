@@ -663,8 +663,7 @@ public:
                                   MaterialFeatureData *outFeatureData );
 };
 
-/// Special feature for unpacking imposter verts.
-/// @see RenderImposterMgr
+/// Hardware Skinning
 class HardwareSkinningFeatureHLSL : public ShaderFeatureHLSL
 {
 protected:
