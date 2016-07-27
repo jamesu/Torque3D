@@ -1051,7 +1051,9 @@ void TSMesh::computeBounds( const MatrixF &transform, Box3F &bounds, S32 frame, 
    S32 stride = 0;
    S32 numVerts = 0;
 
-   if(mVertexData.isReady())
+   AssertFatal(!mVertexData.isReady()  || (mVertexData.isReady() && mNumVerts == mVertexData.size() && mNumVerts == vertsPerFrame), "vertex number mismatch");
+
+   if(mVertexData.isReady() && mVertexData.size() > 0)
    {
       baseVert = &mVertexData.getBase(0).vert();
       stride = mVertexData.vertSize();
@@ -2614,22 +2616,20 @@ void TSMesh::disassemble()
    tsalloc.copyToBuffer32( (S32*)&mCenter, 3 );
    tsalloc.set32( (S32)mRadius );
 
-   bool shouldMakeEditable = mVertexData.isReady();
-
-   if (TSShape::smVersion > 26)
-   {
-      shouldMakeEditable = shouldMakeEditable && mIsEditable;
-   }
+   bool shouldMakeEditable = TSShape::smVersion < 27;
 
    // Re-create the vectors
    if (shouldMakeEditable)
    {
-      makeEditable(false);
+      makeEditable(true);
 
       // No Offset
-      tsalloc.set32(0);
-      tsalloc.set32(0);
-      tsalloc.set32(0);
+      if (TSShape::smVersion >= 27)
+      {
+         tsalloc.set32(0);
+         tsalloc.set32(0);
+         tsalloc.set32(0);
+      }
    }
    else
    {
@@ -2637,6 +2637,7 @@ void TSMesh::disassemble()
       tsalloc.set32(mVertOffset);
       tsalloc.set32(mNumVerts);
       tsalloc.set32(mVertSize);
+      AssertFatal(mNumVerts >= vertsPerFrame, "invalid mNumVerts");
    }
 
    if (TSShape::smVersion >= 27 && !mIsEditable)
@@ -2867,7 +2868,11 @@ void TSSkinMesh::assemble( bool skip )
          Con::printf("we[%i] == %f", i, weight[i]);
       }
 
-      AssertFatal(batchData.initialVerts.size() == mNumVerts, "err WTF");
+      if (mIsEditable)
+      {
+         AssertFatal(batchData.initialVerts.size() == mNumVerts, "err WTF");
+      }
+
       Con::printf("---");
    }
 
@@ -3078,15 +3083,15 @@ void TSMesh::createTangents(const Vector<Point3F> &_verts, const Vector<Point3F>
    }
 }
 
-void TSMesh::convertToAlignedMeshData(U8 *outVerts)
+void TSMesh::convertToVertexData()
 {
    if (!mVertexData.isReady())
    {
-      _convertToAlignedMeshData(outVerts, verts, norms);
+      _convertToVertexData(mVertexData, verts, norms);
    }
 }
 
-void TSSkinMesh::convertToAlignedMeshData(U8 *outVerts)
+void TSSkinMesh::convertToVertexData()
 {
    if (!mVertexData.isReady())
    {
@@ -3094,7 +3099,7 @@ void TSSkinMesh::convertToAlignedMeshData(U8 *outVerts)
       createSkinBatchData();
 
       // Dump verts to buffer
-      _convertToAlignedMeshData(outVerts, batchData.initialVerts, batchData.initialNorms);
+      _convertToVertexData(mVertexData, batchData.initialVerts, batchData.initialNorms);
 
       // Setup bones too
       setupVertexTransforms();
@@ -3103,10 +3108,10 @@ void TSSkinMesh::convertToAlignedMeshData(U8 *outVerts)
 
 U32 TSMesh::getNumVerts()
 {
-   return verts.size();
+   return mVertexData.isReady() ? mNumVerts : verts.size();
 }
 
-void TSMesh::_convertToAlignedMeshData(U8 *outVerts, const Vector<Point3F> &_verts, const Vector<Point3F> &_norms)
+void TSMesh::_convertToVertexData(TSMeshVertexArray &outArray, const Vector<Point3F> &_verts, const Vector<Point3F> &_norms)
 {
    U32 colorOffset = 0;
    U32 boneOffset = 0;
@@ -3117,30 +3122,14 @@ void TSMesh::_convertToAlignedMeshData(U8 *outVerts, const Vector<Point3F> &_ver
    AssertFatal(!getHasColor() || colors.size() == _verts.size(), "Vector of color elements should be the same size as other vectors");
    AssertFatal(!getHasTVert2() || tverts2.size() == _verts.size(), "Vector of tvert2 elements should be the same size as other vectors");
 
-   TSBasicVertexFormat fmt(this);
-
-   boneOffset = fmt.boneOffset >= 0 ? fmt.boneOffset : 0;
-   colorOffset = fmt.colorOffset >= 0 ? fmt.colorOffset : 0;
-
-   AssertFatal(!mVertexData.isReady(), "Mesh already converted to aligned data! Re-check code!");
+   AssertFatal(!outArray.isReady(), "Mesh already converted to aligned data! Re-check code!");
    AssertFatal(_verts.size() == _norms.size() &&
       _verts.size() == tangents.size(),
       "Vectors: verts, norms, tangents must all be the same size");
-   mNumVerts = _verts.size();
-
-   // Initialize the vertex data
-   mVertexData.set(NULL, 0, 0, colorOffset, boneOffset, false);
-   mVertexData.setReady(true);
+   AssertFatal(mVertSize == outArray.vertSize(), "Size inconsistency");
 
    if (mNumVerts == 0)
       return;
-
-   // Create the proper array type
-   void *aligned_mem = (void*)outVerts;
-   AssertFatal(aligned_mem, "Aligned malloc failed! Debug!");
-
-   dMemset(aligned_mem, 0, mNumVerts * mVertSize);
-   mVertexData.set(aligned_mem, mVertSize, mNumVerts, colorOffset, boneOffset, false);
 
    bool needsSkin = mVertexFormat->hasBlendIndices();
    bool needWeightSet = boneOffset != 0 && getMeshType() != TSMesh::SkinMeshType;
@@ -3148,11 +3137,11 @@ void TSMesh::_convertToAlignedMeshData(U8 *outVerts, const Vector<Point3F> &_ver
    bool hasColor = getHasColor();
    bool hasTVert2 = getHasTVert2();
 
-   dMemset(&mVertexData.getBase(0), '\0', mVertSize * mNumVerts);
+   dMemset(&outArray.getBase(0), '\0', mVertSize * mNumVerts);
 
    for (U32 i = 0; i < mNumVerts; i++)
    {
-      __TSMeshVertexBase &v = mVertexData.getBase(i);
+      __TSMeshVertexBase &v = outArray.getBase(i);
       v.vert(_verts[i]);
       v.normal(_norms[i]);
       v.tangent(tangents[i]);
@@ -3162,7 +3151,7 @@ void TSMesh::_convertToAlignedMeshData(U8 *outVerts, const Vector<Point3F> &_ver
 
       if (hasTVert2 || hasColor)
       {
-         __TSMeshVertex_3xUVColor &vc = mVertexData.getColor(i);
+         __TSMeshVertex_3xUVColor &vc = outArray.getColor(i);
          if (hasTVert2 && i < tverts2.size())
             vc.tvert2(tverts2[i]);
          if (hasColor && i < colors.size())
@@ -3173,7 +3162,7 @@ void TSMesh::_convertToAlignedMeshData(U8 *outVerts, const Vector<Point3F> &_ver
       if (needWeightSet)
       {
          const Point4F wt(1.0f, 0.0f, 0.0f, 0.0f);
-         mVertexData.getBone(i, 0).weight(wt);
+         outArray.getBone(i, 0).weight(wt);
       }
    }
 }

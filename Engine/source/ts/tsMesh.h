@@ -256,6 +256,8 @@ public:
       bool isReady() const { return vertexDataReady; }
       void setReady(bool r) { vertexDataReady = r; }
 
+      U8* getPtr() { return base; }
+
       inline U32 getColorOffset() const { return colorOffset; }
       inline U32 getBoneOffset() const { return boneOffset; }
    };
@@ -291,7 +293,7 @@ public:
 
 protected:
 
-   void _convertToAlignedMeshData(U8 *outVertPtr, const Vector<Point3F> &_verts, const Vector<Point3F> &_norms);
+   void _convertToVertexData(TSMeshVertexArray &outArray, const Vector<Point3F> &_verts, const Vector<Point3F> &_norms);
 
   public:
 
@@ -323,7 +325,7 @@ protected:
 
    TSMeshVertexArray mVertexData;
    U32 mNumVerts;
-   virtual void convertToAlignedMeshData(U8 *outVerts);
+   virtual void convertToVertexData();
    /// @}
 
    /// @name Vertex data
@@ -562,7 +564,7 @@ public:
    /// Returns maximum bones used per vertex
    virtual U32 getMaxBonesPerVert();
 
-   virtual void convertToAlignedMeshData(U8 *outVerts);
+   virtual void convertToVertexData();
 
    void printVerts();
 

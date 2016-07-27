@@ -618,6 +618,8 @@ void TSShape::initVertexBuffers()
             mesh->getMeshType() != TSMesh::SkinMeshType))
          continue;
 
+      AssertFatal(!mesh->mIsEditable, "Mesh should not be editable");
+
       // Make the offset vbo
       mesh->mPrimBufferOffset = primStart;
 
@@ -634,9 +636,6 @@ void TSShape::initVertexBuffers()
       // Advance
       piInput += mesh->primitives.size();
       ibIndices += mesh->indices.size();
-
-      // Clear verts list and such
-      mesh->clearEditable();
 
       if (TSSkinMesh::smDebugSkinVerts && mesh->getMeshType() == TSMesh::SkinMeshType)
       {
@@ -697,6 +696,45 @@ void TSShape::getVertexBuffer(TSVertexBufferHandle &vb, GFXBufferType bufferType
    vb.unlock();
 }
 
+void TSShape::initVertexBufferPointers()
+{
+   if (mBasicVertexFormat.vertexSize == -1)
+      return;
+   AssertFatal(mVertexSize == mBasicVertexFormat.vertexSize, "vertex size mismatch");
+
+   for (Vector<TSMesh*>::iterator iter = meshes.begin(); iter != meshes.end(); iter++)
+   {
+      TSMesh *mesh = *iter;
+      if (mesh &&
+         (mesh->getMeshType() == TSMesh::StandardMeshType ||
+            mesh->getMeshType() == TSMesh::SkinMeshType))
+      {
+         // Set buffer
+         AssertFatal(mesh->mNumVerts >= mesh->vertsPerFrame, "invalid verts per frame");
+         if (mesh->mVertSize > 0 && !mesh->mIsEditable && !mesh->mVertexData.isReady())
+         {
+            U32 boneOffset = 0;
+            U32 colorOffset = 0;
+            AssertFatal(mesh->mVertSize == mVertexFormat.getSizeInBytes(), "mismatch in format size");
+
+            if (mBasicVertexFormat.boneOffset >= 0)
+            {
+               boneOffset = mBasicVertexFormat.boneOffset;
+            }
+
+            if (mBasicVertexFormat.colorOffset >= 0)
+            {
+               colorOffset = mBasicVertexFormat.colorOffset;
+            }
+
+            // Initialize the vertex data
+            mesh->mVertexData.set(mShapeVertexData.base + mesh->mVertOffset, mesh->mVertSize, mesh->mNumVerts, colorOffset, boneOffset, false);
+            mesh->mVertexData.setReady(true);
+         }
+      }
+   }
+}
+
 void TSShape::initVertexFeatures()
 {
    bool hasColors = false;
@@ -713,43 +751,15 @@ void TSShape::initVertexFeatures()
       mBasicVertexFormat.getFormat(mVertexFormat);
       mVertexSize = mVertexFormat.getSizeInBytes();
 
-      AssertFatal(mVertexSize == mBasicVertexFormat.vertexSize, "vertex size mismatch");
+      initVertexBufferPointers();
 
       for (Vector<TSMesh*>::iterator iter = meshes.begin(); iter != meshes.end(); iter++)
       {
          TSMesh *mesh = *iter;
          if (mesh &&
-            (mesh->getMeshType() == TSMesh::StandardMeshType ||
-               mesh->getMeshType() == TSMesh::SkinMeshType))
+            (mesh->getMeshType() == TSMesh::SkinMeshType))
          {
-            mesh->mVertSize = mVertexFormat.getSizeInBytes();
-
-            // Set buffer
-            if (mesh->mVertSize > 0 && !mesh->mIsEditable && !mesh->mVertexData.isReady())
-            {
-               U32 boneOffset = 0;
-               U32 colorOffset = 0;
-
-               if (mBasicVertexFormat.boneOffset >= 0)
-               {
-                  boneOffset = mBasicVertexFormat.boneOffset;
-               }
-
-               if (mBasicVertexFormat.colorOffset >= 0)
-               {
-                  colorOffset = mBasicVertexFormat.colorOffset;
-               }
-
-               // Initialize the vertex data
-               mesh->mVertexData.set(mShapeVertexData.base + mesh->mVertOffset, mesh->mVertSize, mesh->mNumVerts, colorOffset, boneOffset, false);
-               mesh->mVertexData.setReady(true);
-
-               // If using software skinning, we need the batch data available
-               if (mesh->getMeshType() == TSMesh::SkinMeshType && !TSShape::smUseHardwareSkinning)
-               {
-                  static_cast<TSSkinMesh*>(mesh)->createSkinBatchData();
-               }
-            }
+            static_cast<TSSkinMesh*>(mesh)->createSkinBatchData();
          }
       }
 
@@ -763,7 +773,8 @@ void TSShape::initVertexFeatures()
 
    // Make sure mesh has verts stored in mesh data, we're recreating the buffer
    TSBasicVertexFormat basicFormat;
-   mBasicVertexFormat = basicFormat;
+   
+   initVertexBufferPointers();
 
    for (Vector<TSMesh*>::iterator iter = meshes.begin(); iter != meshes.end(); iter++)
    {
@@ -781,11 +792,12 @@ void TSShape::initVertexFeatures()
             static_cast<TSSkinMesh*>(mesh)->createSkinBatchData();
          }
 
-         mBasicVertexFormat.addMeshRequirements(mesh);
+         basicFormat.addMeshRequirements(mesh);
       }
    }
 
    mVertexFormat.clear();
+   mBasicVertexFormat = basicFormat;
    mBasicVertexFormat.getFormat(mVertexFormat);
    mBasicVertexFormat.vertexSize = mVertexFormat.getSizeInBytes();
    mVertexSize = mBasicVertexFormat.vertexSize;
@@ -804,7 +816,7 @@ void TSShape::initVertexFeatures()
             mesh->getMeshType() != TSMesh::SkinMeshType))
          continue;
 
-      mesh->mVertSize = mVertexFormat.getSizeInBytes();
+      mesh->mVertSize = mVertexSize;
 
       destVertex += mesh->mVertSize * mesh->getNumVerts();
       destIndices += mesh->indices.size();
@@ -837,14 +849,40 @@ void TSShape::initVertexFeatures()
             mesh->getMeshType() != TSMesh::SkinMeshType))
          continue;
 
+      U32 boneOffset = 0;
+      U32 colorOffset = 0;
+      AssertFatal(mesh->mVertSize == mVertexFormat.getSizeInBytes(), "mismatch in format size");
+
+      if (mBasicVertexFormat.boneOffset >= 0)
+      {
+         boneOffset = mBasicVertexFormat.boneOffset;
+      }
+
+      if (mBasicVertexFormat.colorOffset >= 0)
+      {
+         colorOffset = mBasicVertexFormat.colorOffset;
+      }
+
       // Dump everything
-      mesh->mVertexData.setReady(false);
-      mesh->convertToAlignedMeshData(vertexDataPtr);
+      mesh->mVertSize = mVertexSize;
       mesh->mVertOffset = vertexDataPtr - vertexData;
-      mesh->mVertexData.set(mShapeVertexData.base + mesh->mVertOffset, mesh->mVertSize, mesh->mNumVerts, mBasicVertexFormat.colorOffset, mBasicVertexFormat.boneOffset, false);
+      mesh->mNumVerts = mesh->getNumVerts();
+
+      mesh->mVertexData.set(mShapeVertexData.base + mesh->mVertOffset, mesh->mVertSize, mesh->mNumVerts, colorOffset, boneOffset, false);
+      mesh->mVertexData.setReady(false);
+      AssertFatal(vertexDataPtr == mShapeVertexData.base + mesh->mVertOffset, "wtf");
+      mesh->convertToVertexData();
       mesh->mVertexData.setReady(true);
 
 #ifdef TORQUE_DEBUG
+      AssertFatal(mesh->mNumVerts == mesh->verts.size(), "vert mismatch");
+      for (U32 i = 0; i < mesh->mNumVerts; i++)
+      {
+         Point3F v1 = mesh->verts[i];
+         Point3F v2 = mesh->mVertexData.getBase(i).vert();
+         AssertFatal(mesh->verts[i] == mesh->mVertexData.getBase(i).vert(), "vert data mismatch");
+      }
+
       if (mesh->getMeshType() == TSMesh::SkinMeshType)
       {
          AssertFatal(mesh->getMaxBonesPerVert() != 0, "Skin mesh has no bones used, very strange!");

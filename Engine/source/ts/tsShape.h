@@ -439,6 +439,9 @@ class TSShape
    /// all detail meshes in the shape.
    void initVertexFeatures();
 
+   /// Inits basic buffer pointers on load
+   void initVertexBufferPointers();
+
    bool getSequencesConstructed() const { return mSequencesConstructed; }
    void setSequencesConstructed(const bool c) { mSequencesConstructed = c; }
 
