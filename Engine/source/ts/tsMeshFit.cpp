@@ -282,7 +282,7 @@ void MeshFit::addSourceMesh( const TSShape::Object& obj, const TSMesh* mesh )
    S32 count, stride;
    U8* pVert;
 
-   if ( mesh->mVertexData.isReady() )
+   if ( mesh->mVertexData.isReady() && mesh->verts.size() == 0 )
    {
       count = mesh->mVertexData.size();
       stride = mesh->mVertexData.vertSize();
@@ -799,7 +799,7 @@ DefineTSShapeConstructorMethod( addPrimitive, bool, ( const char* meshName, cons
    MatrixF mat( txfm.getMatrix() );
 
    // Transform the mesh vertices
-   if ( mesh->mVertexData.isReady() )
+   if ( mesh->mVertexData.isReady() && mesh->verts.size() == 0 )
    {
       for (S32 i = 0; i < mesh->mVertexData.size(); i++)
       {

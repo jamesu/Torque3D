@@ -1053,7 +1053,7 @@ void TSMesh::computeBounds( const MatrixF &transform, Box3F &bounds, S32 frame, 
 
    AssertFatal(!mVertexData.isReady()  || (mVertexData.isReady() && mNumVerts == mVertexData.size() && mNumVerts == vertsPerFrame), "vertex number mismatch");
 
-   if(mVertexData.isReady() && mVertexData.size() > 0)
+   if(verts.size() == 0 && mVertexData.isReady() && mVertexData.size() > 0)
    {
       baseVert = &mVertexData.getBase(0).vert();
       stride = mVertexData.vertSize();
