@@ -229,7 +229,7 @@ public:
       /// Gets pointer to __TSMeshVertexBase for vertex idx
       __TSMeshVertexBase &getBase(int idx) const
       {
-         AssertFatal(idx < numElements, "Out of bounds access!"); return *reinterpret_cast<__TSMeshVertexBase *>(base + idx * vertSz);
+         AssertFatal(idx < numElements, "Out of bounds access!"); return *reinterpret_cast<__TSMeshVertexBase *>(base + (idx * vertSz));
       }
 
       /// Gets pointer to __TSMeshVertex_3xUVColor for vertex idx
@@ -289,8 +289,6 @@ public:
    U32 mVertOffset;
    U32 mVertSize;
 
-   bool mIsEditable;
-
 protected:
 
    void _convertToVertexData(TSMeshVertexArray &outArray, const Vector<Point3F> &_verts, const Vector<Point3F> &_norms);
@@ -315,8 +313,8 @@ protected:
    };
 
    U32 getMeshType() const { return meshType & TypeMask; }
-   U32 getHasColor() const { return meshType & HasColor; }
-   U32 getHasTVert2() const { return meshType & HasTVert2; }
+   U32 getHasColor() const { return colors.size() > 0 || meshType & HasColor; }
+   U32 getHasTVert2() const { return tverts2.size() > 0 || meshType & HasTVert2; }
    void setFlags(U32 flag) { meshType |= flag; }
    void clearFlags(U32 flag) { meshType &= ~flag; }
    U32 getFlags( U32 flag = 0xFFFFFFFF ) const { return meshType & flag; }
@@ -324,8 +322,11 @@ protected:
    const Point3F* getNormals( S32 firstVert );
 
    TSMeshVertexArray mVertexData;
-   U32 mNumVerts;
+   U32 mNumVerts; ///< Number of verts allocated in main vertex buffer
+
    virtual void convertToVertexData();
+
+   virtual void copySourceVertexDataFrom(const TSMesh* srcMesh);
    /// @}
 
    /// @name Vertex data
@@ -452,11 +453,13 @@ protected:
                               S32 numPrimIn, S32 &numPrimOut, S32 &numIndicesOut,
                               TSDrawPrimitive *primitivesOut, S32 *indicesOut) const;
 
-   /// Moves vertices from the vertex buffer back into the split vert lists
-   virtual void makeEditable(bool clearVertexData);
+   /// Moves vertices from the vertex buffer back into the split vert lists, unless verts already exist
+   virtual void makeEditable();
 
    /// Clears split vertex lists
    virtual void clearEditable();
+
+   void updateMeshFlags();
 
    /// methods used during assembly to share vertexand other info
    /// between meshes (and for skipping detail levels on load)
@@ -565,11 +568,13 @@ public:
    virtual U32 getMaxBonesPerVert();
 
    virtual void convertToVertexData();
+   virtual void copySourceVertexDataFrom(const TSMesh* srcMesh);
 
    void printVerts();
 
    void addWeightsFromVertexBuffer();
-   void makeEditable(bool clearVertexData);
+
+   void makeEditable();
    void clearEditable();
 
 public:

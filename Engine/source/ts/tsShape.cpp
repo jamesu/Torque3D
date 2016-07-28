@@ -69,7 +69,6 @@ TSShape::TSShape()
    mSequencesConstructed = false;
    mShapeData = NULL;
    mShapeDataSize = 0;
-   mShapeIsDirty = true;
 
    mUseDetailFromScreenError = false;
 
@@ -282,6 +281,29 @@ bool TSShape::findMeshIndex(const String& meshName, S32& objIndex, S32& meshInde
    {
       const TSShape::Detail& det = details[validDetails[meshIndex]];
       if (detailSize == det.size)
+         return true;
+   }
+
+   return false;
+}
+
+bool TSShape::needsBufferUpdate()
+{
+   // No buffer? definitely need an update!
+   if (mVertexSize == 0 || mShapeVertexData.size == 0)
+      return true;
+
+   // Check if we have modified vertex data
+   for (Vector<TSMesh*>::iterator iter = meshes.begin(); iter != meshes.end(); iter++)
+   {
+      TSMesh *mesh = *iter;
+      if (!mesh ||
+         (mesh->getMeshType() != TSMesh::StandardMeshType &&
+            mesh->getMeshType() != TSMesh::SkinMeshType))
+         continue;
+
+      // NOTE: cant use mVertexData.isReady since that might not be init'd at this stage
+      if (mesh->mVertSize == 0)
          return true;
    }
 
@@ -618,13 +640,13 @@ void TSShape::initVertexBuffers()
             mesh->getMeshType() != TSMesh::SkinMeshType))
          continue;
 
-      AssertFatal(!mesh->mIsEditable, "Mesh should not be editable");
-
       // Make the offset vbo
       mesh->mPrimBufferOffset = primStart;
 
       // Dump primitives to locked buffer
       mesh->dumpPrimitives(vertStart, indStart, piInput, ibIndices);
+
+      AssertFatal(mesh->mVertOffset / mVertexSize == vertStart, "offset mismatch");
 
       vertStart += mesh->mNumVerts;
       primStart += mesh->primitives.size();
@@ -711,7 +733,7 @@ void TSShape::initVertexBufferPointers()
       {
          // Set buffer
          AssertFatal(mesh->mNumVerts >= mesh->vertsPerFrame, "invalid verts per frame");
-         if (mesh->mVertSize > 0 && !mesh->mIsEditable && !mesh->mVertexData.isReady())
+         if (mesh->mVertSize > 0 && !mesh->mVertexData.isReady())
          {
             U32 boneOffset = 0;
             U32 colorOffset = 0;
@@ -744,7 +766,7 @@ void TSShape::initVertexFeatures()
    U32 primStart = 0;
    U32 indStart = 0;
 
-   if (!mShapeIsDirty)
+   if (!needsBufferUpdate())
    {
       // Init format from basic format
       mVertexFormat.clear();
@@ -784,7 +806,7 @@ void TSShape::initVertexFeatures()
             mesh->getMeshType() == TSMesh::SkinMeshType))
       {
          // Make sure we have everything in the vert lists
-         mesh->makeEditable(true);
+         mesh->makeEditable();
 
          // We need the skin batching data here to determine bone counts
          if (mesh->getMeshType() == TSMesh::SkinMeshType)
@@ -817,6 +839,7 @@ void TSShape::initVertexFeatures()
          continue;
 
       mesh->mVertSize = mVertexSize;
+      mesh->mVertOffset = destVertex;
 
       destVertex += mesh->mVertSize * mesh->getNumVerts();
       destIndices += mesh->indices.size();
@@ -838,7 +861,6 @@ void TSShape::initVertexFeatures()
    mShapeVertexData.set(vertexData, destVertex);
 
    // Create VBO
-   count = 0;
    for (Vector<TSMesh*>::iterator iter = meshes.begin(); iter != meshes.end(); iter++)
    {
       TSMesh *mesh = *iter;
@@ -864,13 +886,12 @@ void TSShape::initVertexFeatures()
       }
 
       // Dump everything
+      mesh->mVertexData.setReady(false);
       mesh->mVertSize = mVertexSize;
-      mesh->mVertOffset = vertexDataPtr - vertexData;
+      AssertFatal(mesh->mVertOffset == vertexDataPtr - vertexData, "vertex offset mismatch");
       mesh->mNumVerts = mesh->getNumVerts();
 
       mesh->mVertexData.set(mShapeVertexData.base + mesh->mVertOffset, mesh->mVertSize, mesh->mNumVerts, colorOffset, boneOffset, false);
-      mesh->mVertexData.setReady(false);
-      AssertFatal(vertexDataPtr == mShapeVertexData.base + mesh->mVertOffset, "wtf");
       mesh->convertToVertexData();
       mesh->mVertexData.setReady(true);
 
@@ -890,16 +911,11 @@ void TSShape::initVertexFeatures()
 #endif
 
       // Advance
-      count += 1;
       vertexDataPtr += mesh->mVertSize * mesh->mNumVerts;
 
       AssertFatal(vertexDataPtr - vertexData <= destVertex, "Vertex data overflow");
-
-      // Clear verts list and such
-      mesh->clearEditable();
    }
 
-   mShapeIsDirty = false;
    mShapeVertexData.vertexDataReady = true;
 
    initVertexBuffers();
@@ -1419,8 +1435,6 @@ void TSShape::assembleShape()
       vboSize = tsalloc.get32();
       vboData = tsalloc.getPointer8(vboSize);
 
-      mShapeIsDirty = vboSize == 0;
-
       if (tsalloc.getBuffer() && vboSize > 0)
       {
          U8 *vertexData = (U8*)dMalloc_aligned(vboSize, 16);
@@ -1428,18 +1442,15 @@ void TSShape::assembleShape()
          dMemcpy(vertexData, vboData, vboSize);
          mShapeVertexData.set(vertexData, vboSize);
          mShapeVertexData.vertexDataReady = true;
-         mShapeIsDirty = false;
       }
       else
       {
          mShapeVertexData.set(NULL, 0);
-         mShapeIsDirty = true;
       }
    }
    else
    {
       mShapeVertexData.set(NULL, 0);
-      mShapeIsDirty = true;
    }
 
    // about to read in the meshes...first must allocate some scratch space
@@ -2412,5 +2423,16 @@ void TSShape::computeAccelerator(S32 dl)
          }
       }
       AssertFatal(currPos == emitStringLen, "Error, over/underflowed the emission string!");
+   }
+}
+
+void TSShape::finalizeEditable()
+{
+   for (U32 i = 0; i < meshes.size(); i++)
+   {
+      if (meshes[i])
+      {
+         meshes[i]->clearEditable();
+      }
    }
 }

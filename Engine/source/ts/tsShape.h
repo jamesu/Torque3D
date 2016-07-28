@@ -414,8 +414,6 @@ class TSShape
 
    bool mSequencesConstructed;
 
-   bool mShapeIsDirty; ///< Marks if the shape VBO needs to be regenerated
-
 
    // shape class has few methods --
    // just constructor/destructor, io, and lookup methods
@@ -425,6 +423,7 @@ class TSShape
    ~TSShape();
    void init();
    void initMaterialList();    ///< you can swap in a new material list, but call this if you do
+   void finalizeEditable();
    bool preloadMaterialList(const Torque::Path &path); ///< called to preload and validate the materials in the mat list
 
    void setupBillboardDetails( const String &cachePath );
@@ -557,6 +556,8 @@ class TSShape
    bool hasTranslucency() const { return (mFlags & HasTranslucency)!=0; }
 
    const GFXVertexFormat* getVertexFormat() const { return &mVertexFormat; }
+
+   bool needsBufferUpdate();
 
    /// @}
 

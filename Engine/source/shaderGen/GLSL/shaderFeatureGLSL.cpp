@@ -2835,7 +2835,7 @@ void HardwareSkinningFeatureGLSL::processVert(Vector<ShaderComponent*> &componen
    Var* posePos = new Var("posePos", "vec3");
    Var* poseNormal = new Var("poseNormal", "vec3");
    Var* poseMat = new Var("poseMat", "mat4x3");
-   Var* poseRotMat = new Var("poseRotMat", "float3x3");
+   Var* poseRotMat = new Var("poseRotMat", "mat3x3");
    Var* nodeTransforms = (Var*)LangElement::find("nodeTransforms");
 
    if (!nodeTransforms)

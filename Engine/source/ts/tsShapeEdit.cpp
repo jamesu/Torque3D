@@ -904,16 +904,8 @@ TSMesh* TSShape::copyMesh( const TSMesh* srcMesh ) const
    mesh->setFlags(srcMesh->getFlags());
    mesh->mNumVerts = srcMesh->mNumVerts;
 
-   if ( srcMesh->mVertexData.isReady() )
-   {
-      mesh->makeEditable(true);
-   }
-
-   mesh->verts = srcMesh->verts;
-   mesh->tverts = srcMesh->tverts;
-   mesh->tverts2 = srcMesh->tverts2;
-   mesh->colors = srcMesh->colors;
-   mesh->norms = srcMesh->norms;
+   // Copy vertex data in an *unpacked* form
+   mesh->copySourceVertexDataFrom(srcMesh);
 
    mesh->createTangents(mesh->verts, mesh->norms);
    mesh->encodedNorms.set(NULL, 0);

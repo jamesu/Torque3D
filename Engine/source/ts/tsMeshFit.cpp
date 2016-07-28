@@ -404,13 +404,28 @@ void MeshFit::addBox( const Point3F& sides, const MatrixF& mat )
    if ( !mesh )
       return;
 
-   for ( S32 i = 0; i < mesh->mVertexData.size(); i++ )
+   if (mesh->verts.size() > 0)
    {
-      TSMesh::__TSMeshVertexBase &vdata = mesh->mVertexData.getBase(i);
-      Point3F v = vdata.vert();
-      v.convolve( sides );
-      vdata.vert( v );
+      for (S32 i = 0; i < mesh->verts.size(); i++)
+      {
+         Point3F v = mesh->verts[i];
+         v.convolve(sides);
+         mesh->verts[i] = v;
+      }
+
+      mesh->mVertexData.setReady(false);
    }
+   else
+   {
+      for (S32 i = 0; i < mesh->mVertexData.size(); i++)
+      {
+         TSMesh::__TSMeshVertexBase &vdata = mesh->mVertexData.getBase(i);
+         Point3F v = vdata.vert();
+         v.convolve(sides);
+         vdata.vert(v);
+      }
+   }
+
    mesh->computeBounds();
 
    mMeshes.increment();

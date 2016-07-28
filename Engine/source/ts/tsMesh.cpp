@@ -1177,10 +1177,12 @@ TSMesh::TSMesh() : meshType( StandardMeshType )
    mOpPoints = NULL;
 
    mVisibility = 1.0f;
-   mIsEditable = true;
 
 
    mNumVerts = 0;
+   mVertSize = 0;
+   mVertOffset = 0;
+
    parentMeshObject = NULL;
 }
 
@@ -1282,7 +1284,7 @@ void TSSkinMesh::updateSkinBones( const Vector<MatrixF> &transforms, Vector<Matr
       for (int i = 0; i<batchData.nodeIndex.size(); i++)
       {
          S32 node = batchData.nodeIndex[i];
-         if (node >= destTransforms.size())
+         if (node >= transforms.size())
             continue; // jamesu - ignore obviously invalid data
          destTransforms[i].mul(transforms[node], batchData.initialTransforms[i]);
       }
@@ -1292,7 +1294,8 @@ void TSSkinMesh::updateSkinBones( const Vector<MatrixF> &transforms, Vector<Matr
       for (int i = 0; i<batchData.nodeIndex.size(); i++)
       {
          S32 node = batchData.nodeIndex[i];
-         if (node >= destTransforms.size())
+
+         if (node >= transforms.size())
             continue; // jamesu - ignore obviously invalid data
          destTransforms[i].mul(transforms[node], batchData.initialTransforms[i]);
          destTransforms[i].transpose(); // jamesu - bones need to be transposed. Note this is equivalent to what happens in GL
@@ -1310,6 +1313,8 @@ void TSSkinMesh::createSkinBatchData()
    S32 * curBone = boneIndex.begin();
    F32 * curWeight = weight.begin();
    const S32 * endVtx = vertexIndex.end();
+
+   AssertFatal(batchData.nodeIndex.size() <= TSShape::smMaxSkinBones, "Too many bones are here!!!");
 
    // Temp vector to build batch operations
    Vector<BatchData::BatchedVertex> batchOperations;
@@ -1559,7 +1564,7 @@ void TSSkinMesh::computeBounds( const MatrixF &transform, Box3F &bounds, S32 fra
 {
    TORQUE_UNUSED(frame);
 
-   if (mIsEditable)
+   if (verts.size() != 0)
    {
       // Use unskinned verts
       TSMesh::computeBounds( verts.address(), verts.size(), sizeof(Point3F), transform, bounds, center, radius );
@@ -2439,14 +2444,12 @@ void TSMesh::assemble( bool skip )
       mVertOffset = tsalloc.get32();
       mNumVerts = tsalloc.get32();
       mVertSize = tsalloc.get32();
-
-      mIsEditable = mVertSize == 0;
    }
    else
    {
-      mIsEditable = true;
       mVertOffset = 0;
       mNumVerts = 0;
+      mVertSize = 0;
    }
 
    S32 numVerts = tsalloc.get32();
@@ -2621,7 +2624,7 @@ void TSMesh::disassemble()
    // Re-create the vectors
    if (shouldMakeEditable)
    {
-      makeEditable(true);
+      makeEditable();
 
       // No Offset
       if (TSShape::smVersion >= 27)
@@ -2640,7 +2643,7 @@ void TSMesh::disassemble()
       AssertFatal(mNumVerts >= vertsPerFrame, "invalid mNumVerts");
    }
 
-   if (TSShape::smVersion >= 27 && !mIsEditable)
+   if (TSShape::smVersion >= 27 && mVertexData.isReady())
    {
       // If not editable  all arrays are effectively 0.
       tsalloc.set32(0); // verts
@@ -2687,17 +2690,6 @@ void TSMesh::disassemble()
             tsalloc.copyToBuffer8((S8*)&normIdx, 1);
          }
       }
-   }
-
-   // Clear out recreated arrays if we still have mVertexData around
-   if (mVertexData.isReady())
-   {
-      verts.free_memory();
-      norms.free_memory();
-      tangents.free_memory();
-      tverts.free_memory();
-      tverts2.free_memory();
-      colors.free_memory();
    }
 
    // optimize triangle draw order during disassemble
@@ -2868,7 +2860,7 @@ void TSSkinMesh::assemble( bool skip )
          Con::printf("we[%i] == %f", i, weight[i]);
       }
 
-      if (mIsEditable)
+      if (mNumVerts != 0)
       {
          AssertFatal(batchData.initialVerts.size() == mNumVerts, "err WTF");
       }
@@ -2917,14 +2909,31 @@ void TSSkinMesh::disassemble()
    if ( parentMesh < 0 )
       tsalloc.copyToBuffer32( (S32*)batchData.initialTransforms.address(), batchData.initialTransforms.size() * 16 );
 
-   tsalloc.set32( vertexIndex.size() );
-   if ( parentMesh < 0 )
+   if (!mVertexData.isReady())
    {
-      tsalloc.copyToBuffer32( (S32*)vertexIndex.address(), vertexIndex.size() );
+      tsalloc.set32(vertexIndex.size());
 
-      tsalloc.copyToBuffer32( (S32*)boneIndex.address(), boneIndex.size() );
+      tsalloc.copyToBuffer32((S32*)vertexIndex.address(), vertexIndex.size());
 
-      tsalloc.copyToBuffer32( (S32*)weight.address(), weight.size() );
+      tsalloc.copyToBuffer32((S32*)boneIndex.address(), boneIndex.size());
+
+      tsalloc.copyToBuffer32((S32*)weight.address(), weight.size());
+   }
+   else
+   {
+      tsalloc.set32(0);
+   }
+
+   if (TSShape::smVersion < 27)
+   {
+      if (parentMesh < 0)
+      {
+         tsalloc.copyToBuffer32((S32*)vertexIndex.address(), vertexIndex.size());
+
+         tsalloc.copyToBuffer32((S32*)boneIndex.address(), boneIndex.size());
+
+         tsalloc.copyToBuffer32((S32*)weight.address(), weight.size());
+      }
    }
 
    tsalloc.set32( batchData.nodeIndex.size() );
@@ -3005,7 +3014,7 @@ inline void TSMesh::findTangent( U32 index1,
 //-----------------------------------------------------------------------------
 void TSMesh::createTangents(const Vector<Point3F> &_verts, const Vector<Point3F> &_norms)
 {
-   if (!mIsEditable) // can only be done in editable mode
+   if (_verts.size() == 0) // can only be done in editable mode
       return;
 
    U32 numVerts = _verts.size();
@@ -3106,6 +3115,68 @@ void TSSkinMesh::convertToVertexData()
    }
 }
 
+void TSMesh::copySourceVertexDataFrom(const TSMesh* srcMesh)
+{
+   verts = srcMesh->verts;
+   tverts = srcMesh->tverts;
+   norms = srcMesh->norms;
+   colors = srcMesh->colors;
+   tverts2 = srcMesh->tverts2;
+
+   if (verts.size() == 0)
+   {
+      bool hasTVert2 = srcMesh->getHasTVert2();
+      bool hasColor = srcMesh->getHasColor();
+
+      verts.setSize(srcMesh->mNumVerts);
+      tverts.setSize(srcMesh->mNumVerts);
+      norms.setSize(srcMesh->mNumVerts);
+
+      if (hasTVert2)
+         colors.setSize(mNumVerts);
+      if (hasColor)
+         tverts2.setSize(mNumVerts);
+
+      // Fill arrays
+      for (U32 i = 0; i < mNumVerts; i++)
+      {
+         const __TSMeshVertexBase &cv = srcMesh->mVertexData.getBase(i);
+         const __TSMeshVertex_3xUVColor &cvc = srcMesh->mVertexData.getColor(i);
+         verts[i] = cv.vert();
+         tverts[i] = cv.tvert();
+         norms[i] = cv.normal();
+
+         if (hasColor)
+            cvc.color().getColor(&colors[i]);
+         if (hasTVert2)
+            tverts2[i] = cvc.tvert2();
+      }
+   }
+}
+
+void TSSkinMesh::copySourceVertexDataFrom(const TSMesh* srcMesh)
+{
+   TSMesh::copySourceVertexDataFrom(srcMesh);
+
+   if (srcMesh->getMeshType() == TSMesh::SkinMeshType)
+   {
+      const TSSkinMesh* srcSkinMesh = static_cast<const TSSkinMesh*>(srcMesh);
+
+      weight = srcSkinMesh->weight;
+      boneIndex = srcSkinMesh->boneIndex;
+      vertexIndex = srcSkinMesh->vertexIndex;
+      maxBones = srcSkinMesh->maxBones;
+
+      // Extract from vertex data
+      if (srcSkinMesh->vertexIndex.size() == 0)
+      {
+         mVertexData = srcMesh->mVertexData;
+         addWeightsFromVertexBuffer();
+         mVertexData.setReady(false);
+      }
+   }
+}
+
 U32 TSMesh::getNumVerts()
 {
    return mVertexData.isReady() ? mNumVerts : verts.size();
@@ -3119,6 +3190,7 @@ void TSMesh::_convertToVertexData(TSMeshVertexArray &outArray, const Vector<Poin
    // Update tangents list
    createTangents(verts, norms);
 
+   AssertFatal(_verts.size() == mNumVerts, "vert count mismatch");
    AssertFatal(!getHasColor() || colors.size() == _verts.size(), "Vector of color elements should be the same size as other vectors");
    AssertFatal(!getHasTVert2() || tverts2.size() == _verts.size(), "Vector of tvert2 elements should be the same size as other vectors");
 
@@ -3132,7 +3204,7 @@ void TSMesh::_convertToVertexData(TSMeshVertexArray &outArray, const Vector<Poin
       return;
 
    bool needsSkin = mVertexFormat->hasBlendIndices();
-   bool needWeightSet = boneOffset != 0 && getMeshType() != TSMesh::SkinMeshType;
+   bool needWeightSet = outArray.getBoneOffset() != 0;
 
    bool hasColor = getHasColor();
    bool hasTVert2 = getHasTVert2();
@@ -3167,54 +3239,24 @@ void TSMesh::_convertToVertexData(TSMeshVertexArray &outArray, const Vector<Poin
    }
 }
 
-void TSMesh::makeEditable(bool clearVertexData)
+void TSMesh::makeEditable()
 {
    bool hasTVert2 = getHasTVert2();
    bool hasColor = getHasColor();
+   bool hasVerts = verts.size() != 0;
 
-   if(mVertexData.isReady())
+   if(mVertexData.isReady() && !hasVerts)
    {
-      verts.setSize(mNumVerts);
-      tverts.setSize(mNumVerts);
-      norms.setSize(mNumVerts);
-
-      if(hasTVert2)
-         colors.setSize(mNumVerts);
-      if(hasColor)
-         tverts2.setSize(mNumVerts);
-
-      // Fill arrays
-      for(U32 i = 0; i < mNumVerts; i++)
-      {
-         const __TSMeshVertexBase &cv = mVertexData.getBase(i);
-         const __TSMeshVertex_3xUVColor &cvc = mVertexData.getColor(i);
-         verts[i] = cv.vert();
-         tverts[i] = cv.tvert();
-         norms[i] = cv.normal();
-
-         if(hasColor)
-            cvc.color().getColor(&colors[i]);
-         if(hasTVert2)
-            tverts2[i] = cvc.tvert2();
-      }
-
-      if (clearVertexData)
-      {
-         mVertexData.set(NULL, 0, 0, 0, 0);
-         mVertexData.setReady(false);
-      }
+      copySourceVertexDataFrom(this);
    }
 
-   // Make sure flags are correct
-   if (colors.empty())
-      clearFlags(HasColor);
-   else
-      setFlags(HasColor);
+   mVertexData.setReady(false);
 
-   if (tverts2.empty())
-      clearFlags(HasTVert2);
-   else
-      setFlags(HasTVert2);
+   mVertSize = 0;
+   mNumVerts = 0;
+   mVertOffset = 0;
+
+   updateMeshFlags();
 }
 
 void TSSkinMesh::addWeightsFromVertexBuffer()
@@ -3250,34 +3292,38 @@ void TSSkinMesh::addWeightsFromVertexBuffer()
    }
 }
 
-void TSSkinMesh::makeEditable(bool clearVertexData)
+void TSSkinMesh::makeEditable()
 {
-   TSMesh::makeEditable(false);
+   bool hasTVert2 = getHasTVert2();
+   bool hasColor = getHasColor();
+   bool hasVerts = verts.size() != 0;
 
-   // Reconstruct bont mapping
-   if (mVertexData.isReady())
+   // Reconstruct bone mapping
+   if (mVertexData.isReady() && !hasVerts)
    {
+      copySourceVertexDataFrom(this);
+
       weight.setSize(0);
       boneIndex.setSize(0);
       vertexIndex.setSize(0);
 
       addWeightsFromVertexBuffer();
-
-      if (clearVertexData)
-      {
-         mVertexData.set(NULL, 0, 0, 0, 0);
-         mVertexData.setReady(false);
-      }
    }
 
+   mVertexData.setReady(false);
+
+   mVertSize = 0;
+   mNumVerts = 0;
+
+   updateMeshFlags();
    batchData.initialized = false;
 }
 
 void TSMesh::clearEditable()
 {
-   if (!mIsEditable)
+   if (verts.size() == 0)
       return;
-   
+
    if (colors.empty())
       clearFlags(HasColor);
    else
@@ -3294,8 +3340,20 @@ void TSMesh::clearEditable()
    tverts.free_memory();
    tverts2.free_memory();
    colors.free_memory();
+}
 
-   mIsEditable = false;
+void TSMesh::updateMeshFlags()
+{
+   // Make sure flags are correct
+   if (colors.empty())
+      clearFlags(HasColor);
+   else
+      setFlags(HasColor);
+
+   if (tverts2.empty())
+      clearFlags(HasTVert2);
+   else
+      setFlags(HasTVert2);
 }
 
 void TSSkinMesh::clearEditable()
