@@ -104,6 +104,7 @@ Var * AppVertConnectorGLSL::getElement(   RegisterType type,
       case RT_BLENDINDICES:
       {
          Var *newVar = new Var;
+         newVar->constNum = mCurBlendIndicesElem;
          mElementList.push_back(newVar);
          char out[32];
          dSprintf((char*)out, sizeof(out), "vBlendIndex%d", mCurBlendIndicesElem);
@@ -115,6 +116,7 @@ Var * AppVertConnectorGLSL::getElement(   RegisterType type,
       case RT_BLENDWEIGHT:
       {
          Var *newVar = new Var;
+         newVar->constNum = mCurBlendWeightsElem;
          mElementList.push_back(newVar);
          char out[32];
          dSprintf((char*)out, sizeof(out), "vBlendWeight%d", mCurBlendWeightsElem);

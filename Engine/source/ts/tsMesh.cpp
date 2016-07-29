@@ -1278,28 +1278,13 @@ void TSSkinMesh::updateSkinBones( const Vector<MatrixF> &transforms, Vector<Matr
    // Update transforms for current mesh
    destTransforms.setSize(batchData.nodeIndex.size());
 
-   // TODO: remove inconsistency in the transpose
-   if (GFX->getAdapterType() == OpenGL)
+   for (int i = 0; i<batchData.nodeIndex.size(); i++)
    {
-      for (int i = 0; i<batchData.nodeIndex.size(); i++)
-      {
-         S32 node = batchData.nodeIndex[i];
-         if (node >= transforms.size())
-            continue; // jamesu - ignore obviously invalid data
-         destTransforms[i].mul(transforms[node], batchData.initialTransforms[i]);
-      }
-   }
-   else
-   {
-      for (int i = 0; i<batchData.nodeIndex.size(); i++)
-      {
-         S32 node = batchData.nodeIndex[i];
+      S32 node = batchData.nodeIndex[i];
 
-         if (node >= transforms.size())
-            continue; // jamesu - ignore obviously invalid data
-         destTransforms[i].mul(transforms[node], batchData.initialTransforms[i]);
-         destTransforms[i].transpose(); // jamesu - bones need to be transposed. Note this is equivalent to what happens in GL
-      }
+      if (node >= transforms.size())
+         continue; // jamesu - ignore obviously invalid data
+      destTransforms[i].mul(transforms[node], batchData.initialTransforms[i]);
    }
 }
 

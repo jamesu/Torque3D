@@ -193,6 +193,7 @@ void GFXGLVertexDecl::_initVerticesFormat(U32 stream)
          glElement.elementCount = 4;
          glElement.normalized = false;
          glElement.type = GL_FLOAT;
+         glElement.stride = vertexSize;
          glElement.pointerFirst = (void*)buffer;
 
          buffer += element.getSizeInBytes();
@@ -203,6 +204,7 @@ void GFXGLVertexDecl::_initVerticesFormat(U32 stream)
          glElement.elementCount = 4;
          glElement.normalized = false;
          glElement.type = GL_UNSIGNED_BYTE;
+         glElement.stride = vertexSize;
          glElement.pointerFirst = (void*)buffer;
 
          buffer += element.getSizeInBytes();

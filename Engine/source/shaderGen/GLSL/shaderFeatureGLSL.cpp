@@ -2843,7 +2843,7 @@ void HardwareSkinningFeatureGLSL::processVert(Vector<ShaderComponent*> &componen
       nodeTransforms = new Var("nodeTransforms", "mat4x3");
       nodeTransforms->uniform = true;
       nodeTransforms->arraySize = TSShape::smMaxSkinBones;
-      nodeTransforms->constSortPos = cspPotentialPrimitive;
+      nodeTransforms->constSortPos = cspPrimitive;
    }
 
    U32 numIndices = mVertexFormat->getNumBlendIndices();

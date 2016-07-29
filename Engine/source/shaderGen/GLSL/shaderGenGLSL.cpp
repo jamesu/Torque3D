@@ -114,7 +114,7 @@ const char* ShaderGenComponentFactoryGLSL::typeToString( GFXDeclType type )
          return "vec3";
 
       case GFXDeclType_UByte4:
-         return "uvec4";
+         return "vec4";
 
       case GFXDeclType_Float4:
       case GFXDeclType_Color:

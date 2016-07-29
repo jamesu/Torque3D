@@ -35,6 +35,8 @@
 #include "core/stream/fileStream.h"
 #include "core/util/safeDelete.h"
 #include "console/console.h"
+#include "math/mMathFn.h"
+
 
 using namespace Torque;
 
@@ -172,6 +174,43 @@ bool GFXD3D9ShaderBufferLayout::setMatrix(const ParamDesc& pd, const GFXShaderCo
 
       return false;
    }
+   else if (pd.constType == GFXSCT_Float4x3)
+   {
+      F32 buffer[4*4];
+      const U32 csize = 48;
+
+      // Loop through and copy 
+      bool ret = false;
+      U8* currDestPointer = basePointer + pd.offset;
+      const U8* currSourcePointer = static_cast<const U8*>(data);
+      const U8* endData = currSourcePointer + size;
+      while (currSourcePointer < endData)
+      {
+         dMemcpy(buffer, currSourcePointer, sizeof(buffer));
+         m_matF_transpose(buffer);
+
+#ifdef TORQUE_DOUBLE_CHECK_43MATS
+         Point4F col;
+         ((MatrixF*)currSourcePointer)->getColumn(3, &col);
+         AssertFatal(col.x == 0.0f && col.y == 0.0f && col.z == 0.0f && col.w == 1.0f, "3rd column used");
+#endif
+
+         if (dMemcmp(currDestPointer, buffer, csize) != 0)
+         {
+            dMemcpy(currDestPointer, buffer, csize);
+            ret = true;
+         }
+         else if (pd.constType == GFXSCT_Float4x3)
+         {
+            ret = true;
+         }
+
+         currDestPointer += csize;
+         currSourcePointer += sizeof(MatrixF);
+      }
+
+      return ret;
+   }
    else
    {
       PROFILE_SCOPE(GFXD3D9ShaderBufferLayout_setMatrix_not4x4);
@@ -188,9 +227,6 @@ bool GFXD3D9ShaderBufferLayout::setMatrix(const ParamDesc& pd, const GFXShaderCo
          break;
       case GFXSCT_Float3x4 :
          csize = 64;
-         break;
-      case GFXSCT_Float4x3 :
-         csize = 48;
          break;
       default:
          AssertFatal(false, "Unhandled case!");
