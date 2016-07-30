@@ -186,18 +186,15 @@ bool GFXD3D9ShaderBufferLayout::setMatrix(const ParamDesc& pd, const GFXShaderCo
       const U8* endData = currSourcePointer + size;
       while (currSourcePointer < endData)
       {
-         dMemcpy(buffer, currSourcePointer, sizeof(buffer));
-         m_matF_transpose(buffer);
-
 #ifdef TORQUE_DOUBLE_CHECK_43MATS
          Point4F col;
-         ((MatrixF*)currSourcePointer)->getColumn(3, &col);
-         AssertFatal(col.x == 0.0f && col.y == 0.0f && col.z == 0.0f && col.w == 1.0f, "3rd column used");
+         ((MatrixF*)currSourcePointer)->getRow(3, &col);
+         AssertFatal(col.x == 0.0f && col.y == 0.0f && col.z == 0.0f && col.w == 1.0f, "3rd row used");
 #endif
 
-         if (dMemcmp(currDestPointer, buffer, csize) != 0)
+         if (dMemcmp(currDestPointer, currSourcePointer, csize) != 0)
          {
-            dMemcpy(currDestPointer, buffer, csize);
+            dMemcpy(currDestPointer, currSourcePointer, csize);
             ret = true;
          }
          else if (pd.constType == GFXSCT_Float4x3)
@@ -436,8 +433,15 @@ void GFXD3D9ShaderConstBuffer::set(GFXShaderConstHandle* handle, const MatrixF& 
    AssertFatal(!h->isSampler(), "Handle is sampler constant!" );
    AssertFatal(h->mShader == mShader, "Mismatched shaders!"); 
 
-   MatrixF transposed;   
-   mat.transposeTo(transposed);
+   MatrixF transposed;
+   if (matrixType == GFXSCT_Float4x3)
+   {
+      transposed = mat;
+   }
+   else
+   {
+      mat.transposeTo(transposed);
+   }
 
    if (h->mInstancingConstant) 
    {
@@ -466,9 +470,17 @@ void GFXD3D9ShaderConstBuffer::set(GFXShaderConstHandle* handle, const MatrixF* 
 
    static Vector<MatrixF> transposed;
    if (arraySize > transposed.size())
-      transposed.setSize(arraySize);   
-   for (U32 i = 0; i < arraySize; i++)
-      mat[i].transposeTo(transposed[i]);
+      transposed.setSize(arraySize);
+
+   if (matrixType == GFXSCT_Float4x3)
+   {
+      dMemcpy(transposed.address(), mat, arraySize * sizeof(MatrixF));
+   }
+   else
+   {
+      for (U32 i = 0; i < arraySize; i++)
+         mat[i].transposeTo(transposed[i]);
+   }
 
    // TODO: Maybe support this in the future?
    if (h->mInstancingConstant) 
