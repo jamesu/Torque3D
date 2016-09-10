@@ -72,7 +72,7 @@ TEST(Net, TCPRequest)
 {
    TcpHandle handler;
 
-   handler.mSocket = InvalidSocket;
+   handler.mSocket = NetSocket::INVALID;
    handler.mDataReceived = 0;
 
    // Hook into the signals.
@@ -135,7 +135,7 @@ struct JournalHandle
 
    void makeRequest()
    {
-      mSocket = InvalidSocket;
+      mSocket = NetSocket::INVALID;
       mDataReceived = 0;
 
       // Hook into the signals.

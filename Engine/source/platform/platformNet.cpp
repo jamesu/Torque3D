@@ -21,12 +21,18 @@
 //-----------------------------------------------------------------------------
 
 #include "platform/platformNet.h"
+#include "platform/threads/mutex.h"
 #include "core/strings/stringFunctions.h"
+#include "core/util/hashFunction.h"
+
+// jamesu - debug DNS
+#define TORQUE_DEBUG_LOOKUPS
+
 
 #if defined (TORQUE_OS_WIN)
 #define TORQUE_USE_WINSOCK
 #include <errno.h>
-#include <winsock.h>
+#include <ws2tcpip.h>
 
 #ifndef EINPROGRESS
 #define EINPROGRESS             WSAEINPROGRESS
@@ -52,6 +58,7 @@ typedef sockaddr_in SOCKADDR_IN;
 typedef sockaddr * PSOCKADDR;
 typedef sockaddr SOCKADDR;
 typedef in_addr IN_ADDR;
+typedef int SOCKET;
 
 #define INVALID_SOCKET -1
 #define SOCKET_ERROR   -1
@@ -71,9 +78,12 @@ typedef in_addr IN_ADDR;
 #include <sys/ioctl.h>
 
 typedef sockaddr_in SOCKADDR_IN;
+typedef sockaddr_in6 SOCKADDR_IN6;
 typedef sockaddr * PSOCKADDR;
 typedef sockaddr SOCKADDR;
 typedef in_addr IN_ADDR;
+typedef in6_addr IN6_ADDR;
+typedef int SOCKET;
 
 #define INVALID_SOCKET -1
 #define SOCKET_ERROR   -1
@@ -138,10 +148,114 @@ static const char* strerror_wsa( S32 code )
 #include "core/util/journal/process.h"
 #include "core/util/journal/journal.h"
 
+
+NetSocket NetSocket::INVALID = NetSocket::fromHandle(-1);
+
+template<class T> class ReservedSocketList
+{
+public:
+   Vector<T> mSocketList;
+   Mutex *mMutex;
+
+   ReservedSocketList()
+   {
+      mMutex = new Mutex;
+   }
+
+   ~ReservedSocketList()
+   {
+      delete mMutex;
+   }
+
+   inline void modify() { Mutex::lockMutex(mMutex); }
+   inline void endModify() { Mutex::unlockMutex(mMutex); }
+
+   NetSocket reserve(SOCKET reserveId = -1, bool doLock = true)
+   {
+      MutexHandle handle;
+      if (doLock)
+      {
+         handle.lock(mMutex, true);
+      }
+
+      S32 idx = mSocketList.find_next(-1);
+      if (idx == -1)
+      {
+         mSocketList.push_back(reserveId);
+         return NetSocket::fromHandle(mSocketList.size() - 1);
+      }
+      else
+      {
+         mSocketList[idx] = reserveId;
+      }
+
+      return NetSocket::fromHandle(idx);
+   }
+
+   void remove(NetSocket socketToRemove, bool doLock = true)
+   {
+      MutexHandle handle;
+      if (doLock)
+      {
+         handle.lock(mMutex, true);
+      }
+
+      if ((U32)socketToRemove.getHandle() >= (U32)mSocketList.size())
+         return;
+
+      mSocketList[socketToRemove.getHandle()] = -1;
+   }
+
+   T activate(NetSocket socketToActivate, U8 family, bool clearOnFail = false)
+   {
+      MutexHandle h;
+      h.lock(mMutex, true);
+
+      if ((U32)socketToActivate.getHandle() >= (U32)mSocketList.size())
+         return -1;
+
+      T socketFd = mSocketList[socketToActivate.getHandle()];
+      if (socketFd == -1)
+      {
+         socketFd = ::socket(family, SOCK_STREAM, 0);
+
+         if (socketFd == InvalidSocketHandle)
+         {
+            if (clearOnFail)
+            {
+               remove(socketToActivate, false);
+            }
+            return InvalidSocketHandle;
+         }
+         else
+         {
+            mSocketList[socketToActivate.getHandle()] = socketFd;
+            return socketFd;
+         }
+      }
+
+      return socketFd;
+   }
+
+   T resolve(NetSocket socketToResolve)
+   {
+      MutexHandle h;
+      h.lock(mMutex, true);
+
+      if ((U32)socketToResolve.getHandle() >= (U32)mSocketList.size())
+         return -1;
+
+      return mSocketList[socketToResolve.getHandle()];
+   }
+};
+
+static ReservedSocketList<SOCKET> smReservedSocketList;
+const SOCKET InvalidSocketHandle = -1;
+
 static Net::Error getLastError();
 static S32 defaultPort = 28000;
 static S32 netPort = 0;
-static NetSocket udpSocket = InvalidSocket;
+static NetSocket udpSocket = NetSocket::INVALID;
 
 ConnectionNotifyEvent   Net::smConnectionNotify;
 ConnectionAcceptedEvent Net::smConnectionAccept;
@@ -160,30 +274,33 @@ enum SocketState
 
 // the Socket structure helps us keep track of the
 // above states
-struct Socket
+struct PolledSocket
 {
-   Socket()
+   PolledSocket()
    {
-      fd = InvalidSocket;
+      fd = -1;
+      handleFd = NetSocket::INVALID;
       state = InvalidState;
       remoteAddr[0] = 0;
       remotePort = -1;
    }
 
-   NetSocket fd;
+   SOCKET fd;
+   NetSocket handleFd;
    S32 state;
    char remoteAddr[256];
    S32 remotePort;
 };
 
 // list of polled sockets
-static Vector<Socket*> gPolledSockets( __FILE__, __LINE__ );
+static Vector<PolledSocket*> gPolledSockets( __FILE__, __LINE__ );
 
-static Socket* addPolledSocket(NetSocket& fd, S32 state,
+static PolledSocket* addPolledSocket(NetSocket handleFd, SOCKET fd, S32 state,
                                char* remoteAddr = NULL, S32 port = -1)
 {
-   Socket* sock = new Socket();
+   PolledSocket* sock = new PolledSocket();
    sock->fd = fd;
+   sock->handleFd = handleFd;
    sock->state = state;
    if (remoteAddr)
       dStrcpy(sock->remoteAddr, remoteAddr);
@@ -198,18 +315,19 @@ enum {
 };
 
 
-bool netSocketWaitForWritable(NetSocket fd, S32 timeoutMs)
+bool netSocketWaitForWritable(NetSocket handleFd, S32 timeoutMs)
 {  
    fd_set writefds;
    timeval timeout;
+   SOCKET socketFd = smReservedSocketList.resolve(handleFd);
 
-   FD_ZERO(&writefds);
-   FD_SET( fd, &writefds );
+   FD_ZERO( &writefds );
+   FD_SET( socketFd, &writefds );
 
    timeout.tv_sec = timeoutMs / 1000;
    timeout.tv_usec = ( timeoutMs % 1000 ) * 1000;
 
-   if( select(fd + 1, NULL, &writefds, NULL, &timeout) > 0 )
+   if( select(socketFd + 1, NULL, &writefds, NULL, &timeout) > 0 )
       return true;
 
    return false;
@@ -254,7 +372,7 @@ void Net::shutdown()
    Process::remove(&Net::process);
 
    while (gPolledSockets.size() > 0)
-      closeConnectTo(gPolledSockets[0]->fd);
+      closeConnectTo(gPolledSockets[0]->handleFd);
 
    closePort();
    initCount--;
@@ -293,42 +411,58 @@ Net::Error getLastError()
 #endif
 }
 
+// ipv4 version of name routines
+
 static void netToIPSocketAddress(const NetAddress *address, struct sockaddr_in *sockAddr)
 {
    dMemset(sockAddr, 0, sizeof(struct sockaddr_in));
    sockAddr->sin_family = AF_INET;
    sockAddr->sin_port = htons(address->port);
+   #if !defined(TORQUE_OS_WIN)
+   sockAddr->sin_len = sizeof(struct sockaddr_in);
+   #endif
+
    char tAddr[20];
-   dSprintf(tAddr, 20, "%d.%d.%d.%d", address->netNum[0],  address->netNum[1], address->netNum[2], address->netNum[3]);
-   //fprintf(stdout,"netToIPSocketAddress(): %s\n",tAddr);fflush(NULL);
-   sockAddr->sin_addr.s_addr = inet_addr(tAddr);
+   dSprintf(tAddr, 20, "%d.%d.%d.%d\n", address->address.ipv4.netNum[0], address->address.ipv4.netNum[1], address->address.ipv4.netNum[2], address->address.ipv4.netNum[3]);
+   inet_pton(AF_INET, tAddr, &sockAddr->sin_addr.s_addr);
 }
 
-static void IPSocketToNetAddress(const struct sockaddr_in *sockAddr,  NetAddress *address)
+static void IPSocketToNetAddress(const struct sockaddr_in *sockAddr, NetAddress *address)
 {
    address->type = NetAddress::IPAddress;
-   address->port = htons(sockAddr->sin_port);
-#ifndef TORQUE_OS_XENON
-   char *tAddr;
-   tAddr = inet_ntoa(sockAddr->sin_addr);
-   //fprintf(stdout,"IPSocketToNetAddress(): %s\n",tAddr);fflush(NULL);
-   U8 nets[4];
-   nets[0] = atoi(strtok(tAddr, "."));
-   nets[1] = atoi(strtok(NULL, "."));
-   nets[2] = atoi(strtok(NULL, "."));
-   nets[3] = atoi(strtok(NULL, "."));
-   //fprintf(stdout,"0 = %d, 1 = %d, 2 = %d, 3 = %d\n", nets[0], nets[1],  nets[2], nets[3]);
-   address->netNum[0] = nets[0];
-   address->netNum[1] = nets[1];
-   address->netNum[2] = nets[2];
-   address->netNum[3] = nets[3];
-#else
-   address->netNum[0] = sockAddr->sin_addr.s_net;
-   address->netNum[1] = sockAddr->sin_addr.s_host;
-   address->netNum[2] = sockAddr->sin_addr.s_lh;
-   address->netNum[3] = sockAddr->sin_addr.s_impno;
-#endif
+   address->port = ntohs(sockAddr->sin_port);
+   address->address.ipv4.netNum[0] = sockAddr->sin_addr.s_net;
+   address->address.ipv4.netNum[1] = sockAddr->sin_addr.s_host;
+   address->address.ipv4.netNum[2] = sockAddr->sin_addr.s_lh;
+   address->address.ipv4.netNum[3] = sockAddr->sin_addr.s_impno;
 }
+
+// ipv6 version of name routines
+
+static void netToIPSocket6Address(const NetAddress *address, struct sockaddr_in6 *sockAddr)
+{
+   dMemset(sockAddr, 0, sizeof(struct sockaddr_in6));
+#ifdef SIN6_LEN
+   sockAddr->sin6_len = sizeof(struct sockaddr_in6);
+#endif
+   sockAddr->sin6_family = AF_INET6;
+   sockAddr->sin6_port = ntohs(address->port);
+   sockAddr->sin6_flowinfo = address->address.ipv6.netFlow;
+   sockAddr->sin6_scope_id = address->address.ipv6.netScope;
+   dMemcpy(&sockAddr->sin6_addr, address->address.ipv6.netNum, sizeof(address->address.ipv6.netNum));
+}
+
+static void IPSocket6ToNetAddress(const struct sockaddr_in6 *sockAddr, NetAddress *address)
+{
+   address->type = NetAddress::IPV6Address;
+   address->port = ntohs(sockAddr->sin6_port);
+   dMemcpy(address->address.ipv6.netNum, &sockAddr->sin6_addr, sizeof(address->address.ipv6.netNum));
+   address->address.ipv6.netFlow = sockAddr->sin6_flowinfo;
+   address->address.ipv6.netScope = sockAddr->sin6_scope_id;
+}
+
+//
+
 
 NetSocket Net::openListenPort(U16 port)
 {
@@ -336,45 +470,49 @@ NetSocket Net::openListenPort(U16 port)
    {
       U32 ret;
       Journal::Read(&ret);
-      return NetSocket(ret);
+      return NetSocket::fromHandle(ret);
    }
 
-   NetSocket sock = openSocket();
-   if (sock == InvalidSocket)
+   NetSocket handleFd = openSocket();
+   SOCKET sockId = smReservedSocketList.activate(handleFd, AF_INET6, true);
+
+   if (handleFd == NetSocket::INVALID)
    {
       Con::errorf("Unable to open listen socket: %s", strerror(errno));
-      return InvalidSocket;
+      return NetSocket::INVALID;
    }
 
-   if (bind(sock, port) != NoError)
+   if (bind(handleFd, port) != NoError)
    {
       Con::errorf("Unable to bind port %d: %s", port, strerror(errno));
-      ::closesocket(sock);
-      return InvalidSocket;
+      closeSocket(handleFd);
+      return NetSocket::INVALID;
    }
-   if (listen(sock, 4) != NoError)
+   if (listen(handleFd, 4) != NoError)
    {
       Con::errorf("Unable to listen on port %d: %s", port,  strerror(errno));
-      ::closesocket(sock);
-      return InvalidSocket;
+      closeSocket(handleFd);
+      return NetSocket::INVALID;
    }
 
-   setBlocking(sock, false);
-   addPolledSocket(sock, Listening);
+   setBlocking(handleFd, false);
+   addPolledSocket(handleFd, sockId, Listening);
 
    if(Journal::IsRecording())
-      Journal::Write(U32(sock));
+      Journal::Write(U32(handleFd.getHandle()));
 
-   return sock;
+   return handleFd;
 }
 
 NetSocket Net::openConnectTo(const char *addressString)
 {
    if(!dStrnicmp(addressString, "ipx:", 4))
       // ipx support deprecated
-      return InvalidSocket;
+      return NetSocket::INVALID;
    if(!dStrnicmp(addressString, "ip:", 3))
       addressString += 3;  // eat off the ip:
+   else if (!dStrnicmp(addressString, "ip6:", 4))
+      addressString += 4;  // eat off the ip6:
    char remoteAddr[256];
    dStrcpy(remoteAddr, addressString);
 
@@ -390,56 +528,138 @@ NetSocket Net::openConnectTo(const char *addressString)
       port = htons(defaultPort);
 
    if(!dStricmp(remoteAddr, "broadcast"))
-      return InvalidSocket;
+      return NetSocket::INVALID;
 
    if(Journal::IsPlaying())
    {
       U32 ret;
       Journal::Read(&ret);
-      return NetSocket(ret);
+      return NetSocket::fromHandle(ret);
    }
-   NetSocket sock = openSocket();
-   setBlocking(sock, false);
 
+   NetSocket handleFd = openSocket();
+   
    sockaddr_in ipAddr;
+   sockaddr_in6 ipAddr6;
    dMemset(&ipAddr, 0, sizeof(ipAddr));
-   ipAddr.sin_addr.s_addr = inet_addr(remoteAddr);
+   dMemset(&ipAddr6, 0, sizeof(ipAddr6));
 
-   if(ipAddr.sin_addr.s_addr != INADDR_NONE)
+   bool isipv4, isipv6, ishost;
+   isipv4 = isipv6 = ishost = false;
+
+   // Check if we've got a simple ipv4 / ipv6
+   if (inet_pton(AF_INET, remoteAddr, &ipAddr.sin_addr) == 1)
    {
-      ipAddr.sin_port = port;
-      ipAddr.sin_family = AF_INET;
-      if(::connect(sock, (struct sockaddr *)&ipAddr, sizeof(ipAddr)) ==  -1)
-      {
-         S32 err = getLastError();
-         if(err != Net::WouldBlock)
-         {
-            Con::errorf("Error connecting %s: %s",
-               addressString, strerror(err));
-            ::closesocket(sock);
-            sock = InvalidSocket;
-         }
-      }
-      if(sock != InvalidSocket) 
-      {
-         // add this socket to our list of polled sockets
-         addPolledSocket(sock, ConnectionPending);
-      }
+      isipv4 = true;
+   }
+   else if (inet_pton(AF_INET, remoteAddr, &ipAddr6.sin6_addr) == 1)
+   {
+      isipv6 = true;
    }
    else
    {
+      ishost = true;
+   }
+
+   // Let getaddrinfo fill in the structure
+   if ((isipv4 || isipv6))
+   {
+      struct addrinfo hint, *res = NULL;
+      memset(&hint, 0, sizeof(hint));
+      hint.ai_family = PF_UNSPEC;
+      hint.ai_flags = AI_NUMERICHOST;
+      if (getaddrinfo(addressString, NULL, &hint, &res) == 0)
+      {
+         if (res->ai_family == AF_INET)
+         {
+            isipv4 = true;
+            isipv6 = false;
+            dMemcpy(&ipAddr, res->ai_addr, sizeof(ipAddr));
+         }
+         else if (res->ai_family == AF_INET6)
+         {
+            isipv4 = false;
+            isipv6 = true;
+            dMemcpy(&ipAddr6, res->ai_addr, sizeof(ipAddr6));
+         }
+      }
+      else
+      {
+         isipv4 = isipv6 = false;
+      }
+   }
+
+   // Attempt to connect or queue a lookup
+   if (isipv4)
+   {
+      SOCKET socketFd = smReservedSocketList.activate(handleFd, AF_INET, true);
+      if (socketFd != InvalidSocketHandle)
+      {
+         setBlocking(handleFd, false);
+         if (::connect(socketFd, (struct sockaddr *)&ipAddr, sizeof(ipAddr)) == -1 &&
+            errno != EINPROGRESS)
+         {
+            Con::errorf("Error connecting %s: %s",
+               addressString, strerror(errno));
+            closeSocket(handleFd);
+            handleFd = NetSocket::INVALID;
+         }
+      }
+      else
+      {
+         smReservedSocketList.remove(handleFd);
+         handleFd = NetSocket::INVALID;
+      }
+
+      if (handleFd != NetSocket::INVALID)
+      {
+         // add this socket to our list of polled sockets
+         addPolledSocket(handleFd, socketFd, ConnectionPending);
+      }
+   }
+   else if (isipv6)
+   {
+      SOCKET socketFd = smReservedSocketList.activate(handleFd, AF_INET6, true);
+      if (::connect(socketFd, (struct sockaddr *)&ipAddr6, sizeof(ipAddr6)) == -1 &&
+         errno != EINPROGRESS)
+      {
+         setBlocking(handleFd, false);
+         Con::errorf("Error connecting %s: %s",
+            addressString, strerror(errno));
+         closeSocket(handleFd);
+         handleFd = NetSocket::INVALID;
+      }
+      else
+      {
+         smReservedSocketList.remove(handleFd);
+         handleFd = NetSocket::INVALID;
+      }
+
+      if (handleFd != NetSocket::INVALID)
+      {
+         // add this socket to our list of polled sockets
+         addPolledSocket(handleFd, socketFd, ConnectionPending);
+      }
+   }
+   else if (ishost)
+   {
       // need to do an asynchronous name lookup.  first, add the socket
       // to the polled list
-      addPolledSocket(sock, NameLookupRequired, remoteAddr, port);
+      addPolledSocket(handleFd, InvalidSocketHandle, NameLookupRequired, remoteAddr, port);
       // queue the lookup
-      gNetAsync.queueLookup(remoteAddr, sock);
+      gNetAsync.queueLookup(remoteAddr, handleFd);
    }
+   else
+   {
+      handleFd = NetSocket::INVALID;
+   }
+
    if(Journal::IsRecording())
-      Journal::Write(U32(sock));
-   return sock;
+      Journal::Write(U32(handleFd.getHandle()));
+   return handleFd;
 }
 
-void Net::closeConnectTo(NetSocket sock)
+void Net::closeConnectTo(NetSocket handleFd)
 {
    if(Journal::IsPlaying())
       return;
@@ -447,7 +667,7 @@ void Net::closeConnectTo(NetSocket sock)
    // if this socket is in the list of polled sockets, remove it
    for (S32 i = 0; i < gPolledSockets.size(); ++i)
    {
-      if (gPolledSockets[i]->fd == sock)
+      if (gPolledSockets[i]->handleFd == handleFd)
       {
          delete gPolledSockets[i];
          gPolledSockets.erase(i);
@@ -455,10 +675,10 @@ void Net::closeConnectTo(NetSocket sock)
       }
    }
 
-   closeSocket(sock);
+   closeSocket(handleFd);
 }
 
-Net::Error Net::sendtoSocket(NetSocket socket, const U8 *buffer, S32  bufferSize)
+Net::Error Net::sendtoSocket(NetSocket handleFd, const U8 *buffer, S32  bufferSize)
 {
    if(Journal::IsPlaying())
    {
@@ -468,7 +688,7 @@ Net::Error Net::sendtoSocket(NetSocket socket, const U8 *buffer, S32  bufferSize
       return (Net::Error) e;
    }
 
-   Net::Error e = send(socket, buffer, bufferSize);
+   Net::Error e = send(handleFd, buffer, bufferSize);
 
    if(Journal::IsRecording())
       Journal::Write(U32(e));
@@ -478,8 +698,11 @@ Net::Error Net::sendtoSocket(NetSocket socket, const U8 *buffer, S32  bufferSize
 
 bool Net::openPort(S32 port, bool doBind)
 {
-   if(udpSocket != InvalidSocket)
-      ::closesocket(udpSocket);
+   if (udpSocket != NetSocket::INVALID)
+   {
+      closeSocket(udpSocket);
+      udpSocket = NetSocket::INVALID;
+   }
 
    // we turn off VDP in non-release builds because VDP does not support broadcast packets
    // which are required for LAN queries (PC->Xbox connectivity).  The wire protocol still
@@ -492,11 +715,13 @@ bool Net::openPort(S32 port, bool doBind)
    useVDP = true;
 #endif
 
-   udpSocket = socket(AF_INET, SOCK_DGRAM, protocol);
+   SOCKET socketFd = ::socket(AF_INET6, SOCK_DGRAM, protocol);
 
-   if(udpSocket != InvalidSocket)
+   if(socketFd != InvalidSocketHandle)
    {
-      Net::Error error = NoError;
+     udpSocket = smReservedSocketList.reserve(socketFd);
+
+     Net::Error error = NoError;
 	  if (doBind)
 	  {
         error = bind(udpSocket, port);
@@ -511,32 +736,30 @@ bool Net::openPort(S32 port, bool doBind)
       if(error == NoError)
          error = setBlocking(udpSocket, false);
 
-      if(error == NoError)
+      if (error == NoError)
+      {
          Con::printf("UDP initialized on port %d", port);
+      }
       else
       {
-         ::closesocket(udpSocket);
-         udpSocket = InvalidSocket;
+         closeSocket(udpSocket);
+         udpSocket = NetSocket::INVALID;
          Con::printf("Unable to initialize UDP - error %d", error);
       }
    }
    netPort = port;
-   return udpSocket != InvalidSocket;
+   return udpSocket != NetSocket::INVALID;
 }
 
 NetSocket Net::getPort()
-
 {
-
    return udpSocket;
-
 }
-
 
 void Net::closePort()
 {
-   if(udpSocket != InvalidSocket)
-      ::closesocket(udpSocket);
+   if (udpSocket != NetSocket::INVALID)
+      closeSocket(udpSocket);
 }
 
 Net::Error Net::sendto(const NetAddress *address, const U8 *buffer, S32  bufferSize)
@@ -544,26 +767,28 @@ Net::Error Net::sendto(const NetAddress *address, const U8 *buffer, S32  bufferS
    if(Journal::IsPlaying())
       return NoError;
 
+   SOCKET socketFd = smReservedSocketList.resolve(udpSocket);
+
    if(address->type == NetAddress::IPAddress)
    {
       sockaddr_in ipAddr;
       netToIPSocketAddress(address, &ipAddr);
-      if(::sendto(udpSocket, (const char*)buffer, bufferSize, 0,
+      if(::sendto(socketFd, (const char*)buffer, bufferSize, 0,
          (sockaddr *) &ipAddr, sizeof(sockaddr_in)) == SOCKET_ERROR)
          return getLastError();
       else
          return NoError;
    }
-   else
+   else if (address->type == NetAddress::IPV6Address)
    {
-      SOCKADDR_IN ipAddr;
-      netToIPSocketAddress(address, &ipAddr);
-      if(::sendto(udpSocket, (const char*)buffer, bufferSize, 0,
-         (PSOCKADDR) &ipAddr, sizeof(SOCKADDR_IN)) == SOCKET_ERROR)
+      sockaddr_in6 ipAddr;
+      netToIPSocket6Address(address, &ipAddr);
+      if (::sendto(socketFd, (const char*)buffer, bufferSize, 0,
+         (struct sockaddr *) &ipAddr, sizeof(ipAddr)) == -1)
          return getLastError();
-      else
-         return NoError;
    }
+
+   return WrongProtocolType;
 }
 
 void Net::process()
@@ -574,13 +799,15 @@ void Net::process()
    RawData tmpBuffer;
    tmpBuffer.alloc(MaxPacketDataSize);
 
+   SOCKET socketFd = smReservedSocketList.resolve(udpSocket);
+
    for(;;)
    {
       socklen_t addrLen = sizeof(sa);
       S32 bytesRead = -1;
 
-      if(udpSocket != InvalidSocket)
-         bytesRead = recvfrom(udpSocket, (char *) tmpBuffer.data, MaxPacketDataSize, 0, &sa, &addrLen);
+      if(udpSocket != NetSocket::INVALID)
+         bytesRead = ::recvfrom(socketFd, (char *) tmpBuffer.data, MaxPacketDataSize, 0, &sa, &addrLen);
 
       if(bytesRead == -1)
          break;
@@ -594,10 +821,10 @@ void Net::process()
          continue;
 
       if(srcAddress.type == NetAddress::IPAddress &&
-         srcAddress.netNum[0] == 127 &&
-         srcAddress.netNum[1] == 0 &&
-         srcAddress.netNum[2] == 0 &&
-         srcAddress.netNum[3] == 1 &&
+         srcAddress.address.ipv4.netNum[0] == 127 &&
+         srcAddress.address.ipv4.netNum[1] == 0 &&
+         srcAddress.address.ipv4.netNum[2] == 0 &&
+         srcAddress.address.ipv4.netNum[3] == 1 &&
          srcAddress.port == netPort)
          continue;
 
@@ -617,10 +844,9 @@ void Net::process()
    S32 bytesRead;
    Net::Error err;
    bool removeSock = false;
-   Socket *currentSock = NULL;
-   sockaddr_in ipAddr;
-   NetSocket incoming = InvalidSocket;
-   char out_h_addr[1024];
+   PolledSocket *currentSock = NULL;
+   NetSocket incomingHandleFd = NetSocket::INVALID;
+   struct addrinfo out_h_addr;
    S32 out_h_length = 0;
    RawData readBuff;
 
@@ -647,7 +873,7 @@ void Net::process()
          {
             Con::errorf("Error getting socket options: %s",  strerror(errno));
 
-            Net::smConnectionNotify.trigger(currentSock->fd, Net::ConnectFailed);
+            Net::smConnectionNotify.trigger(currentSock->handleFd, Net::ConnectFailed);
             removeSock = true;
          }
          else
@@ -659,18 +885,18 @@ void Net::process()
             if (optval == 0)
             {
                // poll for writable status to be sure we're connected.
-               bool ready = netSocketWaitForWritable(currentSock->fd,0);
+               bool ready = netSocketWaitForWritable(currentSock->handleFd,0);
                if(!ready)
                   break;
 
                currentSock->state = ::Connected;
-               Net::smConnectionNotify.trigger(currentSock->fd, Net::Connected);
+               Net::smConnectionNotify.trigger(currentSock->handleFd, Net::Connected);
             }
             else
             {
                // some kind of error
                Con::errorf("Error connecting: %s", strerror(errno));
-               Net::smConnectionNotify.trigger(currentSock->fd, Net::ConnectFailed);
+               Net::smConnectionNotify.trigger(currentSock->handleFd, Net::ConnectFailed);
                removeSock = true;
             }
          }
@@ -680,14 +906,14 @@ void Net::process()
          // try to get some data
          bytesRead = 0;
          readBuff.alloc(MaxPacketDataSize);
-         err = Net::recv(currentSock->fd, (U8*)readBuff.data, MaxPacketDataSize, &bytesRead);
+         err = Net::recv(currentSock->handleFd, (U8*)readBuff.data, MaxPacketDataSize, &bytesRead);
          if(err == Net::NoError)
          {
             if (bytesRead > 0)
             {
                // got some data, post it
                readBuff.size = bytesRead;
-               Net::smConnectionReceive.trigger(currentSock->fd, readBuff);
+               Net::smConnectionReceive.trigger(currentSock->handleFd, readBuff);
             }
             else
             {
@@ -696,7 +922,7 @@ void Net::process()
                   Con::errorf("Unexpected error on socket: %s", strerror(errno));
 
                // zero bytes read means EOF
-               Net::smConnectionNotify.trigger(currentSock->fd, Net::Disconnected);
+               Net::smConnectionNotify.trigger(currentSock->handleFd, Net::Disconnected);
 
                removeSock = true;
             }
@@ -704,55 +930,73 @@ void Net::process()
          else if (err != Net::NoError && err != Net::WouldBlock)
          {
             Con::errorf("Error reading from socket: %s",  strerror(errno));
-            Net::smConnectionNotify.trigger(currentSock->fd, Net::Disconnected);
+            Net::smConnectionNotify.trigger(currentSock->handleFd, Net::Disconnected);
             removeSock = true;
          }
          break;
       case ::NameLookupRequired:
+         U32 newState;
+
          // is the lookup complete?
          if (!gNetAsync.checkLookup(
-            currentSock->fd, out_h_addr, &out_h_length,
+            currentSock->handleFd, &out_h_addr, &out_h_length,
             sizeof(out_h_addr)))
             break;
 
-         U32 newState;
          if (out_h_length == -1)
          {
-            Con::errorf("DNS lookup failed: %s",  currentSock->remoteAddr);
+            Con::errorf("DNS lookup failed: %s", currentSock->remoteAddr);
             newState = Net::DNSFailed;
             removeSock = true;
          }
          else
          {
             // try to connect
-            dMemcpy(&(ipAddr.sin_addr.s_addr), out_h_addr,  out_h_length);
-            ipAddr.sin_port = currentSock->remotePort;
-            ipAddr.sin_family = AF_INET;
-            if(::connect(currentSock->fd, (struct sockaddr *)&ipAddr,
-               sizeof(ipAddr)) == -1)
+            struct addrinfo *res = &out_h_addr;
+
+            if (res->ai_family == AF_INET)
             {
-               S32 errorCode;
-#if defined(TORQUE_USE_WINSOCK)
-               errorCode = WSAGetLastError();
-               if( errorCode == WSAEINPROGRESS || errorCode == WSAEWOULDBLOCK )
-#else
-               errorCode = errno;
-               if (errno == EINPROGRESS)
+               struct sockaddr_in* socketAddress = (struct sockaddr_in*)res->ai_addr;
+               socketAddress->sin_port = currentSock->remotePort;
+               currentSock->fd = smReservedSocketList.activate(currentSock->handleFd, AF_INET);
+               setBlocking(currentSock->handleFd, false);
+
+#ifdef TORQUE_DEBUG_LOOKUPS
+               char addrString[256];
+               NetAddress addr;
+               IPSocketToNetAddress(socketAddress, &addr);
+               Net::addressToString(&addr, addrString);
+               Con::printf("DNS: lookup resolved to %s", addrString);
 #endif
+            }
+            else if (res->ai_family == AF_INET6)
+            {
+               struct sockaddr_in6* socketAddress = (struct sockaddr_in6*)res->ai_addr;
+               socketAddress->sin6_port = currentSock->remotePort;
+               currentSock->fd = smReservedSocketList.activate(currentSock->handleFd, AF_INET6);
+               setBlocking(currentSock->handleFd, false);
+
+#ifdef TORQUE_DEBUG_LOOKUPS
+               char addrString[256];
+               NetAddress addr;
+               IPSocket6ToNetAddress(socketAddress, &addr);
+               Net::addressToString(&addr, addrString);
+               Con::printf("DNS: lookup resolved to %s", addrString);
+#endif
+            }
+
+            if (::connect(currentSock->fd, res->ai_addr,
+               res->ai_addrlen) == -1)
+            {
+               if (errno == EINPROGRESS)
                {
                   newState = Net::DNSResolved;
-                  currentSock->state = ::ConnectionPending;
+                  currentSock->state = ConnectionPending;
                }
                else
                {
-                  const char* errorString;
-#if defined(TORQUE_USE_WINSOCK)
-                  errorString = strerror_wsa( errorCode );
-#else
-                  errorString = strerror( errorCode );
-#endif
-                  Con::errorf("Error connecting to %s: %s (%i)",
-                     currentSock->remoteAddr,  errorString, errorCode);
+                  Con::errorf("Error connecting to %s: %s",
+                     currentSock->remoteAddr, strerror(errno));
                   newState = Net::ConnectFailed;
                   removeSock = true;
                }
@@ -760,21 +1004,21 @@ void Net::process()
             else
             {
                newState = Net::Connected;
-               currentSock->state = Net::Connected;
+               currentSock->state = Connected;
             }
          }
 
-         Net::smConnectionNotify.trigger(currentSock->fd, newState);
+         Net::smConnectionNotify.trigger(currentSock->handleFd, newState);
          break;
       case ::Listening:
          NetAddress incomingAddy;
 
-         incoming = Net::accept(currentSock->fd, &incomingAddy);
-         if(incoming != InvalidSocket)
+         incomingHandleFd = Net::accept(currentSock->handleFd, &incomingAddy);
+         if(incomingHandleFd != NetSocket::INVALID)
          {
-            setBlocking(incoming, false);
-            addPolledSocket(incoming, Connected);
-            Net::smConnectionAccept.trigger(currentSock->fd, incoming, incomingAddy);
+            setBlocking(incomingHandleFd, false);
+            addPolledSocket(incomingHandleFd, smReservedSocketList.resolve(incomingHandleFd), Connected);
+            Net::smConnectionAccept.trigger(currentSock->handleFd, incomingHandleFd, incomingAddy);
          }
          break;
       }
@@ -782,7 +1026,7 @@ void Net::process()
       // only increment index if we're not removing the connection,  since
       // the removal will shift the indices down by one
       if (removeSock)
-         closeConnectTo(currentSock->fd);
+         closeConnectTo(currentSock->handleFd);
       else
          i++;
    }
@@ -790,20 +1034,16 @@ void Net::process()
 
 NetSocket Net::openSocket()
 {
-   NetSocket retSocket;
-   retSocket = socket(AF_INET, SOCK_STREAM, 0);
-
-   if(retSocket == InvalidSocket)
-      return InvalidSocket;
-   else
-      return retSocket;
+   return smReservedSocketList.reserve();
 }
 
-Net::Error Net::closeSocket(NetSocket socket)
+Net::Error Net::closeSocket(NetSocket handleFd)
 {
-   if(socket != InvalidSocket)
+   if(handleFd != NetSocket::INVALID)
    {
-      if(!closesocket(socket))
+      SOCKET socketFd = smReservedSocketList.resolve(handleFd);
+
+      if(!::closesocket(socketFd))
          return NoError;
       else
          return getLastError();
@@ -812,56 +1052,121 @@ Net::Error Net::closeSocket(NetSocket socket)
       return NotASocket;
 }
 
-Net::Error Net::connect(NetSocket socket, const NetAddress *address)
+Net::Error Net::connect(NetSocket handleFd, const NetAddress *address)
 {
-   if(address->type != NetAddress::IPAddress)
+   if(!(address->type == NetAddress::IPAddress || address->type == NetAddress::IPV6Address))
       return WrongProtocolType;
-   sockaddr_in socketAddress;
-   netToIPSocketAddress(address, &socketAddress);
-   if(!::connect(socket, (sockaddr *) &socketAddress,  sizeof(socketAddress)))
-      return NoError;
+
+   SOCKET socketFd = smReservedSocketList.resolve(handleFd);
+
+   if (address->type == NetAddress::IPAddress)
+   {
+      sockaddr_in socketAddress;
+      netToIPSocketAddress(address, &socketAddress);
+
+      if (socketFd == InvalidSocketHandle)
+      {
+         socketFd = smReservedSocketList.activate(handleFd, AF_INET);
+      }
+
+      if (!::connect(socketFd, (struct sockaddr *) &socketAddress, sizeof(socketAddress)))
+         return NoError;
+   }
+   else if (address->type == NetAddress::IPV6Address)
+   {
+      sockaddr_in6 socketAddress;
+      netToIPSocket6Address(address, &socketAddress);
+
+      if (socketFd == InvalidSocketHandle)
+      {
+         socketFd = smReservedSocketList.activate(handleFd, AF_INET6);
+      }
+
+      if (!::connect(socketFd, (struct sockaddr *) &socketAddress, sizeof(socketAddress)))
+         return NoError;
+   }
+
    return getLastError();
 }
 
-Net::Error Net::listen(NetSocket socket, S32 backlog)
+Net::Error Net::listen(NetSocket handleFd, S32 backlog)
 {
-   if(!::listen(socket, backlog))
+   SOCKET socketFd = smReservedSocketList.resolve(handleFd);
+   if (socketFd == InvalidSocketHandle)
+      return NotASocket;
+
+   if(!::listen(socketFd, backlog))
       return NoError;
    return getLastError();
 }
 
-NetSocket Net::accept(NetSocket acceptSocket, NetAddress *remoteAddress)
+NetSocket Net::accept(NetSocket handleFd, NetAddress *remoteAddress)
 {
    sockaddr_in socketAddress;
    socklen_t addrLen = sizeof(socketAddress);
+   SOCKET socketFd = smReservedSocketList.resolve(handleFd);
+   if (socketFd == InvalidSocketHandle)
+      return NetSocket::INVALID;
 
-   NetSocket retVal = ::accept(acceptSocket, (sockaddr *) &socketAddress,  &addrLen);
-   if(retVal != InvalidSocket)
+   SOCKET acceptedSocketFd = ::accept(socketFd, (sockaddr *) &socketAddress,  &addrLen);
+   if(acceptedSocketFd != InvalidSocketHandle)
    {
-      IPSocketToNetAddress(&socketAddress, remoteAddress);
-      return retVal;
+      if (socketAddress.sin_family == AF_INET)
+      {
+         // ipv4
+         IPSocketToNetAddress(((struct sockaddr_in*)&socketAddress.sin_addr), remoteAddress);
+      }
+      else if (socketAddress.sin_family == AF_INET6)
+      {
+         // ipv6
+         IPSocket6ToNetAddress(((struct sockaddr_in6*)&socketAddress.sin_addr), remoteAddress);
+      }
+
+      NetSocket newHandleFd = smReservedSocketList.reserve(acceptedSocketFd);
+      return newHandleFd;
    }
-   return InvalidSocket;
+   return NetSocket::INVALID;
 }
 
-Net::Error Net::bind(NetSocket socket, U16 port)
+Net::Error Net::bind(NetSocket handleFd, U16 port)
 {
    S32 error;
+   bool isipv4, isipv6;
+   isipv4 = isipv6 = false;
+
+   // thanks to [TPG]P1aGu3 for the name
+   const char* serverIP = Con::getVariable("pref::Net::BindAddress");
+   // serverIP is guaranteed to be non-0.
+   AssertFatal(serverIP, "serverIP is NULL!");
+
+   if (!dStrnicmp(serverIP, "ip6:", 4))
+   {
+      serverIP += 4;
+      isipv6 = true;
+   }
+   else if (!dStrnicmp(serverIP, "ip:", 3))
+   {
+      serverIP += 3;
+      isipv4 = true;
+   }
+
+   SOCKET socketFd = smReservedSocketList.resolve(handleFd);
+   if (socketFd == InvalidSocketHandle)
+   {
+      if (handleFd.getHandle() == -1)
+         return NotASocket;
+      socketFd = smReservedSocketList.activate(handleFd, isipv4 ? AF_INET : AF_INET6);
+   }
 
    sockaddr_in socketAddress;
    dMemset((char *)&socketAddress, 0, sizeof(socketAddress));
-   socketAddress.sin_family = AF_INET;
+   socketAddress.sin_family = isipv4 ? AF_INET : AF_INET6;
    // It's entirely possible that there are two NIC cards.
    // We let the user specify which one the server runs on.
 
-   // thanks to [TPG]P1aGu3 for the name
-   const char* serverIP = Con::getVariable( "pref::Net::BindAddress" );
-   // serverIP is guaranteed to be non-0.
-   AssertFatal( serverIP, "serverIP is NULL!" );
-
    if( serverIP[0] != '\0' ) {
-      // we're not empty
-      socketAddress.sin_addr.s_addr = inet_addr( serverIP );
+
+      // TODO: use host info thingy
 
       if( socketAddress.sin_addr.s_addr != INADDR_NONE ) {
          Con::printf( "Binding server port to %s", serverIP );
@@ -873,51 +1178,67 @@ Net::Error Net::bind(NetSocket socket, U16 port)
       }
 
    } else {
+      // TODO
       Con::printf( "Binding server port to default IP" );
       socketAddress.sin_addr.s_addr = INADDR_ANY;
+      socketAddress.sin_port = htons(port);
    }
 
-   socketAddress.sin_port = htons(port);
-   error = ::bind(socket, (sockaddr *) &socketAddress,  sizeof(socketAddress));
+   error = ::bind(socketFd, (sockaddr *) &socketAddress,  sizeof(socketAddress));
 
    if(!error)
       return NoError;
    return getLastError();
 }
 
-Net::Error Net::setBufferSize(NetSocket socket, S32 bufferSize)
+Net::Error Net::setBufferSize(NetSocket handleFd, S32 bufferSize)
 {
    S32 error;
-   error = setsockopt(socket, SOL_SOCKET, SO_RCVBUF, (char *)  &bufferSize, sizeof(bufferSize));
+   SOCKET socketFd = smReservedSocketList.resolve(handleFd);
+   if (socketFd == InvalidSocketHandle)
+      return NotASocket;
+
+   error = ::setsockopt(socketFd, SOL_SOCKET, SO_RCVBUF, (char *)  &bufferSize, sizeof(bufferSize));
    if(!error)
-      error = setsockopt(socket, SOL_SOCKET, SO_SNDBUF, (char *)  &bufferSize, sizeof(bufferSize));
+      error = ::setsockopt(socketFd, SOL_SOCKET, SO_SNDBUF, (char *)  &bufferSize, sizeof(bufferSize));
    if(!error)
       return NoError;
    return getLastError();
 }
 
-Net::Error Net::setBroadcast(NetSocket socket, bool broadcast)
+Net::Error Net::setBroadcast(NetSocket handleFd, bool broadcast)
 {
    S32 bc = broadcast;
-   S32 error = setsockopt(socket, SOL_SOCKET, SO_BROADCAST, (char*)&bc,  sizeof(bc));
+   SOCKET socketFd = smReservedSocketList.resolve(handleFd);
+   if (socketFd == InvalidSocketHandle)
+      return NotASocket;
+   S32 error = ::setsockopt(socketFd, SOL_SOCKET, SO_BROADCAST, (char*)&bc,  sizeof(bc));
    if(!error)
       return NoError;
    return getLastError();
 }
 
-Net::Error Net::setBlocking(NetSocket socket, bool blockingIO)
+Net::Error Net::setBlocking(NetSocket handleFd, bool blockingIO)
 {
+   SOCKET socketFd = smReservedSocketList.resolve(handleFd);
+   if (socketFd == InvalidSocketHandle)
+      return NotASocket;
+
    unsigned long notblock = !blockingIO;
-   S32 error = ioctl(socket, FIONBIO, &notblock);
+   S32 error = ioctl(socketFd, FIONBIO, &notblock);
    if(!error)
       return NoError;
    return getLastError();
 }
 
-Net::Error Net::send(NetSocket socket, const U8 *buffer, S32 bufferSize)
+Net::Error Net::send(NetSocket handleFd, const U8 *buffer, S32 bufferSize)
 {
+   SOCKET socketFd = smReservedSocketList.resolve(handleFd);
+   if (socketFd == InvalidSocketHandle)
+      return NotASocket;
+
    errno = 0;
-   S32 bytesWritten = ::send(socket, (const char*)buffer, bufferSize, 0);
+   S32 bytesWritten = ::send(socketFd, (const char*)buffer, bufferSize, 0);
    if(bytesWritten == -1)
 #if defined(TORQUE_USE_WINSOCK)
       Con::errorf("Could not write to socket. Error: %s",strerror_wsa( WSAGetLastError() ));
@@ -928,9 +1249,13 @@ Net::Error Net::send(NetSocket socket, const U8 *buffer, S32 bufferSize)
    return getLastError();
 }
 
-Net::Error Net::recv(NetSocket socket, U8 *buffer, S32 bufferSize, S32  *bytesRead)
+Net::Error Net::recv(NetSocket handleFd, U8 *buffer, S32 bufferSize, S32  *bytesRead)
 {
-   *bytesRead = ::recv(socket, (char*)buffer, bufferSize, 0);
+   SOCKET socketFd = smReservedSocketList.resolve(handleFd);
+   if (socketFd == InvalidSocketHandle)
+      return NotASocket;
+
+   *bytesRead = ::recv(socketFd, (char*)buffer, bufferSize, 0);
    if(*bytesRead == -1)
       return getLastError();
    return NoError;
@@ -938,17 +1263,7 @@ Net::Error Net::recv(NetSocket socket, U8 *buffer, S32 bufferSize, S32  *bytesRe
 
 bool Net::compareAddresses(const NetAddress *a1, const NetAddress *a2)
 {
-   if((a1->type != a2->type)  ||
-      (*((U32 *)a1->netNum) != *((U32 *)a2->netNum)) ||
-      (a1->port != a2->port))
-      return false;
-
-   if(a1->type == NetAddress::IPAddress)
-      return true;
-   for(S32 i = 0; i < 6; i++)
-      if(a1->nodeNum[i] != a2->nodeNum[i])
-         return false;
-   return true;
+   return a1->isSameAddress(*a2);
 }
 
 bool Net::stringToAddress(const char *addressString, NetAddress  *address)
@@ -959,6 +1274,8 @@ bool Net::stringToAddress(const char *addressString, NetAddress  *address)
 
    if(!dStrnicmp(addressString, "ip:", 3))
       addressString += 3;  // eat off the ip:
+   else if (!dStrnicmp(addressString, "ip6:", 4))
+      addressString += 4;  // eat off the ip6:
 
    sockaddr_in ipAddr;
    char remoteAddr[256];
@@ -971,55 +1288,42 @@ bool Net::stringToAddress(const char *addressString, NetAddress  *address)
    if(portString)
       *portString++ = '\0';
 
-   if(!dStricmp(remoteAddr, "broadcast"))
+   if (!dStricmp(remoteAddr, "broadcast"))
+   {
       ipAddr.sin_addr.s_addr = htonl(INADDR_BROADCAST);
+      if (portString)
+         ipAddr.sin_port = htons(dAtoi(portString));
+      else
+         ipAddr.sin_port = htons(defaultPort);
+      ipAddr.sin_family = AF_INET;
+      IPSocketToNetAddress(&ipAddr, address);
+   }
    else
    {
-      ipAddr.sin_addr.s_addr = inet_addr(remoteAddr);
+      struct addrinfo hint, *res = NULL;
 
-      if (ipAddr.sin_addr.s_addr == INADDR_NONE) // error
+      memset(&hint, 0, sizeof(hint));
+      hint.ai_family = PF_UNSPEC;
+      hint.ai_flags = 0;
+      if (getaddrinfo(addressString, NULL, &hint, &res) == 0)
       {
-         // On the Xbox, 'gethostbyname' does not exist so...
-#ifndef TORQUE_OS_XENON
-         struct hostent *hp;
-         if((hp = gethostbyname(remoteAddr)) == 0)
-            return false;
-         else
-            memcpy(&ipAddr.sin_addr.s_addr, hp->h_addr,  sizeof(in_addr));
-#else
-         // On the Xbox do XNetDnsLookup
-         XNDNS *pxndns = NULL;
-         HANDLE hEvent = CreateEvent(NULL, false, false, NULL);
-         XNetDnsLookup(remoteAddr, hEvent, &pxndns);
-
-         // Wait for event (passing NULL as a handle to XNetDnsLookup will NOT
-         // cause it to behave synchronously, so do not remove the handle/wait
-         while(pxndns->iStatus == WSAEINPROGRESS) 
-            WaitForSingleObject(hEvent, INFINITE);
-
-         bool foundAddr = pxndns->iStatus == 0 && pxndns->cina > 0;
-         if(foundAddr)
+         if (res->ai_family == AF_INET)
          {
-            // Lets just grab the first address returned, for now
-            memcpy(&ipAddr.sin_addr, pxndns->aina,  sizeof(IN_ADDR));
+            // ipv4
+            IPSocketToNetAddress(((struct sockaddr_in*)res->ai_addr), address);
          }
-
-         XNetDnsRelease(pxndns);
-         CloseHandle(hEvent);
-
-         // If we didn't successfully resolve the DNS lookup, bail after the
-         // handles are released
-         if(!foundAddr)
+         else if (res->ai_family == AF_INET6)
+         {
+            // ipv6
+            IPSocket6ToNetAddress(((struct sockaddr_in6*)res->ai_addr), address);
+         }
+         else
+         {
+            // unknown
             return false;
-#endif
+         }
       }
    }
-   if(portString)
-      ipAddr.sin_port = htons(dAtoi(portString));
-   else
-      ipAddr.sin_port = htons(defaultPort);
-   ipAddr.sin_family = AF_INET;
-   IPSocketToNetAddress(&ipAddr, address);
    return true;
 }
 
@@ -1034,16 +1338,22 @@ void Net::addressToString(const NetAddress *address, char  addressString[256])
          dSprintf(addressString, 256, "IP:Broadcast:%d",  ntohs(ipAddr.sin_port));
       else
       {
-#ifndef TORQUE_OS_XENON
-         dSprintf(addressString, 256, "IP:%s:%d",  inet_ntoa(ipAddr.sin_addr),
-         ntohs(ipAddr.sin_port));
-#else
-         dSprintf(addressString, 256, "IP:%d.%d.%d.%d:%d", ipAddr.sin_addr.s_net,
-            ipAddr.sin_addr.s_host, ipAddr.sin_addr.s_lh,
-            ipAddr.sin_addr.s_impno, ntohs( ipAddr.sin_port ) );
-
-#endif
+         char buffer[256];
+         buffer[0] = '\0';
+         sockaddr_in ipAddr;
+         netToIPSocketAddress(address, &ipAddr);
+         inet_ntop(AF_INET, &(ipAddr.sin_addr), buffer, sizeof(buffer));
+         dSprintf(addressString, 256, "IP:%s:%i", buffer, ntohs(ipAddr.sin_port));
       }
+   }
+   else if (address->type == NetAddress::IPV6Address)
+   {
+      char buffer[256];
+      buffer[0] = '\0';
+      sockaddr_in6 ipAddr;
+      netToIPSocket6Address(address, &ipAddr);
+      inet_ntop(AF_INET6, &(ipAddr.sin6_addr), buffer, sizeof(buffer));
+      dSprintf(addressString, 256, "IP6:%s:%i", buffer, ntohs(ipAddr.sin6_port));
    }
    else
    {
@@ -1052,3 +1362,20 @@ void Net::addressToString(const NetAddress *address, char  addressString[256])
    }
 }
 
+U32 NetAddress::getHash() const
+{
+   U32 value = 0;
+   switch (type)
+   {
+   case NetAddress::IPAddress:
+      value = Torque::hash((const U8*)&address, 4, 0);
+      break;
+   case NetAddress::IPV6Address:
+      value = Torque::hash((const U8*)&address, 24, 0);
+      break;
+   default:
+      value = 0;
+      break;
+   }
+   return value;
+}

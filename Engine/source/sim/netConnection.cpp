@@ -157,7 +157,7 @@ bool NetConnection::mFilesWereDownloaded = false;
 
 static inline U32 HashNetAddress(const NetAddress *addr)
 {
-   return *((U32 *)addr->netNum) % NetConnection::HashTableSize;
+   return addr->getHash() % NetConnection::HashTableSize;
 }
 
 NetConnection *NetConnection::lookup(const NetAddress *addr)

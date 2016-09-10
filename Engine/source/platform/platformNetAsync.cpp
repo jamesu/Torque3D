@@ -53,7 +53,7 @@ struct NetAsync::NameLookupRequest
 
       NameLookupRequest()
       {
-         sock = InvalidSocket;
+         sock = NetSocket::INVALID;
          remoteAddr[0] = 0;
          out_h_addr[0] = 0;
          out_h_length = -1;
@@ -159,7 +159,7 @@ void NetAsync::queueLookup(const char* remoteAddr, NetSocket socket)
    ThreadPool::GLOBAL().queueWorkItem( workItem );
 }
 
-bool NetAsync::checkLookup(NetSocket socket, char* out_h_addr, 
+bool NetAsync::checkLookup(NetSocket socket, void* out_h_addr, 
                            S32* out_h_length, S32 out_h_addr_size)
 {
    bool found = false;

@@ -44,15 +44,89 @@ struct NetAddress
    enum 
    {
       IPAddress,
+      IPV6Address
    };
 
-   U8 netNum[4];    ///< For IP:  sin_addr<br>
-   U8 nodeNum[6];   ///< For IP:  Not used.<br>
-   U16  port;       ///< For IP:  sin_port<br>
+   union
+   {
+      struct {
+         U8 netNum[4];
+      } ipv4;
+
+      struct {
+         U8 netNum[16];
+         U32 netFlow;
+         U32 netScope;
+      } ipv6;
+
+      struct {
+         U8 netNum[16];
+         U8 netFlow[4];
+         U8 netScope[4];
+      } ipv6_raw;
+
+      struct {
+         U8 netNum[4];
+         U8 nodeNum[6];
+      } ipx;
+
+
+   } address;
+
+   U16 port;
+
+
+   bool isSameAddress(const NetAddress &other) const
+   {
+      switch (type)
+      {
+      case NetAddress::IPAddress:
+         return (dMemcmp(other.address.ipv4.netNum, address.ipv4.netNum, 4) == 0);
+         break;
+      case NetAddress::IPV6Address:
+         return other.address.ipv6.netFlow == address.ipv6.netFlow && other.address.ipv6.netScope == address.ipv6.netScope && (dMemcmp(other.address.ipx.netNum, address.ipv6.netNum, 16) == 0);
+         break;
+      }
+
+      return false;
+   }
+
+   bool isEqual(const NetAddress &other) const
+   {
+      switch (type)
+      {
+      case NetAddress::IPAddress:
+         return other.port == port && (dMemcmp(other.address.ipv4.netNum, address.ipv4.netNum, 4) == 0);
+         break;
+      case NetAddress::IPV6Address:
+         return other.port == port && other.address.ipv6.netFlow == address.ipv6.netFlow && other.address.ipv6.netScope == address.ipv6.netScope && (dMemcmp(other.address.ipx.netNum, address.ipv6.netNum, 16) == 0);
+         break;
+      }
+
+      return false;
+   }
+
+   U32 getHash() const;
 };
 
-typedef S32 NetSocket;
-const NetSocket InvalidSocket = -1;
+class NetSocket
+{
+protected:
+   S32 mHandle;
+
+public:
+   NetSocket() : mHandle(-1) { ; }
+
+   inline void setHandle(S32 handleId) { mHandle = handleId; }
+   inline S32 getHandle() const { return mHandle;  }
+   inline U32 getHash() const { return mHandle; }
+
+   bool operator==(const NetSocket &other) const { return mHandle == other.mHandle; }
+   bool operator!=(const NetSocket &other) const { return mHandle != other.mHandle; }
+
+   static NetSocket fromHandle(S32 handleId) { NetSocket ret; ret.mHandle = handleId; return ret; }
+   static NetSocket INVALID;
+};
 
 /// void event(NetSocket sock, U32 state) 
 typedef JournaledSignal<void(NetSocket,U32)> ConnectionNotifyEvent;

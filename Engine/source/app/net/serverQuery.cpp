@@ -1585,7 +1585,7 @@ static void handleGameMasterInfoRequest( const NetAddress* address, U32 key, U8 
       for(U32 i = 0; i < masterList->size(); i++)
       {
          masterAddr = &(*masterList)[i].address;
-         if (*(U32*)(masterAddr->netNum) == *(U32*)(address->netNum))
+         if (masterAddr->isSameAddress(*address))
          {
             fromMaster = true;
             break;
