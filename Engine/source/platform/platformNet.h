@@ -44,7 +44,10 @@ struct NetAddress
    enum 
    {
       IPAddress,
-      IPV6Address
+      IPV6Address,
+
+      IPBroadcastAddress,
+      IPV6MulticastAddress
    };
 
    union
@@ -65,12 +68,6 @@ struct NetAddress
          U8 netScope[4];
       } ipv6_raw;
 
-      struct {
-         U8 netNum[4];
-         U8 nodeNum[6];
-      } ipx;
-
-
    } address;
 
    U16 port;
@@ -84,7 +81,13 @@ struct NetAddress
          return (dMemcmp(other.address.ipv4.netNum, address.ipv4.netNum, 4) == 0);
          break;
       case NetAddress::IPV6Address:
-         return other.address.ipv6.netFlow == address.ipv6.netFlow && other.address.ipv6.netScope == address.ipv6.netScope && (dMemcmp(other.address.ipx.netNum, address.ipv6.netNum, 16) == 0);
+         return other.address.ipv6.netFlow == address.ipv6.netFlow && other.address.ipv6.netScope == address.ipv6.netScope && (dMemcmp(other.address.ipv6.netNum, address.ipv6.netNum, 16) == 0);
+         break;
+      case NetAddress::IPBroadcastAddress:
+         return true;
+         break;
+      case NetAddress::IPV6MulticastAddress:
+         return true;
          break;
       }
 
@@ -99,7 +102,13 @@ struct NetAddress
          return other.port == port && (dMemcmp(other.address.ipv4.netNum, address.ipv4.netNum, 4) == 0);
          break;
       case NetAddress::IPV6Address:
-         return other.port == port && other.address.ipv6.netFlow == address.ipv6.netFlow && other.address.ipv6.netScope == address.ipv6.netScope && (dMemcmp(other.address.ipx.netNum, address.ipv6.netNum, 16) == 0);
+         return other.port == port && other.address.ipv6.netFlow == address.ipv6.netFlow && other.address.ipv6.netScope == address.ipv6.netScope && (dMemcmp(other.address.ipv6.netNum, address.ipv6.netNum, 16) == 0);
+         break;
+      case NetAddress::IPBroadcastAddress:
+         return other.port == port;
+         break;
+      case NetAddress::IPV6MulticastAddress:
+         return other.port == port;
          break;
       }
 
@@ -211,6 +220,7 @@ struct Net
    static NetSocket accept(NetSocket acceptSocket, NetAddress *remoteAddress);
 
    static Error bind(NetSocket socket, U16 port);
+   static Error bindAddress(const NetAddress &address, NetSocket socket, U16 port);
    static Error setBufferSize(NetSocket socket, S32 bufferSize);
    static Error setBroadcast(NetSocket socket, bool broadcastEnable);
    static Error setBlocking(NetSocket socket, bool blockingIO);
@@ -218,6 +228,7 @@ struct Net
 
 private:
    static void process();
+   static void processListenSocket(NetSocket socket);
 
 };
 
