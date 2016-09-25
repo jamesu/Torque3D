@@ -1421,7 +1421,7 @@ DefineEngineMethod( NetConnection, connect, void, (const char* remoteAddress),,
    )
 {
    NetAddress addr;
-   if(!Net::stringToAddress(remoteAddress, &addr))
+   if (Net::stringToAddress(remoteAddress, &addr) != Net::NoError)
    {
       Con::errorf("NetConnection::connect: invalid address - %s", remoteAddress);
       return;

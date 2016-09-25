@@ -41,7 +41,7 @@ struct NetAddress
    S32 type;        ///< Type of address (IPAddress currently)
 
    /// Acceptable NetAddress types.
-   enum 
+   enum Type
    {
       IPAddress,
       IPV6Address,
@@ -81,7 +81,7 @@ struct NetAddress
          return (dMemcmp(other.address.ipv4.netNum, address.ipv4.netNum, 4) == 0);
          break;
       case NetAddress::IPV6Address:
-         return other.address.ipv6.netFlow == address.ipv6.netFlow && other.address.ipv6.netScope == address.ipv6.netScope && (dMemcmp(other.address.ipv6.netNum, address.ipv6.netNum, 16) == 0);
+         return (dMemcmp(other.address.ipv6.netNum, address.ipv6.netNum, 16) == 0);
          break;
       case NetAddress::IPBroadcastAddress:
          return true;
@@ -159,7 +159,8 @@ struct Net
       InvalidPacketProtocol,
       WouldBlock,
       NotASocket,
-      UnknownError
+      UnknownError,
+	  NeedHostLookup
    };
 
    enum ConnectionState {
@@ -170,18 +171,16 @@ struct Net
       Disconnected
    };
 
-   enum Protocol
-   {
-      UDPProtocol,
-      TCPProtocol
-   };
-
    static const S32 MaxPacketDataSize = MAXPACKETSIZE;
 
    static ConnectionNotifyEvent   smConnectionNotify;
    static ConnectionAcceptedEvent smConnectionAccept;
    static ConnectionReceiveEvent  smConnectionReceive;
    static PacketReceiveEvent      smPacketReceive;
+
+   static bool smMulticastEnabled;
+   static bool smIpv4Enabled;
+   static bool smIpv6Enabled;
 
    static bool init();
    static void shutdown();
@@ -199,13 +198,13 @@ struct Net
 
    // Reliable net functions (TCP)
    // all incoming messages come in on the Connected* events
-   static NetSocket openListenPort(U16 port);
+   static NetSocket openListenPort(U16 port, NetAddress::Type = NetAddress::IPAddress);
    static NetSocket openConnectTo(const char *stringAddress); // does the DNS resolve etc.
    static void closeConnectTo(NetSocket socket);
    static Error sendtoSocket(NetSocket socket, const U8 *buffer, S32 bufferSize);
 
    static bool compareAddresses(const NetAddress *a1, const NetAddress *a2);
-   static bool stringToAddress(const char *addressString, NetAddress *address);
+   static Net::Error stringToAddress(const char *addressString, NetAddress *address, bool hostLookup=true, int family=0);
    static void addressToString(const NetAddress *address, char addressString[256]);
 
    // lower level socked based network functions
@@ -219,12 +218,22 @@ struct Net
    static Error listen(NetSocket socket, S32 maxConcurrentListens);
    static NetSocket accept(NetSocket acceptSocket, NetAddress *remoteAddress);
 
-   static Error bind(NetSocket socket, U16 port);
-   static Error bindAddress(const NetAddress &address, NetSocket socket, U16 port);
+   static Error bindAddress(const NetAddress &address, NetSocket socket, bool useUDP=false);
    static Error setBufferSize(NetSocket socket, S32 bufferSize);
    static Error setBroadcast(NetSocket socket, bool broadcastEnable);
    static Error setBlocking(NetSocket socket, bool blockingIO);
 
+   /// Gets the desired default listen address for a specified address type
+   static bool getListenAddress(const NetAddress::Type type, NetAddress *address, bool forceDefaults=false);
+   static void getIdealListenAddress(NetAddress *address);
+
+   // Multicast for ipv6 local net browsing
+   static void enableMulticast();
+   static void disableMulticast();
+   static bool isMulticastEnabled();
+
+   // Protocol state
+   static bool isAddressTypeAvailable(NetAddress::Type addressType);
 
 private:
    static void process();

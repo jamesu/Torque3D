@@ -244,8 +244,12 @@ void TelnetDebugger::setDebugParameters(S32 port, const char *password, bool wai
    mAcceptPort = port;
    if(mAcceptPort != -1 && mAcceptPort != 0)
    {
+	  NetAddress address;
+	  Net::getIdealListenAddress(&address);
+	  address.port = mAcceptPort;
+
       mAcceptSocket = Net::openSocket();
-      Net::bind(mAcceptSocket, mAcceptPort);
+      Net::bindAddress(address, mAcceptSocket);
       Net::listen(mAcceptSocket, 4);
 
       Net::setBlocking(mAcceptSocket, false);
