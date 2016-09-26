@@ -996,9 +996,11 @@ Net::Error Net::sendto(const NetAddress *address, const U8 *buffer, S32  bufferS
       {
          sockaddr_in6 ipAddr;
          NetAddressToIPSocket6(address, &ipAddr);
-         if (::sendto(socketFd, (const char*)buffer, bufferSize, 0,
-            (struct sockaddr *) &ipAddr, sizeof(ipAddr)) == -1)
-            return PlatformNetState::getLastError();
+		 if (::sendto(socketFd, (const char*)buffer, bufferSize, 0,
+			 (struct sockaddr *) &ipAddr, sizeof(sockaddr_in6)) == SOCKET_ERROR)
+			 return PlatformNetState::getLastError();
+		 else
+			 return NoError;
       }
       else
       {
@@ -1513,16 +1515,18 @@ bool Net::getListenAddress(const NetAddress::Type type, NetAddress *address, boo
 
 void Net::getIdealListenAddress(NetAddress *address)
 {
+	dMemset(address, '\0', sizeof(NetAddress));
+
 	if (Net::smIpv6Enabled)
 	{
-		if (!Net::getListenAddress(NetAddress::IPV6Address, address))
+		if (Net::getListenAddress(NetAddress::IPV6Address, address) == NeedHostLookup)
 		{
 			Net::getListenAddress(NetAddress::IPV6Address, address, true);
 		}
 	}
 	else
 	{
-		if (!Net::getListenAddress(NetAddress::IPAddress, address))
+		if (Net::getListenAddress(NetAddress::IPAddress, address) == NeedHostLookup)
 		{
 			Net::getListenAddress(NetAddress::IPAddress, address, true);
 		}
@@ -1561,7 +1565,7 @@ Net::Error Net::recv(NetSocket handleFd, U8 *buffer, S32 bufferSize, S32  *bytes
 
 bool Net::compareAddresses(const NetAddress *a1, const NetAddress *a2)
 {
-   return a1->isSameAddress(*a2);
+   return a1->isSameAddressAndPort(*a2);
 }
 
 Net::Error Net::stringToAddress(const char *addressString, NetAddress  *address, bool hostLookup, int requiredFamily)
@@ -1885,10 +1889,10 @@ U32 NetAddress::getHash() const
    switch (type)
    {
    case NetAddress::IPAddress:
-      value = Torque::hash((const U8*)&address, sizeof(address.ipv4), 0);
+      value = Torque::hash((const U8*)&address.ipv4.netNum, sizeof(address.ipv4.netNum), 0);
       break;
    case NetAddress::IPV6Address:
-      value = Torque::hash((const U8*)&address, sizeof(address.ipv6), 0);
+      value = Torque::hash((const U8*)address.ipv6.netNum, sizeof(address.ipv6.netNum), 0);
       break;
    default:
       value = 0;
