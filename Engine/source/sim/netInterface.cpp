@@ -41,7 +41,7 @@ NetInterface::NetInterface()
    GNet = this;
 
    mLastTimeoutCheckTime = 0;
-   mAllowConnections = true;
+   mAllowConnections = false;
 
 }
 
@@ -638,7 +638,7 @@ void NetInterface::computeNetMD5(const NetAddress *address, U32 connectSequence,
 
 ConsoleFunctionGroupBegin(NetInterface, "Global control functions for the netInterfaces.");
 
-DefineConsoleFunction( allowConnections, void, ( bool allow ), , "allowConnections(bool allow)"
+DefineConsoleFunction( allow, void, ( bool allow ), , "allowConnections(bool allow)"
    "@brief Sets whether or not the global NetInterface allows connections from remote hosts.\n\n"
 
    "@param allow Set to true to allow remote connections.\n"
