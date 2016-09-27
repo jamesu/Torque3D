@@ -54,6 +54,7 @@ public:
       ConnectReject                 = 34,
       ConnectAccept                 = 36,
       Disconnect                    = 38,
+	  MasterServerExtendedListResponse = 40,
    };
 protected:
 

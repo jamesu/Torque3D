@@ -592,6 +592,7 @@ static void NetAddressToIPSocket6(const NetAddress *address, struct sockaddr_in6
    if (address->type == NetAddress::IPV6MulticastAddress)
    {
       sockAddr->sin6_addr = PlatformNetState::multicast6Group.ipv6mr_multiaddr;
+      sockAddr->sin6_scope_id = PlatformNetState::multicast6Group.ipv6mr_interface;
    }
    else
    {
@@ -866,7 +867,7 @@ bool Net::openPort(S32 port, bool doBind)
 			  if (error == NoError)
 				  error = setBufferSize(PlatformNetState::udpSocket, 32768 * 8);
 
-#ifdef TORQUE_DISABLE_PC_CONNECTIVITY
+#ifndef TORQUE_DISABLE_PC_CONNECTIVITY
 			  if (error == NoError)
 				  error = setBroadcast(PlatformNetState::udpSocket, true);
 #endif
@@ -1016,7 +1017,7 @@ void Net::process()
    // Process listening sockets
    processListenSocket(PlatformNetState::udpSocket);
    processListenSocket(PlatformNetState::udp6Socket);
-   processListenSocket(PlatformNetState::multicast6Socket);
+   //processListenSocket(PlatformNetState::multicast6Socket);
 
    // process the polled sockets.  This blob of code performs functions
    // similar to WinsockProc in winNet.cc
@@ -1622,6 +1623,8 @@ Net::Error Net::stringToAddress(const char *addressString, NetAddress  *address,
 	  dMemset(&ipAddr, 0, sizeof(ipAddr));
 	  dMemset(&ipAddr6, 0, sizeof(ipAddr6));
 
+	  bool hasInterface = dStrchr(addressString, '%') != NULL; // if we have an interface, best use getaddrinfo to parse
+
 	  // Check if we've got a simple ipv4 / ipv6
 
 	  if (inet_pton(AF_INET, addressString, &ipAddr.sin_addr) == 1)
@@ -1637,7 +1640,7 @@ Net::Error Net::stringToAddress(const char *addressString, NetAddress  *address,
 
 		  return NoError;
 	  }
-	  else if (inet_pton(AF_INET6, addressString, &ipAddr6.sin6_addr) == 1)
+	  else if (!hasInterface && inet_pton(AF_INET6, addressString, &ipAddr6.sin6_addr) == 1)
 	  {
 		  if (!(actualFamily == AF_UNSPEC || actualFamily == AF_INET6))
 			  return WrongProtocolType;
@@ -1652,14 +1655,14 @@ Net::Error Net::stringToAddress(const char *addressString, NetAddress  *address,
 	  }
 	  else
 	  {
-		  if (!hostLookup)
+		  if (!hostLookup && !hasInterface)
 			  return NeedHostLookup;
 
 		  int ret = 0;
 		  struct addrinfo hint, *res = NULL;
 		  dMemset(&hint, 0, sizeof(hint));
 		  hint.ai_family = actualFamily;
-		  hint.ai_flags = 0;
+		  hint.ai_flags = hostLookup ? 0 : AI_NUMERICHOST;
 
 		  if (ret = getaddrinfo(addressString, NULL, &hint, &res) == 0)
 		  {
@@ -1740,7 +1743,7 @@ void Net::addressToString(const NetAddress *address, char  addressString[256])
 	   if (address->port == 0)
 		   dSprintf(addressString, 256, "IP6:Multicast");
 	   else
-		   dSprintf(addressString, 256, "IP6:Multicast:%d", ntohs(address->port));
+		   dSprintf(addressString, 256, "IP6:Multicast:%d", address->port);
    }
    else
    {
@@ -1755,14 +1758,15 @@ void Net::enableMulticast()
 
 	if (Net::smIpv6Enabled)
 	{
-		socketFd = ::socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
+		socketFd = PlatformNetState::smReservedSocketList.resolve(PlatformNetState::udp6Socket);//::socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
 
 		if (socketFd != InvalidSocketHandle)
 		{
-			PlatformNetState::multicast6Socket = PlatformNetState::smReservedSocketList.reserve(socketFd);
+			PlatformNetState::multicast6Socket = PlatformNetState::udp6Socket;// PlatformNetState::smReservedSocketList.reserve(socketFd);
 
 			Net::Error error = NoError;
 
+			/*
 			int v = 1;
 			setsockopt(socketFd, IPPROTO_IPV6, IPV6_V6ONLY, (const char *)&v, sizeof(v));
 			PlatformNetState::getLastError();
@@ -1776,10 +1780,11 @@ void Net::enableMulticast()
 			{
 				error = setBlocking(PlatformNetState::multicast6Socket, false);
 			}
+			*/
 
 			if (error == NoError)
 			{
-				int multicastTTL = 1;
+				unsigned long multicastTTL = 1;
 
 				if (setsockopt(socketFd, IPPROTO_IPV6, IPV6_MULTICAST_HOPS,
 					(char*)&multicastTTL, sizeof(multicastTTL)) < 0)
@@ -1799,6 +1804,26 @@ void Net::enableMulticast()
 				multicastAddressValue = TORQUE_NET_DEFAULT_MULTICAST_ADDRESS;
 			}
 
+		/*
+			char outAS[256];
+			int outP;
+			int outF;
+			PlatformNetState::extractAddressParts(multicastAddressValue, outAS, outP, outF);
+			
+
+			struct addrinfo hint, *res = NULL;
+			dMemset(&hint, 0, sizeof(hint));
+			hint.ai_family = outF;
+			hint.ai_flags = AI_NUMERICHOST;
+
+			if (getaddrinfo(outAS, NULL, &hint, &res) == 0)
+			{
+				char str[256];
+				inet_ntop(AF_INET6, res->ai_addr, str, 256);
+				Con::printf("Multicast %s -> %s", multicastAddressValue, str);
+			}
+			*/
+
 			error = Net::stringToAddress(multicastAddressValue, &multicastAddress, false);
 
 			/*
@@ -1815,11 +1840,13 @@ void Net::enableMulticast()
 				dMemcpy(&PlatformNetState::multicast6Group.ipv6mr_multiaddr, &multicastSocketAddress.sin6_addr, sizeof(PlatformNetState::multicast6Group.ipv6mr_multiaddr));
 			}
 
+			/*
 			if (error == NoError)
 			{
 				multicastAddress.port = PlatformNetState::defaultPort;
 				error = bindAddress(multicastAddress, PlatformNetState::multicast6Socket, true);
 			}
+			*/
 
 			// Setup group
 
@@ -1842,7 +1869,7 @@ void Net::enableMulticast()
 
 				if (PlatformNetState::multicast6Group.ipv6mr_interface && error == NoError)
 				{
-					if (setsockopt(socketFd, IPPROTO_IPV6, IPV6_MULTICAST_IF, (char *)&PlatformNetState::multicast6Group, sizeof(PlatformNetState::multicast6Group)) < 0)
+					if (setsockopt(socketFd, IPPROTO_IPV6, IPV6_MULTICAST_IF, (char *)&PlatformNetState::multicast6Group.ipv6mr_interface, sizeof(PlatformNetState::multicast6Group.ipv6mr_interface)) < 0)
 					{
 						error = PlatformNetState::getLastError();
 					}
@@ -1861,7 +1888,7 @@ void Net::enableMulticast()
 			}
 			else
 			{
-				closeSocket(PlatformNetState::multicast6Socket);
+				//closeSocket(PlatformNetState::multicast6Socket);
 				PlatformNetState::multicast6Socket = NetSocket::INVALID;
 				Con::printf("Unable to multicast UDP - error %d", error);
 			}
@@ -1873,7 +1900,7 @@ void Net::disableMulticast()
 {
 	if (PlatformNetState::multicast6Socket != NetSocket::INVALID)
 	{
-		closeSocket(PlatformNetState::multicast6Socket);
+		//closeSocket(PlatformNetState::multicast6Socket);
 		PlatformNetState::multicast6Socket = NetSocket::INVALID;
 	}
 }
