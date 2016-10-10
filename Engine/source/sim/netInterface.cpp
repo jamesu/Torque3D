@@ -109,7 +109,7 @@ void NetInterface::processPacketReceiveEvent(NetAddress srcAddress, RawData pack
       pStream.read(&packetType);
       NetAddress *addr = &srcAddress;
 
-      if(packetType <= GameHeartbeat)
+      if(packetType <= GameHeartbeat || packetType == MasterServerExtendedListResponse)
          handleInfoPacket(addr, packetType, &pStream);
 #ifdef GGC_PLUGIN
       else if (packetType == GGCPacket)

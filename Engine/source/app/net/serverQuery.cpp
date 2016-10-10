@@ -212,7 +212,7 @@ struct ServerFilter
       OnlineQuery       = 0,        // Authenticated with master
       OfflineQuery      = BIT(0),   // On our own
       NoStringCompress  = BIT(1),
-	  IncludeIPV6       = BIT(2),  // Include IPV6 servers
+	  NewStyleResponse  = BIT(2),  // Include IPV6 servers
    };
 
    enum // Filter flags:
@@ -222,6 +222,14 @@ struct ServerFilter
       Linux             = BIT(2),
       CurrentVersion    = BIT(7),
       NotXenon          = BIT(6)
+   };
+
+   enum // Region mask flags
+   {
+	   RegionIsIPV4Address = BIT(30),
+	   RegionIsIPV6Address = BIT(31),
+
+	   RegionAddressMask = RegionIsIPV4Address | RegionIsIPV6Address
    };
    
    //Rearranging the fields according to their sizes
@@ -242,7 +250,7 @@ struct ServerFilter
    ServerFilter()
    {
       type = Normal;
-      queryFlags = 0;
+      queryFlags = NewStyleResponse;
       gameType = NULL;
       missionType = NULL;
       minPlayers = 0;
@@ -510,7 +518,7 @@ void queryMasterServer(U8 flags, const char* gameType, const char* missionType,
          dStrcpy( sActiveFilter.missionType, missionType );
       }
 
-      sActiveFilter.queryFlags   = flags;
+      sActiveFilter.queryFlags   = flags | ServerFilter::NewStyleResponse;
       sActiveFilter.minPlayers   = minPlayers;
       sActiveFilter.maxPlayers   = maxPlayers;
       sActiveFilter.maxBots      = maxBots;
@@ -527,6 +535,7 @@ void queryMasterServer(U8 flags, const char* gameType, const char* missionType,
       sActiveFilter.type = ServerFilter::Buddy;
       sActiveFilter.buddyCount = buddyCount;
       sActiveFilter.buddyList = (U32*) dRealloc( sActiveFilter.buddyList, buddyCount * 4 );
+	  sActiveFilter.queryFlags = ServerFilter::NewStyleResponse;
       dMemcpy( sActiveFilter.buddyList, buddyList, buddyCount * 4 );
       clearServerList();
    }
@@ -783,7 +792,7 @@ Vector<MasterInfo>* getMasterServerList()
          U32 region = 1; // needs to default to something > 0
          dSscanf(master,"%d:",&region);
          const char* madd = dStrchr(master,':') + 1;
-         if (region && Net::stringToAddress(madd,&address)) {
+         if (region && Net::stringToAddress(madd,&address) == Net::NoError) {
             masterList.increment();
             MasterInfo& info = masterList.last();
             info.address = address;
@@ -1582,7 +1591,7 @@ static void handleExtendedMasterServerListResponse(BitStream* stream, U32 key, U
 	U8 packetIndex, packetTotal;
 	U32 i;
 	U16 serverCount, port;
-	U8 netNum[4];
+	U8 netNum[16];
 	char addressBuffer[256];
 	NetAddress addr;
 
@@ -1613,14 +1622,25 @@ static void handleExtendedMasterServerListResponse(BitStream* stream, U32 key, U
 	// Enter all of the servers in this packet into the ping list:
 	for (i = 0; i < serverCount; i++)
 	{
-		stream->read(&netNum[0]);
-		stream->read(&netNum[1]);
-		stream->read(&netNum[2]);
-		stream->read(&netNum[3]);
-		stream->read(&port);
+		U8 type;
+		stream->read(&type);
+		dMemset(&addr, '\0', sizeof(NetAddress));
 
-		dSprintf(addressBuffer, sizeof(addressBuffer), "IP:%d.%d.%d.%d:%d", netNum[0], netNum[1], netNum[2], netNum[3], port);
-		Net::stringToAddress(addressBuffer, &addr);
+		if (type == 0)
+		{
+			// IPV4
+			addr.type = NetAddress::IPAddress;
+			stream->read(4, &addr.address.ipv4.netNum[0]);
+			stream->read(&addr.port);
+		}
+		else
+		{
+			// IPV6
+			addr.type = NetAddress::IPV6Address;
+			stream->read(16, &addr.address.ipv6.netNum[0]);
+			stream->read(&addr.port);
+		}
+
 		pushPingRequest(&addr);
 	}
 
