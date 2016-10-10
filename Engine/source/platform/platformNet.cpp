@@ -561,10 +561,7 @@ static void NetAddressToIPSocket(const NetAddress *address, struct sockaddr_in *
    }
    else
    {
-	   sockAddr->sin_addr.s_net = address->address.ipv4.netNum[0];
-	   sockAddr->sin_addr.s_host = address->address.ipv4.netNum[1];
-	   sockAddr->sin_addr.s_lh = address->address.ipv4.netNum[2];
-	   sockAddr->sin_addr.s_impno = address->address.ipv4.netNum[3];
+	   dMemcpy(&sockAddr->sin_addr, &address->address.ipv4.netNum[0], 4);
    }
 }
 
@@ -572,10 +569,7 @@ static void IPSocketToNetAddress(const struct sockaddr_in *sockAddr, NetAddress 
 {
    address->type = NetAddress::IPAddress;
    address->port = ntohs(sockAddr->sin_port);
-   address->address.ipv4.netNum[0] = sockAddr->sin_addr.s_net;
-   address->address.ipv4.netNum[1] = sockAddr->sin_addr.s_host;
-   address->address.ipv4.netNum[2] = sockAddr->sin_addr.s_lh;
-   address->address.ipv4.netNum[3] = sockAddr->sin_addr.s_impno;
+   dMemcpy(&address->address.ipv4.netNum[0], &sockAddr->sin_addr, 4);
 }
 
 // ipv6 version of name routines
