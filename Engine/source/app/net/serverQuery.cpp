@@ -177,7 +177,7 @@ static Vector<Ping> gQueryList(__FILE__, __LINE__);
 
 struct PacketStatus
 {
-   U8  index;
+   U16  index;
    S32 key;
    U32 time;
    U32 tryCount;
@@ -191,6 +191,9 @@ struct PacketStatus
       time = _time;
       tryCount = gPacketRetryCount;
    }
+
+   inline U8 getOldIndex() { return (U8)index; }
+   inline U16 getIndex() { return index; }
 };
 
 static Vector<PacketStatus> gPacketStatusList(__FILE__, __LINE__);
@@ -212,7 +215,7 @@ struct ServerFilter
       OnlineQuery       = 0,        // Authenticated with master
       OfflineQuery      = BIT(0),   // On our own
       NoStringCompress  = BIT(1),
-	  NewStyleResponse  = BIT(2),  // Include IPV6 servers
+      NewStyleResponse  = BIT(2),  // Include IPV6 servers
    };
 
    enum // Filter flags:
@@ -1181,6 +1184,7 @@ static void processMasterServerQuery( U32 session )
 
          if ( keepGoing )
          {
+            bool extendedPacket = (sActiveFilter.queryFlags & ServerFilter::NewStyleResponse) != 0;
             gMasterServerPing.tryCount--;
             gMasterServerPing.time = time;
             gMasterServerPing.key = gKey++;
@@ -1188,10 +1192,20 @@ static void processMasterServerQuery( U32 session )
             // Send a request to the master server for the server list:
             BitStream *out = BitStream::getPacketStream();
             out->clearStringBuffer();
-            out->write( U8( NetInterface::MasterServerListRequest ) );
+
+            if ( extendedPacket )
+               out->write( U8( NetInterface::MasterServerExtendedListRequest ) );
+            else
+               out->write( U8( NetInterface::MasterServerListRequest ) );
+            
             out->write( U8( sActiveFilter.queryFlags) );
             out->write( ( gMasterServerPing.session << 16 ) | ( gMasterServerPing.key & 0xFFFF ) );
-            out->write( U8( 255 ) );
+            
+            if ( extendedPacket )
+               out->write( U16( 65536 ) );
+            else
+               out->write( U8( 255 ) );
+
             writeCString( out, sActiveFilter.gameType );
             writeCString( out, sActiveFilter.missionType );
             out->write( sActiveFilter.minPlayers );
@@ -1376,23 +1390,35 @@ static void processServerListPackets( U32 session )
          if ( !p.tryCount )
          {
             // Packet timed out :(
-            Con::printf( "Server list packet #%d timed out.", p.index + 1 );
+            Con::printf( "Server list packet #%d timed out.", p.getIndex() + 1 );
             gPacketStatusList.erase( i );
          }
          else
          {
             // Try again...
-            Con::printf( "Rerequesting server list packet #%d...", p.index + 1 );
+            Con::printf( "Rerequesting server list packet #%d...", p.getIndex() + 1 );
             p.tryCount--;
             p.time = currentTime;
             p.key = gKey++;
 
             BitStream *out = BitStream::getPacketStream();
+            bool extendedPacket = (sActiveFilter.queryFlags & ServerFilter::NewStyleResponse) != 0;
+
             out->clearStringBuffer();
-            out->write( U8( NetInterface::MasterServerListRequest ) );
+
+            if ( extendedPacket )
+               out->write( U8( NetInterface::MasterServerExtendedListRequest ) );
+            else
+               out->write( U8( NetInterface::MasterServerListRequest ) );
+
             out->write( U8( sActiveFilter.queryFlags ) );   // flags
             out->write( ( session << 16) | ( p.key & 0xFFFF ) );
-            out->write( p.index );  // packet index
+            
+            if ( extendedPacket )
+               out->write( p.getOldIndex() );  // packet index
+            else
+               out->write( p.getIndex() );  // packet index
+
             out->write( U8( 0 ) );  // game type
             out->write( U8( 0 ) );  // mission type
             out->write( U8( 0 ) );  // minPlayers
@@ -1588,7 +1614,7 @@ static void handleMasterServerListResponse( BitStream* stream, U32 key, U8 /*fla
 
 static void handleExtendedMasterServerListResponse(BitStream* stream, U32 key, U8 /*flags*/)
 {
-	U8 packetIndex, packetTotal;
+	U16 packetIndex, packetTotal;
 	U32 i;
 	U16 serverCount, port;
 	U8 netNum[16];
