@@ -229,10 +229,10 @@ struct ServerFilter
 
    enum // Region mask flags
    {
-	   RegionIsIPV4Address = BIT(30),
-	   RegionIsIPV6Address = BIT(31),
+      RegionIsIPV4Address = BIT(30),
+      RegionIsIPV6Address = BIT(31),
 
-	   RegionAddressMask = RegionIsIPV4Address | RegionIsIPV6Address
+      RegionAddressMask = RegionIsIPV4Address | RegionIsIPV6Address
    };
    
    //Rearranging the fields according to their sizes
@@ -1606,92 +1606,92 @@ static void handleMasterServerListResponse( BitStream* stream, U32 key, U8 /*fla
 
 static void handleExtendedMasterServerListResponse(BitStream* stream, U32 key, U8 /*flags*/)
 {
-	U16 packetIndex, packetTotal;
-	U32 i;
-	U16 serverCount, port;
-	U8 netNum[16];
-	char addressBuffer[256];
-	NetAddress addr;
+   U16 packetIndex, packetTotal;
+   U32 i;
+   U16 serverCount, port;
+   U8 netNum[16];
+   char addressBuffer[256];
+   NetAddress addr;
 
-	stream->read(&packetIndex);
-	// Validate the packet key:
-	U32 packetKey = gMasterServerPing.key;
-	if (gGotFirstListPacket)
-	{
-		for (i = 0; i < gPacketStatusList.size(); i++)
-		{
-			if (gPacketStatusList[i].index == packetIndex)
-			{
-				packetKey = gPacketStatusList[i].key;
-				break;
-			}
-		}
-	}
+   stream->read(&packetIndex);
+   // Validate the packet key:
+   U32 packetKey = gMasterServerPing.key;
+   if (gGotFirstListPacket)
+   {
+      for (i = 0; i < gPacketStatusList.size(); i++)
+      {
+         if (gPacketStatusList[i].index == packetIndex)
+         {
+            packetKey = gPacketStatusList[i].key;
+            break;
+         }
+      }
+   }
 
-	U32 testKey = (gPingSession << 16) | (packetKey & 0xFFFF);
-	if (testKey != key)
-		return;
+   U32 testKey = (gPingSession << 16) | (packetKey & 0xFFFF);
+   if (testKey != key)
+      return;
 
-	stream->read(&packetTotal);
-	stream->read(&serverCount);
+   stream->read(&packetTotal);
+   stream->read(&serverCount);
 
-	Con::printf("Received server list packet %d of %d from the master server (%d servers).", (packetIndex + 1), packetTotal, serverCount);
+   Con::printf("Received server list packet %d of %d from the master server (%d servers).", (packetIndex + 1), packetTotal, serverCount);
 
-	// Enter all of the servers in this packet into the ping list:
-	for (i = 0; i < serverCount; i++)
-	{
-		U8 type;
-		stream->read(&type);
-		dMemset(&addr, '\0', sizeof(NetAddress));
+   // Enter all of the servers in this packet into the ping list:
+   for (i = 0; i < serverCount; i++)
+   {
+      U8 type;
+      stream->read(&type);
+      dMemset(&addr, '\0', sizeof(NetAddress));
 
-		if (type == 0)
-		{
-			// IPV4
-			addr.type = NetAddress::IPAddress;
-			stream->read(4, &addr.address.ipv4.netNum[0]);
-			stream->read(&addr.port);
-		}
-		else
-		{
-			// IPV6
-			addr.type = NetAddress::IPV6Address;
-			stream->read(16, &addr.address.ipv6.netNum[0]);
-			stream->read(&addr.port);
-		}
+      if (type == 0)
+      {
+         // IPV4
+         addr.type = NetAddress::IPAddress;
+         stream->read(4, &addr.address.ipv4.netNum[0]);
+         stream->read(&addr.port);
+      }
+      else
+      {
+         // IPV6
+         addr.type = NetAddress::IPV6Address;
+         stream->read(16, &addr.address.ipv6.netNum[0]);
+         stream->read(&addr.port);
+      }
 
-		pushPingRequest(&addr);
-	}
+      pushPingRequest(&addr);
+   }
 
-	// If this is the first list packet we have received, fill the packet status list
-	// and start processing:
-	if (!gGotFirstListPacket)
-	{
-		gGotFirstListPacket = true;
-		gMasterServerQueryAddress = gMasterServerPing.address;
-		U32 currentTime = Platform::getVirtualMilliseconds();
-		for (i = 0; i < packetTotal; i++)
-		{
-			if (i != packetIndex)
-			{
-				PacketStatus* p = new PacketStatus(i, gMasterServerPing.key, currentTime);
-				gPacketStatusList.push_back(*p);
-			}
-		}
+   // If this is the first list packet we have received, fill the packet status list
+   // and start processing:
+   if (!gGotFirstListPacket)
+   {
+      gGotFirstListPacket = true;
+      gMasterServerQueryAddress = gMasterServerPing.address;
+      U32 currentTime = Platform::getVirtualMilliseconds();
+      for (i = 0; i < packetTotal; i++)
+      {
+         if (i != packetIndex)
+         {
+            PacketStatus* p = new PacketStatus(i, gMasterServerPing.key, currentTime);
+            gPacketStatusList.push_back(*p);
+         }
+      }
 
-		processServerListPackets(gPingSession);
-	}
-	else
-	{
-		// Remove the packet we just received from the status list:
-		for (i = 0; i < gPacketStatusList.size(); i++)
-		{
-			if (gPacketStatusList[i].index == packetIndex)
-			{
-				gPacketStatusList.erase(i);
-				break;
-			}
-		}
-	}
+      processServerListPackets(gPingSession);
+   }
+   else
+   {
+      // Remove the packet we just received from the status list:
+      for (i = 0; i < gPacketStatusList.size(); i++)
+      {
+         if (gPacketStatusList[i].index == packetIndex)
+         {
+            gPacketStatusList.erase(i);
+            break;
+         }
+      }
+   }
 }
 
 //-----------------------------------------------------------------------------
@@ -2226,9 +2226,9 @@ void DemoNetInterface::handleInfoPacket( const NetAddress* address, U8 packetTyp
          handleGameMasterInfoRequest( address, key, flags );
          break;
 
-	  case MasterServerExtendedListResponse:
-		  handleExtendedMasterServerListResponse(stream, key, flags);
-		  break;
+      case MasterServerExtendedListResponse:
+         handleExtendedMasterServerListResponse(stream, key, flags);
+         break;
    }
 }
 
