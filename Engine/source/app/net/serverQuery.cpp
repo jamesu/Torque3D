@@ -538,7 +538,7 @@ void queryMasterServer(U8 flags, const char* gameType, const char* missionType,
       sActiveFilter.type = ServerFilter::Buddy;
       sActiveFilter.buddyCount = buddyCount;
       sActiveFilter.buddyList = (U32*) dRealloc( sActiveFilter.buddyList, buddyCount * 4 );
-	  sActiveFilter.queryFlags = ServerFilter::NewStyleResponse;
+      sActiveFilter.queryFlags = ServerFilter::NewStyleResponse;
       dMemcpy( sActiveFilter.buddyList, buddyList, buddyCount * 4 );
       clearServerList();
    }
@@ -1184,7 +1184,6 @@ static void processMasterServerQuery( U32 session )
 
          if ( keepGoing )
          {
-            bool extendedPacket = (sActiveFilter.queryFlags & ServerFilter::NewStyleResponse) != 0;
             gMasterServerPing.tryCount--;
             gMasterServerPing.time = time;
             gMasterServerPing.key = gKey++;
@@ -1193,18 +1192,11 @@ static void processMasterServerQuery( U32 session )
             BitStream *out = BitStream::getPacketStream();
             out->clearStringBuffer();
 
-            if ( extendedPacket )
-               out->write( U8( NetInterface::MasterServerExtendedListRequest ) );
-            else
-               out->write( U8( NetInterface::MasterServerListRequest ) );
+            out->write( U8( NetInterface::MasterServerListRequest ) );
             
             out->write( U8( sActiveFilter.queryFlags) );
             out->write( ( gMasterServerPing.session << 16 ) | ( gMasterServerPing.key & 0xFFFF ) );
-            
-            if ( extendedPacket )
-               out->write( U16( 65536 ) );
-            else
-               out->write( U8( 255 ) );
+            out->write( U8( 255 ) );
 
             writeCString( out, sActiveFilter.gameType );
             writeCString( out, sActiveFilter.missionType );
