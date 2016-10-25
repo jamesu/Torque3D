@@ -431,7 +431,7 @@ bool Net::smMulticastEnabled = true;
 //
 // Protocol Stuff
 bool Net::smIpv4Enabled = true;
-bool Net::smIpv6Enabled = true;
+bool Net::smIpv6Enabled = false;
 //
 
 // the Socket structure helps us keep track of the
