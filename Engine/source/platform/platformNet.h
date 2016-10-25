@@ -31,6 +31,8 @@
 #define MAXPACKETSIZE 1500
 #endif
 
+#define TORQUE_NET_DEFAULT_MULTICAST_ADDRESS "ff04::7467::656E::6574::776B"
+
 typedef S32 NetConnectionId;
 
 /// Generic network address

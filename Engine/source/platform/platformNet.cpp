@@ -66,7 +66,7 @@ typedef int SOCKET;
 
 #define closesocket close
 
-#elif defined TORQUE_OS_LINUX
+#elif defined( TORQUE_OS_LINUX )
 
 #include <unistd.h>
 #include <sys/types.h>
@@ -77,6 +77,7 @@ typedef int SOCKET;
 #include <netinet/in.h>
 #include <errno.h>
 #include <sys/ioctl.h>
+#include <net/if.h>
 
 typedef sockaddr_in SOCKADDR_IN;
 typedef sockaddr_in6 SOCKADDR_IN6;
@@ -171,86 +172,11 @@ public:
    inline void modify() { Mutex::lockMutex(mMutex); }
    inline void endModify() { Mutex::unlockMutex(mMutex); }
 
-   NetSocket reserve(SOCKET reserveId = -1, bool doLock = true)
-   {
-      MutexHandle handle;
-      if (doLock)
-      {
-         handle.lock(mMutex, true);
-      }
+   NetSocket reserve(SOCKET reserveId = -1, bool doLock = true);
+   void remove(NetSocket socketToRemove, bool doLock = true);
 
-      S32 idx = mSocketList.find_next(-1);
-      if (idx == -1)
-      {
-         mSocketList.push_back(reserveId);
-         return NetSocket::fromHandle(mSocketList.size() - 1);
-      }
-      else
-      {
-         mSocketList[idx] = reserveId;
-      }
-
-      return NetSocket::fromHandle(idx);
-   }
-
-   void remove(NetSocket socketToRemove, bool doLock = true)
-   {
-      MutexHandle handle;
-      if (doLock)
-      {
-         handle.lock(mMutex, true);
-      }
-
-      if ((U32)socketToRemove.getHandle() >= (U32)mSocketList.size())
-         return;
-
-      mSocketList[socketToRemove.getHandle()] = -1;
-   }
-
-   T activate(NetSocket socketToActivate, int family, bool useUDP, bool clearOnFail = false)
-   {
-      MutexHandle h;
-      h.lock(mMutex, true);
-
-      int typeID = useUDP ? SOCK_DGRAM : SOCK_STREAM;
-      int protocol = useUDP ? PlatformNetState::getDefaultGameProtocol() : 0;
-
-      if ((U32)socketToActivate.getHandle() >= (U32)mSocketList.size())
-         return -1;
-
-      T socketFd = mSocketList[socketToActivate.getHandle()];
-      if (socketFd == -1)
-      {
-         socketFd = ::socket(family, typeID, protocol);
-
-         if (socketFd == InvalidSocketHandle)
-         {
-            if (clearOnFail)
-            {
-               remove(socketToActivate, false);
-            }
-            return InvalidSocketHandle;
-         }
-         else
-         {
-            mSocketList[socketToActivate.getHandle()] = socketFd;
-            return socketFd;
-         }
-      }
-
-      return socketFd;
-   }
-
-   T resolve(NetSocket socketToResolve)
-   {
-      MutexHandle h;
-      h.lock(mMutex, true);
-
-      if ((U32)socketToResolve.getHandle() >= (U32)mSocketList.size())
-         return -1;
-
-      return mSocketList[socketToResolve.getHandle()];
-   }
+   T activate(NetSocket socketToActivate, int family, bool useUDP, bool clearOnFail = false);
+   T resolve(NetSocket socketToResolve);
 };
 
 const SOCKET InvalidSocketHandle = -1;
@@ -412,6 +338,89 @@ namespace PlatformNetState
    }
 };
 
+
+
+template<class T> NetSocket ReservedSocketList<T>::reserve(SOCKET reserveId, bool doLock)
+{
+   MutexHandle handle;
+   if (doLock)
+   {
+      handle.lock(mMutex, true);
+   }
+
+   S32 idx = mSocketList.find_next(-1);
+   if (idx == -1)
+   {
+      mSocketList.push_back(reserveId);
+      return NetSocket::fromHandle(mSocketList.size() - 1);
+   }
+   else
+   {
+      mSocketList[idx] = reserveId;
+   }
+
+   return NetSocket::fromHandle(idx);
+}
+
+template<class T> void ReservedSocketList<T>::remove(NetSocket socketToRemove, bool doLock)
+{
+   MutexHandle handle;
+   if (doLock)
+   {
+      handle.lock(mMutex, true);
+   }
+
+   if ((U32)socketToRemove.getHandle() >= (U32)mSocketList.size())
+      return;
+
+   mSocketList[socketToRemove.getHandle()] = -1;
+}
+
+template<class T> T ReservedSocketList<T>::activate(NetSocket socketToActivate, int family, bool useUDP, bool clearOnFail)
+{
+   MutexHandle h;
+   h.lock(mMutex, true);
+
+   int typeID = useUDP ? SOCK_DGRAM : SOCK_STREAM;
+   int protocol = useUDP ? PlatformNetState::getDefaultGameProtocol() : 0;
+
+   if ((U32)socketToActivate.getHandle() >= (U32)mSocketList.size())
+      return -1;
+
+   T socketFd = mSocketList[socketToActivate.getHandle()];
+   if (socketFd == -1)
+   {
+      socketFd = ::socket(family, typeID, protocol);
+
+      if (socketFd == InvalidSocketHandle)
+      {
+         if (clearOnFail)
+         {
+            remove(socketToActivate, false);
+         }
+         return InvalidSocketHandle;
+      }
+      else
+      {
+         mSocketList[socketToActivate.getHandle()] = socketFd;
+         return socketFd;
+      }
+   }
+
+   return socketFd;
+}
+
+template<class T> T ReservedSocketList<T>::resolve(NetSocket socketToResolve)
+{
+   MutexHandle h;
+   h.lock(mMutex, true);
+
+   if ((U32)socketToResolve.getHandle() >= (U32)mSocketList.size())
+      return -1;
+
+   return mSocketList[socketToResolve.getHandle()];
+}
+
 ConnectionNotifyEvent   Net::smConnectionNotify;
 ConnectionAcceptedEvent Net::smConnectionAccept;
 ConnectionReceiveEvent  Net::smConnectionReceive;
@@ -552,7 +561,7 @@ static void NetAddressToIPSocket(const NetAddress *address, struct sockaddr_in *
    dMemset(sockAddr, 0, sizeof(struct sockaddr_in));
    sockAddr->sin_family = AF_INET;
    sockAddr->sin_port = htons(address->port);
-   #if !defined(TORQUE_OS_WIN)
+   #if defined(TORQUE_OS_BSD)
    sockAddr->sin_len = sizeof(struct sockaddr_in);
    #endif
    if (address->type == NetAddress::IPBroadcastAddress)
@@ -1349,7 +1358,7 @@ Net::Error Net::listen(NetSocket handleFd, S32 backlog)
 NetSocket Net::accept(NetSocket handleFd, NetAddress *remoteAddress)
 {
    sockaddr_storage addr;
-   int addrLen = sizeof(addr);
+   socklen_t addrLen = sizeof(addr);
 
    SOCKET socketFd = PlatformNetState::smReservedSocketList.resolve(handleFd);
    if (socketFd == InvalidSocketHandle)
