@@ -841,7 +841,7 @@ bool Net::openPort(S32 port, bool doBind)
    // Update prefs
    Net::smMulticastEnabled = Con::getBoolVariable("pref::Net::Multicast6Enabled", true);
    Net::smIpv4Enabled = Con::getBoolVariable("pref::Net::IPV4Enabled", true);
-   Net::smIpv6Enabled = Con::getBoolVariable("pref::Net::IPV6Enabled", true);
+   Net::smIpv6Enabled = Con::getBoolVariable("pref::Net::IPV6Enabled", false);
 
    // we turn off VDP in non-release builds because VDP does not support broadcast packets
    // which are required for LAN queries (PC->Xbox connectivity).  The wire protocol still
