@@ -324,13 +324,13 @@ function EWCreatorWindow::navigate( %this, %address )
    
    if ( %this.tab $= "Meshes" )
    {      
-      %fullPath = findFirstFileMultiExpr( "*.dts" TAB "*.dae" TAB "*.kmz" TAB "*.dif" );
+      %fullPath = findFirstFileMultiExpr( "*.dts" TAB "*.dae" TAB "*.kmz" TAB "*.dif" TAB "*.pmd" );
       
       while ( %fullPath !$= "" )
       {
          if (strstr(%fullPath, "cached.dts") != -1)
          {
-            %fullPath = findNextFileMultiExpr( "*.dts" TAB "*.dae" TAB "*.kmz"  TAB "*.dif" );
+            %fullPath = findNextFileMultiExpr( "*.dts" TAB "*.dae" TAB "*.kmz"  TAB "*.dif" TAB "*.pmd" );
             continue;
          }
 
@@ -338,7 +338,7 @@ function EWCreatorWindow::navigate( %this, %address )
          %splitPath = strreplace( %fullPath, "/", " " );     
          if( getWord(%splitPath, 0) $= "tools" )
          {
-            %fullPath = findNextFileMultiExpr( "*.dts" TAB "*.dae" TAB "*.kmz"  TAB "*.dif" );
+            %fullPath = findNextFileMultiExpr( "*.dts" TAB "*.dae" TAB "*.kmz"  TAB "*.dif" TAB "*.pmd" );
             continue;
          }
                       
@@ -396,7 +396,7 @@ function EWCreatorWindow::navigate( %this, %address )
             }
          }         
 
-         %fullPath = findNextFileMultiExpr( "*.dts" TAB "*.dae" TAB "*.kmz" TAB "*.dif" );
+         %fullPath = findNextFileMultiExpr( "*.dts" TAB "*.dae" TAB "*.kmz" TAB "*.dif" TAB "*.pmd" );
       }
    }
    
