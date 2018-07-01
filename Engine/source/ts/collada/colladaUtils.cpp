@@ -71,6 +71,13 @@ void ColladaUtils::convertTransform(MatrixF& mat)
 	      mat.mulL(rot);
          break;
 
+      case UPAXISTYPE_Y_UP_D3D:
+	      rot(0,0) = 1.0f;
+	      rot(1,1) = 0.0f;	rot(2,1) = 1.0f;
+	      rot(1,2) = 1.0f;	rot(2,2) = 0.0f;
+	      mat.mulL(rot);
+         break;
+
       case UPAXISTYPE_Z_UP:
       default:
          // nothing to do

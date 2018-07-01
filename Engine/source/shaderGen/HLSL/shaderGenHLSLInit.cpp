@@ -93,6 +93,12 @@ void _initShaderGenHLSL( ShaderGen *shaderGen )
    FEATUREMGR->registerFeature( MFT_ForwardShading, new NamedFeatureHLSL( "Forward Shaded Material" ) );
 
    FEATUREMGR->registerFeature( MFT_ImposterVert, new ImposterVertFeatureHLSL );
+
+   FEATUREMGR->registerFeature( MFT_EdgeRender, new EdgeRenderFeatureHLSL );
+
+   FEATUREMGR->registerFeature( MFT_ToonShadeMap, new ToonShadeFeatureHLSL );
+
+   FEATUREMGR->registerFeature( MFT_ToonShade, new NamedFeatureHLSL( "Toon Shading" ) );
 }
 
 MODULE_BEGIN( ShaderGenHLSL )

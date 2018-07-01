@@ -170,5 +170,10 @@ DeclareFeatureType( MFT_ForwardShading );
 /// so that the rest of the material features can work on it.
 DeclareFeatureType( MFT_ImposterVert );
 
+DeclareFeatureType( MFT_EdgeRender );
+
+DeclareFeatureType( MFT_ToonShade );
+
+DeclareFeatureType( MFT_ToonShadeMap );
 
 #endif // _MATERIALFEATURETYPES_H_

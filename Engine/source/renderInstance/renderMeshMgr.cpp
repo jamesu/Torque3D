@@ -68,6 +68,13 @@ void RenderMeshMgr::init()
 
    d.cullMode = GFXCullCW;
    mReflectSB = GFX->createStateBlock(d);
+
+   
+
+   if (dStricmp(mRenderInstType.getName().c_str(), "Edge") == 0)
+   {
+      int fuck = 1;
+   }
 }
 
 void RenderMeshMgr::initPersistFields()
@@ -96,12 +103,76 @@ void RenderMeshMgr::render(SceneRenderState * state)
 {
    PROFILE_SCOPE(RenderMeshMgr_render);
 
+   if (dStricmp(mRenderInstType.getName().c_str(), "Edge") == 0)
+   {
+      int fuck = 1;
+   }
+
    // Early out if nothing to draw.
    if(!mElementList.size())
       return;
 
 
-   GFXDEBUGEVENT_SCOPE( RenderMeshMgr_Render, ColorI::GREEN );
+
+
+
+#ifdef TORQUE_ENABLE_GFXDEBUGEVENTS
+
+   // This gfx debug event is hit multiple times per frame. Appending the name with the pass
+
+   // type makes frame analysing clearer.
+
+   char* passTypeName = "UNDEFINED";
+
+
+
+   switch(state->getScenePassType())
+
+   {
+
+   case SPT_Diffuse:
+
+     passTypeName = "Diffuse";
+
+     break;
+
+
+
+   case SPT_Other:
+
+     passTypeName = "Other";
+
+     break;
+
+
+
+   case SPT_Reflect:
+
+     passTypeName = "Reflect";
+
+     break;
+
+
+
+   case SPT_Shadow:
+
+     passTypeName = "Shadow";
+
+     break;
+
+   }
+
+
+
+   char name[1024];
+
+   dSprintf(name, 1024, "RenderMeshMgr_%s [%s]", passTypeName, mRenderInstType.getName().c_str());
+
+
+
+   GFXDebugEventScope GFXDebugEventScopeRenderMeshMgr_Render( name, ColorI::GREEN );
+
+#endif//TORQUE_ENABLE_GFXDEBUGEVENTS
 
    // Automagically save & restore our viewport and transforms.
    GFXTransformSaver saver;

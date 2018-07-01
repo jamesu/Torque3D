@@ -49,6 +49,7 @@ void RenderPassData::reset()
    mCubeMap = NULL;
    mNumTex = mNumTexReg = mStageNum = 0;
    mGlow = false;
+   mEdge = false;
    mBlendOp = Material::None;
 
    mFeatureData.clear();
@@ -292,6 +293,13 @@ void ProcessedMaterial::_initPassStateBlock( RenderPassData *rpd, GFXStateBlockD
          !mFeatures.hasFeature(MFT_ForwardShading))
       result.setZReadWrite( result.zEnable, false );
 
+   // Edge rendering
+   if (rpd->mEdge)
+   {
+      result.setZReadWrite( true, true );
+      result.setCullMode(GFXCullCW);
+   }
+
    result.addDesc(mUserDefined);
 }
 
@@ -420,6 +428,14 @@ void ProcessedMaterial::_setStageData()
          mStages[i].setTex( MFT_ToneMap, _createTexture( mMaterial->mToneMapFilename[i], &GFXDefaultStaticDiffuseProfile ) );
          if(!mStages[i].getTex( MFT_ToneMap ))
             mMaterial->logError("Failed to load tone map %s for stage %i", _getTexturePath(mMaterial->mToneMapFilename[i]).c_str(), i);
+      }
+
+      // ToonTexture
+      if( mMaterial->mToonShadeTexture[i].isNotEmpty() )
+      {
+         mStages[i].setTex( MFT_ToonShadeMap, _createTexture( mMaterial->mToonShadeTexture[i], &GFXDefaultStaticDiffuseProfile ) );
+         if(!mStages[i].getTex( MFT_ToonShadeMap ))
+            mMaterial->logError("Failed to load toon map %s for stage %i", _getTexturePath(mMaterial->mToonShadeTexture[i]).c_str(), i);
       }
 
       // DetailMap

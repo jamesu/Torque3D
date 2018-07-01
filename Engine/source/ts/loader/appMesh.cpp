@@ -140,6 +140,18 @@ TSMesh* AppMesh::constructTSMesh()
       tsskin->batchData.initialTransforms = initialTransforms;
       tsskin->batchData.initialVerts = initialVerts;
       tsskin->batchData.initialNorms = initialNorms;
+
+      tsskin->baseMorphIndexes = baseMorphIndexes;
+      tsskin->morphIndexes = morphIndexes;
+      tsskin->morphVerts = morphVerts;
+
+      // Make all morph verts relative
+      /*for (U32 i=0; i<tsskin->morphIndexes.size(); i++)
+      {
+         Point3F srcMorph = tsskin->batchData.initialVerts[tsskin->morphIndexes[i]];
+         Point3F dstMorph = tsskin->morphVerts[i];
+         tsskin->morphVerts[i] -= tsskin->batchData.initialVerts[tsskin->morphIndexes[i]];
+      }*/
    }
    else
    {
@@ -154,6 +166,8 @@ TSMesh* AppMesh::constructTSMesh()
    tsmesh->indices = indices;
    tsmesh->colors = colors;
    tsmesh->tverts2 = uv2s;
+
+   tsmesh->edgeVerts = edgeVerts;
 
    // Finish initializing the shape
    tsmesh->setFlags(flags);

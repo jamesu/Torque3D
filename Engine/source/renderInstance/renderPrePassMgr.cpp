@@ -194,6 +194,8 @@ void RenderPrePassMgr::addElement( RenderInst *inst )
    const bool isDecalMeshInst = inst->type == RenderPassManager::RIT_Decal;
 
    const bool isMeshInst = inst->type == RenderPassManager::RIT_Mesh;
+   
+   const bool isEdgeInst = inst->type == RenderPassManager::RIT_Mesh;
 
    const bool isTerrainInst = inst->type == RenderPassManager::RIT_Terrain;
 

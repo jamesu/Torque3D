@@ -81,6 +81,7 @@ public:
    MaterialFeatureData mFeatureData;
 
    bool mGlow;
+   bool mEdge;
 
    Material::BlendOp mBlendOp;
 

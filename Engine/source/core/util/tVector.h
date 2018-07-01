@@ -185,6 +185,8 @@ class Vector
    // Reverses the order of elements.
    void reverse();
 
+   inline S32 indexOf(const T& element) const;
+
    /// @}
 };
 
@@ -951,6 +953,17 @@ template<class T> inline T& VectorPtr<T>::operator[](U32 index)
 template<class T> inline const T& VectorPtr<T>::operator[](U32 index) const
 {
    return (const T&)Parent::operator[](index);
+}
+
+template<class T> inline S32 Vector<T>::indexOf(const T& element) const
+{
+   for (S32 i = 0; i < mElementCount; i++)
+   {
+      if (mArray[i] == element)
+         return i;
+   }
+
+   return -1;
 }
 
 //------------------------------------------------------------------------------

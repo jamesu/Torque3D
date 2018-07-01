@@ -40,6 +40,8 @@ ImplementFeatureType( MFT_AlphaTest, MFG_Texture, 7.0f, true );
 ImplementFeatureType( MFT_SpecularMap, MFG_Texture, 8.0f, true );
 ImplementFeatureType( MFT_NormalMap, MFG_Texture, 9.0f, true );
 ImplementFeatureType( MFT_DetailNormalMap, MFG_Texture, 10.0f, true );
+ImplementFeatureType( MFT_ToonShadeMap, MFG_Texture, 11.0, true );
+
 
 ImplementFeatureType( MFT_RTLighting, MFG_Lighting, 2.0f, true );
 ImplementFeatureType( MFT_SubSurface, MFG_Lighting, 3.0f, true );
@@ -84,3 +86,7 @@ ImplementFeatureType( MFT_ParticleNormal, MFG_PreTransform, 2.0f, false );
 ImplementFeatureType( MFT_ForwardShading, U32(-1), -1, true );
 
 ImplementFeatureType( MFT_ImposterVert, MFG_PreTransform, 1.0, false );
+
+ImplementFeatureType( MFT_EdgeRender, MFG_PreTransform, 1.0, false );
+
+ImplementFeatureType( MFT_ToonShade, MFG_Lighting, 11.0, true );

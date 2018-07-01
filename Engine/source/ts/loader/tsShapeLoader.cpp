@@ -29,6 +29,7 @@
 #include "materials/materialManager.h"
 #include "ts/tsShapeInstance.h"
 #include "ts/tsMaterialList.h"
+#include "ts/miku/mikuIKChain.h"
 
 
 const F32 TSShapeLoader::DefaultTime = -1.0f;
@@ -36,6 +37,8 @@ const F64 TSShapeLoader::MinFrameRate = 15.0f;
 const F64 TSShapeLoader::MaxFrameRate = 60.0f;
 const F64 TSShapeLoader::AppGroundFrameRate = 10.0f;
 Torque::Path TSShapeLoader::shapePath;
+
+class MikuAppNode;
 
 //------------------------------------------------------------------------------
 // Utility functions
@@ -88,7 +91,7 @@ void TSShapeLoader::generateNodeTransform(AppNode* node, F32 t, bool blend, F32 
                                           QuatF& rot, Point3F& trans, QuatF& srot, Point3F& scale)
 {
    MatrixF m1 = getLocalNodeMatrix(node, t);
-   if (blend)
+   if (blend && referenceTime > -1)
    {
       MatrixF m0 = getLocalNodeMatrix(node, referenceTime);
       m1 = m0.inverse() * m1;
@@ -156,6 +159,9 @@ TSShape* TSShapeLoader::generateShape(const Torque::Path& path)
 
    // Generate material list
    generateMaterialList();
+
+   // Generate IK Chains
+   generateIKChains();
 
    // Generate animation sequences
    generateSequences();
@@ -522,6 +528,8 @@ void TSShapeLoader::generateSkins()
       skin->initialVerts.set(skin->points.address(), skin->vertsPerFrame);
       skin->initialNorms.set(skin->normals.address(), skin->vertsPerFrame);
 
+      //skin->morphVerts = skin->initialVerts;
+
       // Map bones to nodes
       skin->nodeIndex.setSize(skin->bones.size());
       for (S32 iBone = 0; iBone < skin->bones.size(); iBone++)
@@ -530,6 +538,8 @@ void TSShapeLoader::generateSkins()
          skin->nodeIndex[iBone] = -1;
          for (S32 iNode = 0; iNode < appNodes.size(); iNode++)
          {
+            MikuAppNode *iNodeInst = (MikuAppNode*)appNodes[iNode];
+            MikuAppNode *bNodeInst = (MikuAppNode*)skin->bones[iBone];
             if (appNodes[iNode]->isEqual(skin->bones[iBone]))
             {
                delete skin->bones[iBone];
@@ -705,6 +715,18 @@ void TSShapeLoader::generateMaterialList()
 
 void TSShapeLoader::generateSequences()
 {
+   // Enumerate morphs
+   for (S32 iMorph = 0; iMorph < appMorphs.size(); iMorph++)
+   {
+      shape->morphs.increment();
+
+      TSShape::Morph& morph = shape->morphs.last();
+
+      morph.nameIndex = shape->addName(appMorphs[iMorph]->getName());
+      morph.type = appMorphs[iMorph]->getType();
+      morph.index = iMorph;
+   }
+
    for (S32 iSeq = 0; iSeq < appSequences.size(); iSeq++)
    {
       updateProgress(Load_GenerateSequences, "Generating sequences...", appSequences.size(), iSeq);
@@ -737,6 +759,7 @@ void TSShapeLoader::generateSequences()
       generateObjectAnimation(seq, appSequences[iSeq]);
       generateGroundAnimation(seq, appSequences[iSeq]);
       generateFrameTriggers(seq, appSequences[iSeq]);
+      generateMorphs(seq, appSequences[iSeq]);
 
       // Set sequence flags
       seq.dirtyFlags = 0;
@@ -748,6 +771,8 @@ void TSShapeLoader::generateSequences()
          seq.dirtyFlags |= TSShapeInstance::FrameDirty;
       if (seq.matFrameMatters.testAll())
          seq.dirtyFlags |= TSShapeInstance::MatFrameDirty;
+      if (seq.morphMatters.testAll())
+         seq.dirtyFlags |= TSShapeInstance::MorphDirty;
 
       // Set shape flags (only the most significant scale type)
       U32 curVal = shape->mFlags & TSShape::AnyScale;
@@ -757,6 +782,40 @@ void TSShapeLoader::generateSequences()
       appSequences[iSeq]->setActive(false);
    }
 }
+
+//-----------------------------------------------------------------------------
+// Ik CHains
+
+void TSShapeLoader::generateIKChains()
+{
+   shape->iks.setSize(ikChains.size());
+
+   for (S32 iChain = 0; iChain < ikChains.size(); iChain++)
+   {
+      updateProgress(Load_GenerateIKs, "Generating IK Chains...", ikChains.size(), iChain);
+      
+      TSShape::Ik &destIK = shape->iks[iChain];
+      MikuIKChain *sourceChain = ikChains[iChain];
+
+      AppNode *bone = sourceChain->getDestBone();
+      destIK.destId = getIndexOfNode(bone);
+
+      bone = sourceChain->getTargetBone();
+      destIK.targetId = getIndexOfNode(bone);
+
+      destIK.maxAngle = sourceChain->getMaxAngle() * M_PI;
+      destIK.maxIterations = sourceChain->getEffectorCount();
+
+      destIK.linkListId = shape->ikLinks.size();
+      destIK.numLinks = sourceChain->getChainLength();
+      
+      for (U32 i=0; i<sourceChain->getChainLength(); i++)
+      {
+         shape->ikLinks.push_back(getIndexOfNode(sourceChain->getChildNode(i)));
+      }
+   }
+}
+
 
 void TSShapeLoader::setNodeMembership(TSShape::Sequence& seq, const AppSequence* appSeq)
 {
@@ -864,6 +923,7 @@ void TSShapeLoader::setObjectMembership(TSShape::Sequence& seq, const AppSequenc
    seq.visMatters.clearAll();          // object visibility (size = objects.size())
    seq.frameMatters.clearAll();        // vert animation (morph) (size = objects.size())
    seq.matFrameMatters.clearAll();     // UV animation (size = objects.size())
+   seq.morphMatters.clearAll();
 
    for (S32 iObject = 0; iObject < shape->objects.size(); iObject++)
    {
@@ -1053,6 +1113,36 @@ void TSShapeLoader::generateGroundAnimation(TSShape::Sequence& seq, const AppSeq
    }
 }
 
+void TSShapeLoader::generateMorphs(TSShape::Sequence& seq, const AppSequence* appSeq)
+{
+   seq.firstMorph = shape->morphWeights.size();
+
+   seq.morphMatters.clearAll();
+
+   F32 startTime = appSeq->getStart();
+   F32 endTime = appSeq->getStart() + seq.duration;
+
+   // Determine how many morphs are active
+   for (U32 i=0; i<appMorphs.size(); i++)
+   {
+      if (appMorphs[i]->isAnimated(startTime, endTime))
+         seq.morphMatters.set(i);
+   }
+
+   // Add weights for active morphs
+   for (S32 iFrame = 0; iFrame < seq.numKeyframes; iFrame++)
+   {
+      for (U32 i=0; i<appMorphs.size(); i++)
+      {
+         if (seq.morphMatters.test(i))
+         {
+            F32 time = appSeq->getStart() + seq.duration * iFrame / getMax(1, seq.numKeyframes - 1);
+            shape->morphWeights.push_back(appMorphs[i]->getWeightAtPos(time));
+         }
+      }
+   }
+}
+
 void TSShapeLoader::generateFrameTriggers(TSShape::Sequence& seq, const AppSequence* appSeq)
 {
    // Initialize triggers
@@ -1203,6 +1293,8 @@ void TSShapeLoader::install()
       }
    }
 
+   shape->bounds = Box3F(Point3F(-10,-10,-10), Point3F(10,10,10));
+
    computeBounds(shape->bounds);
    if (!shape->bounds.isValidBox())
       shape->bounds = Box3F(1.0f);
@@ -1268,5 +1360,15 @@ TSShapeLoader::~TSShapeLoader()
    // Delete AppSequences
    for (S32 iSeq = 0; iSeq < appSequences.size(); iSeq++)
       delete appSequences[iSeq];
-   appSequences.clear();   
+   appSequences.clear();
+
+   // Delete IKs
+   for (S32 iIK = 0; iIK < ikChains.size(); iIK++)
+      delete ikChains[iIK];
+   ikChains.clear();   
+
+   // Delete Morphs
+   for (S32 sMorph = 0; sMorph < appMorphs.size(); sMorph++)
+      delete appMorphs[sMorph];
+   appMorphs.clear();   
 }

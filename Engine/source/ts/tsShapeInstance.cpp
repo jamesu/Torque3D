@@ -117,9 +117,11 @@ TSShapeInstance::TSShapeInstance( const Resource<TSShape> &shape, bool loadMater
    VECTOR_SET_ASSOCIATION(mThreadList);
    VECTOR_SET_ASSOCIATION(mTransitionThreads);
 
+   mIKEnabled = false;
    mShapeResource = shape;
    mShape = mShapeResource;
    buildInstanceData( mShape, loadMaterials );
+   enableIK();
 }
 
 TSShapeInstance::TSShapeInstance( TSShape *shape, bool loadMaterials )
@@ -134,9 +136,12 @@ TSShapeInstance::TSShapeInstance( TSShape *shape, bool loadMaterials )
    VECTOR_SET_ASSOCIATION(mThreadList);
    VECTOR_SET_ASSOCIATION(mTransitionThreads);
 
+   mIKEnabled = false;
+
    mShapeResource = NULL;
    mShape = shape;
    buildInstanceData( mShape, loadMaterials );
+   enableIK();
 }
 
 TSShapeInstance::~TSShapeInstance()
@@ -207,6 +212,9 @@ void TSShapeInstance::initNodeTransforms()
 
 void TSShapeInstance::initMeshObjects()
 {
+   // Add morph weights
+   mMorphWeights.setSize(mShape->morphs.size());
+
    // add objects to trees
    S32 numObjects = mShape->objects.size();
    mMeshObjects.setSize(numObjects);
@@ -217,6 +225,7 @@ void TSShapeInstance::initMeshObjects()
 
       // hook up the object to it's node and transforms.
       objInst->mTransforms = &mNodeTransforms;
+      objInst->mMorphWeights = &mMorphWeights;
       objInst->nodeIndex = obj->nodeIndex;
 
       // set up list of meshes
@@ -369,8 +378,8 @@ void TSShapeInstance::renderDebugNormals( F32 normalScalar, S32 dl )
          PrimBuild::begin( GFXLineList, 2 * numNrms );
          for ( U32 n = 0; n < numNrms; n++ )
          {
-            Point3F norm = mesh->mVertexData[n].normal();
-            Point3F vert = mesh->mVertexData[n].vert();
+            Point3F norm = mesh->mVertexData.getBase(n).normal();
+            Point3F vert = mesh->mVertexData.getBase(n).vert();
 
             meshMat.mulP( vert );
             meshMat.mulV( norm );
@@ -755,7 +764,8 @@ void TSShapeInstance::MeshObjectInstance::render(  S32 objectDetail,
    mesh->render(  materials, 
                   rdata, 
                   isSkinDirty,
-                  *mTransforms, 
+                  *mTransforms,
+                  *mMorphWeights,
                   mVertexBuffer,
                   mPrimitiveBuffer );
 
@@ -783,3 +793,49 @@ void TSShapeInstance::prepCollision()
    }
 }
 
+extern const char *convertSJIS(const char *str);
+
+void TSShapeInstance::enableIK()
+{
+   mIKEnabled = true;
+   mLimitNodeAngleX.clearAll();
+
+   const char *buf = "\x82\xd0\x82\xb4";
+   static String mikuKneeName = convertSJIS(buf);
+
+   // Fix knee joints
+   for (U32 i=0; i<mShape->nodes.size(); i++)
+   {
+      if (mShape->getNodeName(i).find(mikuKneeName) != String::NPos)
+         mLimitNodeAngleX.set(i);
+   }
+
+   // Enable all nodes for chains and the effector bone
+   for (U32 i=0; i<mShape->iks.size(); i++)
+   {
+      TSShape::Ik &ik = mShape->iks[i];
+
+      /*if (ik.effectorId != -1)
+         mHandsOffNodes.set(ik.effectorId);
+
+      for (U32 j=0; j<ik.numLinks; j++)
+         mHandsOffNodes.set(mShape->ikLinks[ik.linkListId + j]);*/
+   }
+}
+
+void TSShapeInstance::disableIK()
+{
+   mIKEnabled = false;
+
+   // Disable all nodes for chains and the effector bone
+   /*for (U32 i=0; i<mShape->iks.size(); i++)
+   {
+      TSShape::Ik &ik = mShape->iks[i];
+
+      if (ik.effectorId != -1)
+         mHandsOffNodes.clear(ik.effectorId);
+
+      for (U32 j=0; j<ik.numLinks; j++)
+         mHandsOffNodes.clear(mShape->ikLinks[ik.linkListId + j]);
+   }*/
+}

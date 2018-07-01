@@ -89,6 +89,16 @@ class TSShape
       S32 nextSibling;
    };
 
+   struct Ik
+   {
+		S32 destId;         // target node
+		S32 targetId;       // effector node
+		U8  numLinks;       // number of links in chain
+		S16 maxIterations;  // max iteration count
+		F32 maxAngle;       // max angle per step
+		S32 linkListId;     // Offset of link list
+   };
+
    /// Objects hold renderable items (in particular meshes).
    ///
    /// Each object has a number of meshes associated with it.
@@ -139,6 +149,9 @@ class TSShape
       S32 numGroundFrames;
       S32 firstTrigger;
       S32 numTriggers;
+
+      S32 firstMorph;
+
       F32 toolBegin;
 
       /// @name Bitsets
@@ -153,6 +166,7 @@ class TSShape
       TSIntegerSet visMatters;          ///< Set of objects
       TSIntegerSet frameMatters;        ///< Set of objects
       TSIntegerSet matFrameMatters;     ///< Set of objects
+      TSIntegerSet morphMatters;        ///< Set of objects
       /// @}
 
       S32 priority;
@@ -221,6 +235,15 @@ class TSShape
       F32 pos;
    };
 
+   // Morph data
+   // NOTE: actual morph weights are stored in TSShapeInstance
+   struct Morph
+   {
+      S32 nameIndex;  // Name of morph target
+      U8 type;        // Face Type. There are 4 types: Eyebrow(1), Eye(2), Lip(3), or Other(0)
+      S32 index;      // global index (sequential)
+   };
+
    /// Details are used for render detail selection.
    ///
    /// As the projected size of the shape changes,
@@ -275,6 +298,8 @@ class TSShape
    /// @{
 
    Vector<Node> nodes;
+   Vector<Ik> iks;
+   Vector<S32> ikLinks;
    Vector<Object> objects;
    Vector<ObjectState> objectStates;
    Vector<S32> subShapeFirstNode;
@@ -285,6 +310,9 @@ class TSShape
    Vector<Detail> details;
    Vector<Quat16> defaultRotations;
    Vector<Point3F> defaultTranslations;
+
+   Vector<Morph> morphs;
+   Vector<F32> morphWeights;
 
    /// @}
 
@@ -507,6 +535,9 @@ class TSShape
 
    S32 findSequence(S32 nameIndex) const;
    S32 findSequence(const String &name) const { return findSequence(findName(name)); }
+   
+   S32 findMorph(S32 nameIndex) const;
+   S32 findMorph(const String &name) const { return findMorph(findName(name)); }
 
    S32 getSubShapeForNode(S32 nodeIndex);
    S32 getSubShapeForObject(S32 objIndex);
@@ -640,7 +671,7 @@ class TSShape
    S32 setDetailSize(S32 oldSize, S32 newSize);
    bool removeDetail(S32 size);
 
-   bool addSequence(const Torque::Path& path, const String& fromSeq, const String& name, S32 startFrame, S32 endFrame, bool padRotKeys, bool padTransKeys);
+   bool addSequence(const Torque::Path& path, const String& fromSeq, const String& name, S32 startFrame, S32 endFrame, bool padRotKeys, bool padTransKeys, bool isRelative);
    bool removeSequence(const String& name);
 
    bool addTrigger(const String& seqName, S32 keyframe, S32 state);

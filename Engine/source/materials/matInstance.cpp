@@ -249,6 +249,7 @@ void MatInstance::construct()
    mDefaultParameters = NULL;
    mHasNormalMaps = false;
    mIsForwardLit = false;
+   mNeedsEdges = false;
    mIsValid = false;
 
    MATMGR->_track(this);
@@ -371,6 +372,9 @@ bool MatInstance::processMaterial()
       mIsForwardLit =   (  custMat && custMat->mForwardLit ) || 
                         (  !finalFeatures.hasFeature( MFT_IsEmissive ) &&
                            finalFeatures.hasFeature( MFT_ForwardShading ) );
+
+      // Determine if any pass renders edges
+      mNeedsEdges = mMaterial->mEdge;
 
       return true;
    }

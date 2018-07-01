@@ -225,6 +225,7 @@ enum domNodeType {
 enum domUpAxisType {
 	UPAXISTYPE_X_UP,
 	UPAXISTYPE_Y_UP,
+   UPAXISTYPE_Y_UP_D3D,
 	UPAXISTYPE_Z_UP,
 	UPAXISTYPE_COUNT = 3
 };

@@ -59,6 +59,7 @@ ImplementEnumType( TSShapeConstructorUpAxis,
    "@ingroup TSShapeConstructor" )
    { UPAXISTYPE_X_UP,   "X_AXIS" },
    { UPAXISTYPE_Y_UP,   "Y_AXIS" },
+   { UPAXISTYPE_Y_UP_D3D,   "Y_AXIS_D3D" },
    { UPAXISTYPE_Z_UP,   "Z_AXIS" },
    { UPAXISTYPE_COUNT,  "DEFAULT" }
 EndImplementEnumType;
@@ -1948,8 +1949,8 @@ DefineTSShapeConstructorMethod( renameSequence, bool, ( const char* oldName, con
 }}
 
 DefineTSShapeConstructorMethod( addSequence, bool,
-   ( const char* source, const char* name, S32 start, S32 end, bool padRot, bool padTrans ),
-   ( 0, -1, true, false ), ( source, name, start, end, padRot, padTrans ), false,
+   ( const char* source, const char* name, S32 start, S32 end, bool padRot, bool padTrans, bool isRelative ),
+   ( 0, -1, true, false, false ), ( source, name, start, end, padRot, padTrans ), false,
    "Add a new sequence to the shape.\n"
    "@param source the name of an existing sequence, or the name of a DTS or DAE "
    "shape or DSQ sequence file. When the shape file contains more than one "
@@ -1982,7 +1983,7 @@ DefineTSShapeConstructorMethod( addSequence, bool,
    String srcPath( source );
    SplitSequencePathAndName( srcPath, srcName );
 
-   if ( !mShape->addSequence( srcPath, srcName, name, start, end, padRot, padTrans ) )
+   if ( !mShape->addSequence( srcPath, srcName, name, start, end, padRot, padTrans, isRelative ) )
       return false;
 
    ADD_TO_CHANGE_SET();

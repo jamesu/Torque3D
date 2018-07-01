@@ -650,5 +650,62 @@ public:
                                   MaterialFeatureData *outFeatureData );
 };
 
+/// Special feature for rendering edges
+/// @see RenderImposterMgr
+class EdgeRenderFeatureHLSL : public ShaderFeatureHLSL
+{
+
+public:
+
+   EdgeRenderFeatureHLSL();
+
+   virtual void processVert(  Vector<ShaderComponent*> &componentList,
+                              const MaterialFeatureData &fd );
+
+   virtual void processPix(  Vector<ShaderComponent*> &componentList,
+                             const MaterialFeatureData &fd );
+
+   virtual String getName() { return "Edge Render"; }
+
+   virtual void determineFeature( Material *material, 
+                                  const GFXVertexFormat *vertexFormat,
+                                  U32 stageNum,
+                                  const FeatureType &type,
+                                  const FeatureSet &features,
+                                  MaterialFeatureData *outFeatureData );
+};
+
+
+/// Special feature for rendering edges
+/// @see RenderImposterMgr
+class ToonShadeFeatureHLSL : public ShaderFeatureHLSL
+{
+
+public:
+
+   ToonShadeFeatureHLSL();
+
+   virtual void processVert(  Vector<ShaderComponent*> &componentList,
+                              const MaterialFeatureData &fd );
+
+   virtual void processPix(  Vector<ShaderComponent*> &componentList,
+                             const MaterialFeatureData &fd );
+
+   virtual String getName() { return "Toon Shade"; }
+
+   virtual void determineFeature( Material *material, 
+                                  const GFXVertexFormat *vertexFormat,
+                                  U32 stageNum,
+                                  const FeatureType &type,
+                                  const FeatureSet &features,
+                                  MaterialFeatureData *outFeatureData );
+
+   
+   virtual ShaderFeature::Resources ToonShadeFeatureHLSL::getResources( const MaterialFeatureData &fd );
+   virtual void ToonShadeFeatureHLSL::setTexData(   Material::StageData &stageDat,
+                                       const MaterialFeatureData &fd,
+                                       RenderPassData &passData,
+                                       U32 &texIndex );
+};
 
 #endif // _SHADERGEN_HLSL_SHADERFEATUREHLSL_H_

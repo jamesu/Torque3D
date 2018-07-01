@@ -26,6 +26,8 @@
 #include "ts/collada/colladaUtils.h"
 #include "ts/collada/colladaAppNode.h"
 #include "ts/collada/colladaShapeLoader.h"
+#include "ts/miku/mikuShapeLoader.h"
+#include "ts/miku/mikuModel.h"
 
 #include "gui/controls/guiTreeViewCtrl.h"
 
@@ -125,6 +127,20 @@ static void processNode(GuiTreeViewCtrl* tree, domNode* node, S32 parentID, Scen
    }
 }
 
+void itrMikuNode(GuiTreeViewCtrl* tree, S32 parentId, MikuModel *m, U32 boneId)
+{
+	for (U32 i=0; i<m->mBones.size(); i++)
+	{
+		if (m->mBones[i].parentId == boneId)
+		{
+			S32 newParentId = tree->insertItem(parentId, m->mEnglishBoneNames[i], m->mEnglishBoneNames[i], 0, 0);
+
+			// Iterate children
+			itrMikuNode(tree, newParentId, m, i);
+		}
+	}
+}
+
 ConsoleFunction( enumColladaForImport, bool, 3, 3,
    "(string shapePath, GuiTreeViewCtrl ctrl) Collect scene information from "
    "a COLLADA file and store it in a GuiTreeView control. This function is "
@@ -154,6 +170,64 @@ ConsoleFunction( enumColladaForImport, bool, 3, 3,
    String mountPoint;
    Torque::Path daePath;
    bool isSketchup = ColladaShapeLoader::checkAndMountSketchup(path, mountPoint, daePath);
+
+   bool isMiku = path.getExtension().equal("pmd", String::NoCase);
+   if (isMiku)
+   {
+	   // MikuMikuDance path
+	   MikuModel *m = MikuModel::checkAndLoadMikuModel(path);
+	   if (!m)
+	   {
+		   TSShapeLoader::updateProgress(TSShapeLoader::Load_Complete, "Load complete");
+		   return false;
+	   }
+
+	   
+   // Initialize tree
+   tree->removeItem(0);
+   S32 nodesID = tree->insertItem(0, "Shape", "", "", 0, 0);
+   S32 matsID = tree->insertItem(0, "Materials", "", "", 0, 0);
+   S32 animsID = tree->insertItem(0, "Animations", "", "", 0, 0);
+
+   SceneStats stats;
+   
+   tree->insertItem(nodesID, m->mEnglishName.c_str(), "mesh", "", 0, 0);
+
+   for (S32 i = 0; i < m->mBones.size(); i++)
+   {
+	   if (m->mBones[i].parentId < 0)
+	   {
+		   S32 parentId = tree->insertItem(nodesID, m->mEnglishBoneNames[i], m->mEnglishBoneNames[i], 0, 0);
+		   itrMikuNode(tree, parentId, m, i);
+	   }
+   }
+
+   for (U32 i=0; i<m->mMaterials.size(); i++)
+   {
+	   tree->insertItem(matsID, m->mMaterialTextures[i], m->mMaterialTextures[i], "", 0, 0);
+   }
+   
+   tree->insertItem(animsID, "ambient", "animation", "", 0, 0);
+
+   TSShapeLoader::updateProgress(TSShapeLoader::Load_Complete, "Load complete");
+
+   // Store shape information in the tree control
+   tree->setDataField(StringTable->insert("_nodeCount"), 0, avar("%d", m->mBones.size()));
+   tree->setDataField(StringTable->insert("_meshCount"), 0, avar("%d", 1));
+   tree->setDataField(StringTable->insert("_polygonCount"), 0, avar("%d", m->mIndices.size() / 3));
+   tree->setDataField(StringTable->insert("_materialCount"), 0, avar("%d", m->mMaterials.size()));
+   tree->setDataField(StringTable->insert("_lightCount"), 0, avar("%d", 0));
+   tree->setDataField(StringTable->insert("_animCount"), 0, avar("%d", 0));
+   tree->setDataField(StringTable->insert("_unit"), 0, avar("%g", 1));
+
+   
+      tree->setDataField(StringTable->insert("_upAxis"), 0, "Y_AXIS");
+
+
+	   delete m;
+	   return true;
+   }
+
 
    // Load the Collada file into memory
    domCOLLADA* root = ColladaShapeLoader::getDomCOLLADA(daePath);
@@ -252,6 +326,8 @@ ConsoleFunction( enumColladaForImport, bool, 3, 3,
       tree->setDataField(StringTable->insert("_upAxis"), 0, "X_AXIS");
    else if (upAxis == UPAXISTYPE_Y_UP)
       tree->setDataField(StringTable->insert("_upAxis"), 0, "Y_AXIS");
+   else if (upAxis == UPAXISTYPE_Y_UP_D3D)
+      tree->setDataField(StringTable->insert("_upAxis"), 0, "Y_AXIS_D3D");
    else
       tree->setDataField(StringTable->insert("_upAxis"), 0, "Z_AXIS");
 

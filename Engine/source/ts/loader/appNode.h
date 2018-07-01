@@ -82,6 +82,7 @@ public:
    virtual bool isDummy();
    virtual bool isBounds();
    virtual bool isSequence();
+   virtual bool isIKChain();
    virtual bool isRoot();
 };
 

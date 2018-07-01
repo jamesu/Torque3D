@@ -126,6 +126,7 @@ Material::Material()
 
       mGlow[i] = false;
       mEmissive[i] = false;
+      mEdge = false;
 
       mDetailScale[i].set( 2.0f, 2.0f );
       
@@ -153,6 +154,9 @@ Material::Material()
 
       mSeqFramePerSec[i] = 0.0f;
       mSeqSegSize[i] = 0.0f;
+
+      mToonShade[i] = false;
+      mToonShadeTexture[i] = "";
    }
 
    dMemset(mCellIndex, 0, sizeof(mCellIndex));
@@ -358,7 +362,16 @@ void Material::initPersistFields()
          defaultProtectedSetNotEmptyFn, emptyStringProtectedGetFn, MAX_STAGES,
          "For backwards compatibility.\n@see diffuseColor\n"); 
 
+      addField("toonShade", TypeBool, Offset(mToonShade, Material), MAX_STAGES,
+         "Use Toon Shading." );
+
+      addField("toonShadeTexture", TypeImageFilename, Offset(mToonShadeTexture, Material), MAX_STAGES,
+         "Texture ramp for toon shading" );
+
    endArray( "Stages" );
+
+   addField("rendersEdge", TypeBool, Offset(mEdge, Material), 
+      "Material requires an edge to be rendered afterwards." );
 
    addField( "castShadows", TypeBool, Offset(mCastShadows, Material),
       "If set to false the lighting system will not cast shadows from this material." );

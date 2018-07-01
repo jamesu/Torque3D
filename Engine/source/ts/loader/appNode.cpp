@@ -95,6 +95,13 @@ bool AppNode::isSequence()
    return !dStrnicmp(getName(), "Sequence", 8);
 }
 
+bool AppNode::isIKChain()
+{
+   // naming convention should work well enough...
+   // ...but can override this method if one wants more
+   return !dStrnicmp(getName(), "IkChain", 8);
+}
+
 bool AppNode::isRoot()
 {
    // we assume root node isn't added, so this is never true

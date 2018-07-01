@@ -174,24 +174,48 @@ class TSMesh
 
       const Point2F &tvert() const { return _tvert; }
       void tvert(const Point2F &tv) { _tvert = tv;}
-
-      // Don't call these unless it's actually a __TSMeshVertex_3xUVColor, for real.
-      // We don't want a vftable for virtual methods.
-      Point2F &tvert2() const { return *reinterpret_cast<Point2F *>(reinterpret_cast<U8 *>(const_cast<__TSMeshVertexBase *>(this)) + 0x30); }
-      void tvert2(const Point2F &tv) { (*reinterpret_cast<Point2F *>(reinterpret_cast<U8 *>(this) + 0x30)) = tv; }
-
-      GFXVertexColor &color() const { return *reinterpret_cast<GFXVertexColor *>(reinterpret_cast<U8 *>(const_cast<__TSMeshVertexBase *>(this)) + 0x38); }
-      void color(const GFXVertexColor &c) { (*reinterpret_cast<GFXVertexColor *>(reinterpret_cast<U8 *>(this) + 0x38)) = c; }
    };
-
-   struct __TSMeshVertex_3xUVColor : public __TSMeshVertexBase
+   
+   #pragma pack(1)
+   struct __TSMeshVertex_3xUVColor
    {
       Point2F _tvert2;
       GFXVertexColor _color;
-      F32 _tvert3;  // Unused, but needed for alignment purposes
+      F32 _tvert3;  // Weight for edges
+      
+      const Point2F &tvert2() const { return _tvert2; }
+      void tvert2(const Point2F& c) { _tvert2 = c; }
+      
+      const GFXVertexColor &color() const { return _color; }
+      void color(const GFXVertexColor &c) { _color = c; }
+      
+      const F32 &tvert3() const { return _tvert3; }
+      void tvert3(const F32 &w) { _tvert3 = w; }
    };
+   
+   #pragma pack(1)
+   struct __TSMeshIndex_List {
+	   U8 x;
+	   U8 y;
+	   U8 z;
+	   U8 w;
+   };
+   
+   #pragma pack(1)
+   struct __TSMeshVertex_BoneData
+   {
+      __TSMeshIndex_List _indexes;
+      Point4F _weights;
+      
+      const __TSMeshIndex_List &index() const { return _indexes; }
+      void index(const __TSMeshIndex_List& c) { _indexes = c; }
+      
+      const Point4F &weight() const { return _weights; }
+      void weight(const Point4F &w) { _weights = w; }
+   };
+   
 #pragma pack()
-
+   
    struct TSMeshVertexArray
    {
    protected:
@@ -199,29 +223,55 @@ class TSMesh
       dsize_t vertSz;
       bool vertexDataReady;
       U32 numElements;
-
+      
+      U32 colorOffset;
+      U32 boneOffset;
+      
    public:
-      TSMeshVertexArray() : base(NULL), vertexDataReady(false), numElements(0) {}
-      virtual ~TSMeshVertexArray() { set(NULL, 0, 0); }
-
-      virtual void set(void *b, dsize_t s, U32 n, bool autoFree = true ) 
+      TSMeshVertexArray() : base(NULL), vertexDataReady(false), numElements(0), colorOffset(0), boneOffset(0) {}
+      virtual ~TSMeshVertexArray() { set(NULL, 0, 0, 0, 0); }
+      
+      virtual void set( void *b, dsize_t s, U32 n, U32 inColorOffset, U32 inBoneOffset, bool autoFree = true )
       {
-         if(base && autoFree) 
-            dFree_aligned(base); 
-         base = reinterpret_cast<U8 *>(b); 
-         vertSz = s; 
-         numElements = n; 
+         if(base && autoFree)
+            dFree_aligned(base);
+         base = reinterpret_cast<U8 *>(b);
+         vertSz = s;
+         numElements = n;
+         colorOffset = inColorOffset;
+         boneOffset = inBoneOffset;
       }
-
-      // Vector-like interface
-      __TSMeshVertexBase &operator[](S32 idx) const { AssertFatal(idx < numElements, "Out of bounds access!"); return *reinterpret_cast<__TSMeshVertexBase *>(base + idx * vertSz); }
-      __TSMeshVertexBase *address() const { return reinterpret_cast<__TSMeshVertexBase *>(base); }
+      
+      __TSMeshVertexBase &getBase(int idx) const
+      {
+         AssertFatal(idx < numElements, "Out of bounds access!"); return *reinterpret_cast<__TSMeshVertexBase *>(base + (idx * vertSz));
+      }
+      
+      __TSMeshVertex_3xUVColor &getColor(int idx) const
+      {
+         AssertFatal(idx < numElements, "Out of bounds access!"); return *reinterpret_cast<__TSMeshVertex_3xUVColor *>(base + (idx * vertSz) + colorOffset);
+      }
+      
+      __TSMeshVertex_BoneData &getBone(int idx) const
+      {
+         AssertFatal(idx < numElements, "Out of bounds access!"); return *reinterpret_cast<__TSMeshVertex_BoneData *>(base + (idx * vertSz) + boneOffset);
+      }
+      
+      __TSMeshVertexBase *address() const
+      {
+         return reinterpret_cast<__TSMeshVertexBase *>(base);
+      }
       U32 size() const { return numElements; }
       dsize_t mem_size() const { return numElements * vertSz; }
       dsize_t vertSize() const { return vertSz; }
       bool isReady() const { return vertexDataReady; }
       void setReady(bool r) { vertexDataReady = r; }
+      
+      inline U32 getColorOffset() const { return colorOffset; }
+      inline U32 getBoneOffset() const { return boneOffset; }
+      
    };
+
 
    bool mHasColor;
    bool mHasTVert2;
@@ -260,6 +310,11 @@ class TSMesh
    Vector<U8> encodedNorms;
    Vector<U32> indices;
 
+   // Miku Extras
+   U32 startEdgePrims;
+   U32 edgeOffset; // offset into verts in which edges are calculated
+   Vector<bool> edgeVerts;
+
    /// billboard data
    Point3F billboardAxis;
 
@@ -285,6 +340,7 @@ class TSMesh
                         const TSRenderState &data,
                         bool isSkinDirty,
                         const Vector<MatrixF> &transforms, 
+                        const Vector<F32> &morphs, 
                         TSVertexBufferHandle &vertexBuffer,
                         GFXPrimitiveBufferHandle &primitiveBuffer );
 
@@ -490,6 +546,8 @@ public:
       // # = numverts
       Vector<Point3F> initialVerts;
       Vector<Point3F> initialNorms;
+
+      Vector<Point3F> morphVerts;
    };
 
    /// This method will build the batch operations and prepare the BatchData
@@ -509,8 +567,12 @@ public:
    Vector<S32> boneIndex;
    Vector<S32> vertexIndex;
 
+   Vector<S32> baseMorphIndexes; // base index for each global morph in this mesh
+   Vector<S32> morphIndexes;     // Mapping of morphVerts -> verts
+   Vector<Point3F> morphVerts;   // Actual morph data
+
    /// set verts and normals...
-   void updateSkin( const Vector<MatrixF> &transforms, TSVertexBufferHandle &instanceVB, GFXPrimitiveBufferHandle &instancePB );
+   void updateSkin( const Vector<MatrixF> &transforms, const Vector<F32> &morphs, TSVertexBufferHandle &instanceVB, GFXPrimitiveBufferHandle &instancePB );
 
    // render methods..
    void render( TSVertexBufferHandle &instanceVB, GFXPrimitiveBufferHandle &instancePB );
@@ -518,6 +580,7 @@ public:
                   const TSRenderState &data,
                   bool isSkinDirty,
                   const Vector<MatrixF> &transforms, 
+                  const Vector<F32> &morphs, 
                   TSVertexBufferHandle &vertexBuffer,
                   GFXPrimitiveBufferHandle &primitiveBuffer );
 

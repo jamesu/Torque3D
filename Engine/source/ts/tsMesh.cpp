@@ -22,6 +22,9 @@
 
 #include "platform/platform.h"
 #include "ts/tsMesh.h"
+#include "lighting/edgeMaterialHook.h"
+
+#define _BATCH_BY_VERTEX
 
 #include "ts/tsMeshIntrinsics.h"
 #include "ts/tsDecal.h"
@@ -50,6 +53,7 @@
 #include "materials/customMaterialDefinition.h"
 #include "gfx/util/triListOpt.h"
 #include "util/triRayCheck.h"
+#include "lighting/edgeMaterialHook.h"
 
 #include "opcode/Opcode.h"
 
@@ -134,7 +138,8 @@ void TSMesh::innerRender( TSVertexBufferHandle &vb, GFXPrimitiveBufferHandle &pb
 void TSMesh::render( TSMaterialList *materials, 
                      const TSRenderState &rdata, 
                      bool isSkinDirty,
-                     const Vector<MatrixF> &transforms, 
+                     const Vector<MatrixF> &transforms,
+                     const Vector<F32> &morphs,
                      TSVertexBufferHandle &vertexBuffer,
                      GFXPrimitiveBufferHandle &primitiveBuffer )
 {
@@ -274,6 +279,89 @@ void TSMesh::innerRender( TSMaterialList *materials, const TSRenderState &rdata,
 
       renderPass->addInst( ri );
    }
+
+   if (!edgeVerts.empty())
+   {
+      coreRI->type = RenderPassManager::RIT_Edge;
+
+      for ( S32 i = 0; i < primitives.size(); i++ )
+      {
+         //if (edgeVerts.size() > 0)
+         //   break;
+         const TSDrawPrimitive &draw = primitives[i];
+
+         // We need to have a material.
+         if ( draw.matIndex & TSDrawPrimitive::NoMaterial )
+            continue;
+
+   #ifdef TORQUE_DEBUG
+         // for inspection if you happen to be running in a debugger and can't do bit 
+         // operations in your head.
+         S32 triangles = draw.matIndex & TSDrawPrimitive::Triangles;
+         S32 strip = draw.matIndex & TSDrawPrimitive::Strip;
+         S32 fan = draw.matIndex & TSDrawPrimitive::Fan;
+         S32 indexed = draw.matIndex & TSDrawPrimitive::Indexed;
+         S32 type = draw.matIndex & TSDrawPrimitive::TypeMask;
+         TORQUE_UNUSED(triangles);
+         TORQUE_UNUSED(strip);
+         TORQUE_UNUSED(fan);
+         TORQUE_UNUSED(indexed);
+         TORQUE_UNUSED(type);
+   #endif
+
+         const U32 matIndex = draw.matIndex & TSDrawPrimitive::MaterialMask;
+         BaseMatInstance *matInst = materials->getMaterialInst( matIndex );
+
+         if (!matInst->needsEdges())
+            continue;
+
+         // Override with edge render
+
+         EdgeMaterialHook *hook = matInst->getHook<EdgeMaterialHook>();
+         if ( !hook )
+         {
+            hook = new EdgeMaterialHook( matInst );
+            matInst->addHook( hook );
+         }
+
+         matInst = hook->getMatInstance();
+
+   #ifndef TORQUE_OS_MAC
+
+         // Get the instancing material if this mesh qualifies.
+         if ( meshType != SkinMeshType && pb->mPrimitiveArray[i].numVertices < smMaxInstancingVerts )
+            matInst = InstancingMaterialHook::getInstancingMat( matInst );
+
+   #endif
+
+         // If we don't have a material instance after the overload then
+         // there is nothing to render... skip this primitive.
+         matInst = state->getOverrideMaterial( matInst );
+         if ( !matInst || !matInst->isValid())
+            continue;
+
+         // If the material needs lights then gather them
+         // here once and set them on the core render inst.
+         if ( matInst->isForwardLit() && !coreRI->lights[0] && rdata.getLightQuery() )
+            rdata.getLightQuery()->getLights( coreRI->lights, 8 );
+
+         MeshRenderInst *ri = renderPass->allocInst<MeshRenderInst>();
+         *ri = *coreRI;
+
+         ri->matInst = matInst;
+         ri->defaultKey = matInst->getStateHint();
+         ri->primBuffIndex = i;
+
+         // Translucent materials need the translucent type.
+         if ( matInst->getMaterial()->isTranslucent() )
+         {
+            ri->type = RenderPassManager::RIT_Translucent;
+            ri->translucentSort = true;
+         }
+
+         renderPass->addInst( ri );
+      }
+   }
 }
 
 const Point3F * TSMesh::getNormals( S32 firstVert )
@@ -311,21 +399,21 @@ bool TSMesh::buildPolyList( S32 frame, AbstractPolyList *polyList, U32 &surfaceK
             {
                // Don't use vertex() method as we want to retain the original indices
                OptimizedPolyList::VertIndex vert;
-               vert.vertIdx   = opList->insertPoint( mVertexData[ i + firstVert ].vert() );
-               vert.normalIdx = opList->insertNormal( mVertexData[ i + firstVert ].normal() );
-               vert.uv0Idx    = opList->insertUV0( mVertexData[ i + firstVert ].tvert() );
+               vert.vertIdx   = opList->insertPoint( mVertexData.getBase( i + firstVert ).vert() );
+               vert.normalIdx = opList->insertNormal( mVertexData.getBase( i + firstVert ).normal() );
+               vert.uv0Idx    = opList->insertUV0( mVertexData.getBase( i + firstVert ).tvert() );
                if ( mHasTVert2 )
-                  vert.uv1Idx = opList->insertUV1( mVertexData[ i + firstVert ].tvert2() );
+                  vert.uv1Idx = opList->insertUV1( mVertexData.getColor( i + firstVert ).tvert2() );
 
                opList->mVertexList.push_back( vert );
             }
          }
          else
          {
-            base = polyList->addPointAndNormal( mVertexData[firstVert].vert(), mVertexData[firstVert].normal() );
+            base = polyList->addPointAndNormal( mVertexData.getBase(firstVert).vert(), mVertexData.getBase(firstVert).normal() );
             for ( i = 1; i < vertsPerFrame; i++ )
             {
-               polyList->addPointAndNormal( mVertexData[ i + firstVert ].vert(), mVertexData[ i + firstVert ].normal() );
+               polyList->addPointAndNormal( mVertexData.getBase( i + firstVert ).vert(), mVertexData.getBase( i + firstVert ).normal() );
             }
          }
       }
@@ -420,10 +508,10 @@ bool TSMesh::getFeatures( S32 frame, const MatrixF& mat, const VectorF&, ConvexF
    S32 i;
    S32 base = cf->mVertexList.size();
 
-   for ( i = 0; i < vertsPerFrame; i++ ) 
+   for ( i = 0; i < vertsPerFrame; i++ )
    {
       cf->mVertexList.increment();
-      mat.mulP( mVertexData[firstVert + i].vert(), &cf->mVertexList.last() );
+      mat.mulP( mVertexData.getBase(firstVert + i).vert(), &cf->mVertexList.last() );
    }
 
    // add the polys...
@@ -572,7 +660,6 @@ bool TSMesh::getFeatures( S32 frame, const MatrixF& mat, const VectorF&, ConvexF
    return false;
 }
 
-
 void TSMesh::support( S32 frame, const Point3F &v, F32 *currMaxDP, Point3F *currSupport )
 {
    if ( vertsPerFrame == 0 )
@@ -583,7 +670,7 @@ void TSMesh::support( S32 frame, const Point3F &v, F32 *currMaxDP, Point3F *curr
 
    S32 firstVert = vertsPerFrame * frame;
    m_point3F_bulk_dot( &v.x,
-                       &mVertexData[firstVert].vert().x,
+                       &mVertexData.getBase(firstVert).vert().x,
                        vertsPerFrame,
                        mVertexData.vertSize(),
                        pDots );
@@ -605,7 +692,7 @@ void TSMesh::support( S32 frame, const Point3F &v, F32 *currMaxDP, Point3F *curr
    if ( index != -1 )
    {
       *currMaxDP   = localdp;
-      *currSupport = mVertexData[index + firstVert].vert();
+      *currSupport = mVertexData.getBase(index + firstVert).vert();
    }
 }
 
@@ -793,8 +880,8 @@ bool TSMesh::castRayRendered( S32 frame, const Point3F & start, const Point3F & 
 			   F32 cur_t = 0;
 			   Point2F b;
 
-			   if(castRayTriangle(start, dir, mVertexData[firstVert + idx0].vert(),
-               mVertexData[firstVert + idx1].vert(), mVertexData[firstVert + idx2].vert(), cur_t, b))
+			   if(castRayTriangle(start, dir, mVertexData.getBase(firstVert + idx0).vert(),
+               mVertexData.getBase(firstVert + idx1).vert(), mVertexData.getBase(firstVert + idx2).vert(), cur_t, b))
 			   {
 				   if(cur_t < best_t)
 				   {
@@ -827,8 +914,8 @@ bool TSMesh::castRayRendered( S32 frame, const Point3F & start, const Point3F & 
 			   F32 cur_t = 0;
 			   Point2F b;
 
-			   if(castRayTriangle(start, dir, mVertexData[firstVert + idx0].vert(), 
-               mVertexData[firstVert + idx1].vert(), mVertexData[firstVert + idx2].vert(), cur_t, b))
+			   if(castRayTriangle(start, dir, mVertexData.getBase(firstVert + idx0).vert(), 
+               mVertexData.getBase(firstVert + idx1).vert(), mVertexData.getBase(firstVert + idx2).vert(), cur_t, b))
 			   {
 				   if(cur_t < best_t)
 				   {
@@ -850,13 +937,13 @@ bool TSMesh::castRayRendered( S32 frame, const Point3F & start, const Point3F & 
       rayInfo->t = best_t;
 
       Point3F normal;
-      mCross(mVertexData[bestIdx2].vert()-mVertexData[bestIdx0].vert(),mVertexData[bestIdx1].vert()-mVertexData[bestIdx0].vert(),&normal);
+      mCross(mVertexData.getBase(bestIdx2).vert()-mVertexData.getBase(bestIdx0).vert(),mVertexData.getBase(bestIdx1).vert()-mVertexData.getBase(bestIdx0).vert(),&normal);
       if ( mDot( normal, normal ) < 0.001f )
       {
-         mCross( mVertexData[bestIdx0].vert() - mVertexData[bestIdx1].vert(), mVertexData[bestIdx2].vert() - mVertexData[bestIdx1].vert(), &normal );
+         mCross( mVertexData.getBase(bestIdx0).vert() - mVertexData.getBase(bestIdx1).vert(), mVertexData.getBase(bestIdx2).vert() - mVertexData.getBase(bestIdx1).vert(), &normal );
          if ( mDot( normal, normal ) < 0.001f )
          {
-            mCross( mVertexData[bestIdx1].vert() - mVertexData[bestIdx2].vert(), mVertexData[bestIdx0].vert() - mVertexData[bestIdx2].vert(), &normal );
+            mCross( mVertexData.getBase(bestIdx1).vert() - mVertexData.getBase(bestIdx2).vert(), mVertexData.getBase(bestIdx0).vert() - mVertexData.getBase(bestIdx2).vert(), &normal );
          }
       }
       normal.normalize();
@@ -883,9 +970,13 @@ bool TSMesh::addToHull( U32 idx0, U32 idx1, U32 idx2 )
    // ways and take the one that gives us the largest vector before we
    // normalize.
    Point3F normal1, normal2, normal3;
-   mCross(mVertexData[idx2].vert()-mVertexData[idx0].vert(),mVertexData[idx1].vert()-mVertexData[idx0].vert(),&normal1);
-   mCross(mVertexData[idx0].vert()-mVertexData[idx1].vert(),mVertexData[idx2].vert()-mVertexData[idx1].vert(),&normal2);
-   mCross(mVertexData[idx1].vert()-mVertexData[idx2].vert(),mVertexData[idx0].vert()-mVertexData[idx2].vert(),&normal3);
+   const Point3F& vertex0Data = mVertexData.getBase(idx0).vert();
+   const Point3F& vertex1Data = mVertexData.getBase(idx1).vert();
+   const Point3F& vertex2Data = mVertexData.getBase(idx2).vert();
+   
+   mCross(vertex2Data-vertex0Data,vertex1Data-vertex0Data,&normal1);
+   mCross(vertex0Data-vertex1Data,vertex2Data-vertex1Data,&normal2);
+   mCross(vertex1Data-vertex2Data,vertex0Data-vertex2Data,&normal3);
    Point3F normal = normal1;
    F32 greatestMagSquared = mDot(normal1, normal1);
    F32 magSquared = mDot(normal2, normal2);
@@ -904,7 +995,7 @@ bool TSMesh::addToHull( U32 idx0, U32 idx1, U32 idx2 )
        return false;
 
    normal.normalize();
-   F32 k = mDot( normal, mVertexData[idx0].vert() );
+   F32 k = mDot( normal, vertex0Data );
    for ( S32 i = 0; i < planeNormals.size(); i++ ) 
    {
       if ( mDot( planeNormals[i], normal ) > 0.99f && mFabs( k-planeConstants[i] ) < 0.01f )
@@ -915,6 +1006,7 @@ bool TSMesh::addToHull( U32 idx0, U32 idx1, U32 idx2 )
    planeConstants.push_back( k );
    return true;
 }
+
 
 bool TSMesh::buildConvexHull()
 {
@@ -969,7 +1061,7 @@ bool TSMesh::buildConvexHull()
       // make sure all the verts on this frame are inside all the planes
       for ( i = 0; i < vertsPerFrame; i++ )
          for ( j = firstPlane; j < planeNormals.size(); j++ )
-            if ( mDot( mVertexData[firstVert + i].vert(), planeNormals[j] ) - planeConstants[j] < 0.01 ) // .01 == a little slack
+            if ( mDot( mVertexData.getBase(firstVert + i).vert(), planeNormals[j] ) - planeConstants[j] < 0.01 ) // .01 == a little slack
                error = true;
 
       if ( frame == 0 )
@@ -1029,14 +1121,14 @@ void TSMesh::computeBounds( const MatrixF &transform, Box3F &bounds, S32 frame, 
 
    if(mVertexData.isReady())
    {
-      baseVert = &mVertexData[0].vert();
+      baseVert = &mVertexData.getBase(0).vert();
       stride = mVertexData.vertSize();
 
       if ( frame < 0 )
          numVerts = mNumVerts;
       else
       {
-         baseVert = &mVertexData[frame * vertsPerFrame].vert();
+         baseVert = &mVertexData.getBase(frame * vertsPerFrame).vert();
          numVerts = vertsPerFrame;
       }
    }
@@ -1176,7 +1268,7 @@ TSMesh::~TSMesh()
 // TSSkinMesh methods
 //-----------------------------------------------------
 
-void TSSkinMesh::updateSkin( const Vector<MatrixF> &transforms, TSVertexBufferHandle &instanceVB, GFXPrimitiveBufferHandle &instancePB )
+void TSSkinMesh::updateSkin( const Vector<MatrixF> &transforms, const Vector<F32> &morphs, TSVertexBufferHandle &instanceVB, GFXPrimitiveBufferHandle &instancePB )
 {
    PROFILE_SCOPE( TSSkinMesh_UpdateSkin );
 
@@ -1215,7 +1307,11 @@ void TSSkinMesh::updateSkin( const Vector<MatrixF> &transforms, TSVertexBufferHa
    const bool bBatchByVert = !batchData.vertexBatchOperations.empty();
    if(bBatchByVert)
    {
-      const Point3F *inVerts = &batchData.initialVerts[0];
+      // Copy initialVerts to morphVerts
+      batchData.morphVerts = batchData.initialVerts;
+      
+      Point3F *baseInVerts = &batchData.initialVerts[0];
+      Point3F *inVerts = &batchData.morphVerts[0];
       const Point3F *inNorms = &batchData.initialNorms[0];
 
       Point3F srcVtx, srcNrm;
@@ -1224,6 +1320,28 @@ void TSSkinMesh::updateSkin( const Vector<MatrixF> &transforms, TSVertexBufferHa
 
       register Point3F skinnedVert;
       register Point3F skinnedNorm;
+
+      // Apply morphs on top of mesh
+      U32 startIdx = 0;
+      for (U32 i=0; i<baseMorphIndexes.size(); i++)
+      {
+         F32 globalMorphValue = morphs[i];
+         U32 numIndexes = baseMorphIndexes[i];
+
+         if (globalMorphValue > 0.001f)
+         {
+            for (U32 j=0; j<numIndexes; j++)
+            {
+               const S32 baseVert = morphIndexes[startIdx + j];
+               const Point3F deltaVert = morphVerts[startIdx + j];
+
+               inVerts[baseVert] += deltaVert * globalMorphValue;
+            }
+         }
+            
+         startIdx += numIndexes;
+      }
+
 
       for( Vector<BatchData::BatchedVertex>::const_iterator itr = batchData.vertexBatchOperations.begin(); 
          itr != batchData.vertexBatchOperations.end(); itr++ )
@@ -1247,7 +1365,7 @@ void TSSkinMesh::updateSkin( const Vector<MatrixF> &transforms, TSVertexBufferHa
          }
 
          // Assign results 
-         __TSMeshVertexBase &dest = mVertexData[curVert.vertexIndex];
+         __TSMeshVertexBase &dest = mVertexData.getBase(curVert.vertexIndex);
          dest.vert(skinnedVert);
          dest.normal(skinnedNorm);
       }
@@ -1287,6 +1405,7 @@ void TSSkinMesh::updateSkin( const Vector<MatrixF> &transforms, TSVertexBufferHa
          m_matF_x_BatchedVertWeightList(curBoneMat, numVerts, curTransform.alignedMem,
             outPtr, outStride);
       }
+
 #if defined(USE_MEM_VERTEX_BUFFERS)
       instanceVB.unlock();
 #endif
@@ -1479,6 +1598,7 @@ void TSSkinMesh::render(   TSMaterialList *materials,
                            const TSRenderState &rdata,
                            bool isSkinDirty,
                            const Vector<MatrixF> &transforms, 
+                           const Vector<F32> &morphs, 
                            TSVertexBufferHandle &vertexBuffer,
                            GFXPrimitiveBufferHandle &primitiveBuffer )
 {
@@ -1502,7 +1622,7 @@ void TSSkinMesh::render(   TSMaterialList *materials,
    if ( primsChanged || vertsChanged || isSkinDirty )
    {
       // Perform skinning
-      updateSkin( transforms, vertexBuffer, primitiveBuffer );
+      updateSkin( transforms, morphs, vertexBuffer, primitiveBuffer );
       
       // Update GFX vertex buffer
       _createVBIB( vertexBuffer, primitiveBuffer );
@@ -2649,15 +2769,16 @@ void TSMesh::disassemble()
       // Fill arrays
       for(U32 i = 0; i < mNumVerts; i++)
       {
-         const __TSMeshVertexBase &cv = mVertexData[i];
+         const __TSMeshVertexBase &cv = mVertexData.getBase(i);
+         const __TSMeshVertex_3xUVColor &cvc = mVertexData.getColor(i);
          verts[i] = cv.vert();
          tverts[i] = cv.tvert();
          norms[i] = cv.normal();
 
          if(mHasColor)
-            cv.color().getColor(&colors[i]);
+            cvc.color().getColor(&colors[i]);
          if(mHasTVert2)
-            tverts2[i] = cv.tvert2();
+            tverts2[i] = cvc.tvert2();
       }
    }
 
@@ -2707,7 +2828,7 @@ void TSMesh::disassemble()
          const TSDrawPrimitive& prim = primitives[i];
 
          // only optimize triangle lists (strips and fans are assumed to be already optimized)
-         if ( (prim.matIndex & TSDrawPrimitive::TypeMask) == TSDrawPrimitive::Triangles )
+         if ( (prim.matIndex & TSDrawPrimitive::TypeMask) == TSDrawPrimitive::Triangles && prim.numElements > 3 )
          {
             TriListOpt::OptimizeTriangleOrdering(verts.size(), prim.numElements,
                indices.address() + prim.start, tmpIdxs.address());
@@ -2773,6 +2894,8 @@ void TSSkinMesh::assemble( bool skip )
    S32 numVerts = sz;
    S32 * ptr32 = getSharedData32( parentMesh, 3 * numVerts, (S32**)smVertsList.address(), skip );
    batchData.initialVerts.set( (Point3F*)ptr32, sz );
+
+   batchData.morphVerts = batchData.initialVerts;
 
    S8 * ptr8;
    if ( TSShape::smReadVersion>21 && TSMesh::smUseEncodedNormals )
@@ -3036,7 +3159,6 @@ void TSMesh::convertToAlignedMeshData()
       _convertToAlignedMeshData(mVertexData, verts, norms);
 }
 
-
 void TSSkinMesh::convertToAlignedMeshData()
 {
    if(!mVertexData.isReady())
@@ -3045,6 +3167,27 @@ void TSSkinMesh::convertToAlignedMeshData()
 
 void TSMesh::_convertToAlignedMeshData( TSMeshVertexArray &vertexData, const Vector<Point3F> &_verts, const Vector<Point3F> &_norms )
 {
+   U32 colorOffset = 0;
+   U32 boneOffset = 0;
+   const bool hasEdges = !edgeVerts.empty();
+   
+   mHasColor = !colors.empty() || !edgeVerts.empty();
+   //AssertFatal(!mHasColor || colors.size() == _verts.size(), "Vector of color elements should be the same size as other vectors");
+   
+   mHasTVert2 = !tverts2.empty();
+   AssertFatal(!mHasTVert2 || tverts2.size() == _verts.size(), "Vector of tvert2 elements should be the same size as other vectors");
+   
+   //if (mVertexFormat->hasBlend())
+   //{
+   //   boneOffset = sizeof(__TSMeshVertexBase);
+   //}
+   
+   if (mHasTVert2 || mHasColor)
+   {
+      colorOffset = sizeof(__TSMeshVertexBase);
+      if (boneOffset > 0) boneOffset += sizeof(__TSMeshVertex_3xUVColor);
+   }
+
    // If mVertexData is ready, and the input array is different than mVertexData
    // use mVertexData to quickly initialize the input array
    if(mVertexData.isReady() && vertexData.address() != mVertexData.address())
@@ -3057,7 +3200,7 @@ void TSMesh::_convertToAlignedMeshData( TSMeshVertexArray &vertexData, const Vec
       void *aligned_mem = dMalloc_aligned(mVertSize * mNumVerts, 16);
       AssertFatal(aligned_mem, "Aligned malloc failed! Debug!");
 
-      vertexData.set(aligned_mem, mVertSize, mNumVerts);
+      vertexData.set(aligned_mem, mVertSize, mNumVerts, colorOffset, boneOffset);
       vertexData.setReady(true);
 
 #if defined(TORQUE_OS_XENON)
@@ -3075,39 +3218,43 @@ void TSMesh::_convertToAlignedMeshData( TSMeshVertexArray &vertexData, const Vec
                "Vectors: verts, norms, tangents must all be the same size");
    mNumVerts = _verts.size();
 
-   // Initialize the vertex data
-   vertexData.set(NULL, 0, 0);
-   vertexData.setReady(true);
-
    if(mNumVerts == 0)
+   {
+      vertexData.set(NULL, mVertSize, mNumVerts, colorOffset, boneOffset);
+      vertexData.setReady(true);
       return;
-
-   mHasColor = !colors.empty();
-   AssertFatal(!mHasColor || colors.size() == _verts.size(), "Vector of color elements should be the same size as other vectors");
-
-   mHasTVert2 = !tverts2.empty();
-   AssertFatal(!mHasTVert2 || tverts2.size() == _verts.size(), "Vector of tvert2 elements should be the same size as other vectors");
+   }
 
    // Create the proper array type
    void *aligned_mem = dMalloc_aligned(mVertSize * mNumVerts, 16);
    AssertFatal(aligned_mem, "Aligned malloc failed! Debug!");
 
    dMemset(aligned_mem, 0, mNumVerts * mVertSize);
-   vertexData.set(aligned_mem, mVertSize, mNumVerts);
+   vertexData.set(aligned_mem, mVertSize, mNumVerts, colorOffset, boneOffset);
+   vertexData.setReady(true);
 
    for(U32 i = 0; i < mNumVerts; i++)
    {
-      __TSMeshVertexBase &v = vertexData[i];
+      __TSMeshVertexBase &v = vertexData.getBase(i);
       v.vert(_verts[i]);
       v.normal(_norms[i]);
       v.tangent(tangents[i]);
 
       if(i < tverts.size())
          v.tvert(tverts[i]);
-      if(mHasTVert2 && i < tverts2.size())
-         v.tvert2(tverts2[i]);
-      if(mHasColor && i < colors.size())
-         v.color(colors[i]);
+      
+      if (mHasTVert2 || mHasColor)
+      {
+         __TSMeshVertex_3xUVColor &vc = vertexData.getColor(i);
+         if(mHasTVert2 && i < tverts2.size())
+            vc.tvert2(tverts2[i]);
+         if(mHasColor && i < colors.size())
+            vc.color(colors[i]);
+         if(hasEdges)
+            vc.tvert3(edgeVerts[i] ? 0.0f : 1.0f);
+      }
+      
+      // NOTE: skin verts are set later on
    }
 
    // Now that the data is in the aligned struct, free the Vector memory

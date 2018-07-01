@@ -37,6 +37,9 @@
 #include "ts/collada/colladaAppMesh.h"
 #include "ts/collada/colladaAppMaterial.h"
 #include "ts/collada/colladaAppSequence.h"
+#include "ts/miku/mikuShapeLoader.h"
+#include "ts/miku/mikuModel.h"
+#include "ts/miku/mikuAnim.h"
 
 #include "core/util/tVector.h"
 #include "core/strings/findMatch.h"
@@ -687,29 +690,74 @@ TSShape* loadColladaShape(const Torque::Path &path)
    String mountPoint;
    Torque::Path daePath;
    bool isSketchup = ColladaShapeLoader::checkAndMountSketchup(path, mountPoint, daePath);
-
-   // Load Collada model and convert to 3space
+   MikuModel *miku = MikuModel::checkAndLoadMikuModel(path);
+   MikuAnim *mikuAnim = miku ? NULL : MikuAnim::checkAndLoadMikuAnim(path);
+   
    TSShape* tss = 0;
-   domCOLLADA* root = ColladaShapeLoader::getDomCOLLADA(daePath);
-   if (root)
-   {
-      ColladaShapeLoader loader(root);
-      tss = loader.generateShape(daePath);
-      if (tss)
-      {
-#ifndef DAE2DTS_TOOL
-         // Cache the Collada model to a DTS file for faster loading next time.
-         FileStream dtsStream;
-         if (dtsStream.open(cachedPath.getFullPath(), Torque::FS::File::Write))
-         {
-            Con::printf("Writing cached COLLADA shape to %s", cachedPath.getFullPath().c_str());
-            tss->write(&dtsStream);
-         }
-#endif // DAE2DTS_TOOL
 
-         // Add collada materials to materials.cs
-         updateMaterialsScript(path, isSketchup);
-      }
+   // 
+   if (miku)
+   {
+	   MikuShapeLoader loader(miku);
+	   tss = loader.generateShape(path);
+	   if (tss)
+	   {
+		   // Cache the Collada model to a DTS file for faster loading next time.
+		   FileStream dtsStream;
+		   if (dtsStream.open(cachedPath.getFullPath(), Torque::FS::File::Write))
+		   {
+			   Con::printf("Writing cached COLLADA shape to %s", cachedPath.getFullPath().c_str());
+			   tss->write(&dtsStream);
+		   }
+
+		   // Add collada materials to materials.cs
+		   miku->dumpMaterials(path);
+	   }
+
+	   delete miku;
+   }
+   else if (mikuAnim)
+   {
+	   MikuShapeLoader loader(mikuAnim);
+	   tss = loader.generateShape(path);
+	   if (tss)
+	   {
+		   // Cache the Collada model to a DTS file for faster loading next time.
+		   FileStream dtsStream;
+		   if (dtsStream.open(cachedPath.getFullPath(), Torque::FS::File::Write))
+		   {
+			   Con::printf("Writing cached COLLADA shape to %s", cachedPath.getFullPath().c_str());
+			   tss->write(&dtsStream);
+		   }
+	   }
+
+	   delete mikuAnim;
+   }
+   else
+   {
+
+	   // Load Collada model and convert to 3space
+	   domCOLLADA* root = ColladaShapeLoader::getDomCOLLADA(daePath);
+	   if (root)
+	   {
+		  ColladaShapeLoader loader(root);
+		  tss = loader.generateShape(daePath);
+		  if (tss)
+		  {
+	#ifndef DAE2DTS_TOOL
+			 // Cache the Collada model to a DTS file for faster loading next time.
+			 FileStream dtsStream;
+			 if (dtsStream.open(cachedPath.getFullPath(), Torque::FS::File::Write))
+			 {
+				Con::printf("Writing cached COLLADA shape to %s", cachedPath.getFullPath().c_str());
+				tss->write(&dtsStream);
+			 }
+	#endif // DAE2DTS_TOOL
+
+			 // Add collada materials to materials.cs
+			 updateMaterialsScript(path, isSketchup);
+		  }
+	   }
    }
 
    // Close progress dialog

@@ -172,6 +172,10 @@ inline bool dIsalpha(const char c)
 
 inline bool dIsspace(const char c)
 {
+   if (c & (1 << 7)) // jamesu - hack to prevent debug crash
+   {
+      return false;
+   }
    return isspace(c);
 }
 

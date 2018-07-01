@@ -82,6 +82,9 @@ public:
    GFXShaderConstHandle *mImposterUVs;
    GFXShaderConstHandle *mImposterLimits;
 
+   GFXShaderConstHandle *mEdgeSize;
+   GFXShaderConstHandle *mEdgeColor;
+
    GFXShaderConstHandle* mTexHandlesSC[Material::MAX_TEX_PER_PASS];
    GFXShaderConstHandle* mRTParamsSC[TEXTURE_STAGE_COUNT];
 

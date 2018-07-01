@@ -1479,6 +1479,9 @@ void GuiShapeEdPreview::renderWorld(const RectI &updateRect)
    gClientSceneGraph->setFogData( savedFogData );         // restore fog setting
 }
 
+extern Point3F gDebugPosition;
+extern Point3F gDebugPosition2;
+
 void GuiShapeEdPreview::renderGui(Point2I offset, const RectI& updateRect)
 {
    // Render the 2D stuff here
@@ -1575,6 +1578,47 @@ void GuiShapeEdPreview::renderNodes() const
       }
       PrimBuild::end();
 
+
+      PrimBuild::color( ColorI::GREEN );
+      PrimBuild::begin( GFXLineList, mModel->getShape()->iks.size() + (mModel->getShape()->ikLinks.size() * 2) );
+      // Render IKs
+      for ( S32 i = 0; i < mModel->getShape()->iks.size(); i++)
+      {
+         const TSShape::Ik &ik = mModel->getShape()->iks[i];
+         const Vector<S32> &linkList = mModel->getShape()->ikLinks;
+
+         for (U32 j=0; j<ik.numLinks; j++)
+         {
+            S32 startBone = linkList[ik.linkListId + j];
+            S32 endBone = j == ik.numLinks-1 ? ik.targetId : linkList[ik.linkListId + j + 1];
+
+            Point3F start(mModel->mNodeTransforms[startBone].getPosition());
+            Point3F end(mModel->mNodeTransforms[endBone].getPosition());
+
+            PrimBuild::vertex3f( start.x, start.y, start.z );
+            PrimBuild::vertex3f( end.x, end.y, end.z );
+         }
+      }
+      PrimBuild::end();
+
+      PrimBuild::color( ColorI(255,0,255) );
+      PrimBuild::begin( GFXLineList, mModel->getShape()->iks.size() + (mModel->getShape()->ikLinks.size() * 2) );
+      // IK Links
+      for ( S32 i = 0; i < mModel->getShape()->iks.size(); i++)
+      {
+         const TSShape::Ik &ik = mModel->getShape()->iks[i];
+         
+         S32 startBone = ik.destId;
+         S32 endBone = ik.targetId;
+
+         Point3F start(mModel->mNodeTransforms[startBone].getPosition());
+         Point3F end(mModel->mNodeTransforms[endBone].getPosition());
+
+         PrimBuild::vertex3f( start.x, start.y, start.z );
+         PrimBuild::vertex3f( end.x, end.y, end.z );
+      }
+      PrimBuild::end();
+
       // Render the node axes
       for ( S32 i = 0; i < mModel->getShape()->nodes.size(); i++)
       {
@@ -1583,6 +1627,31 @@ void GuiShapeEdPreview::renderNodes() const
             continue;   
 
          renderNodeAxes( i, ColorF::WHITE );
+      }
+
+      MatrixF trans(1);
+      trans.setPosition(gDebugPosition);
+         GFX->pushWorldMatrix();
+   GFX->multWorld( trans );
+
+   GFX->getDrawUtil()->drawCube( desc, Point3F(0.25f, 0.25f, 0.25f), Point3F::Zero, ColorI(0,255,255) );
+   GFX->popWorldMatrix();
+   
+
+      MatrixF trans2(1);
+      trans2.setPosition(gDebugPosition2);
+         GFX->pushWorldMatrix();
+   GFX->multWorld( trans2 );
+
+   GFX->getDrawUtil()->drawCube( desc, Point3F(0.25f, 0.25f, 0.25f), Point3F::Zero, ColorI(255,0,255) );
+   GFX->popWorldMatrix();
+
+      // Render the IK Target axes
+      for ( S32 i = 0; i < mModel->getShape()->iks.size(); i++)
+      {
+         const TSShape::Ik &ik = mModel->getShape()->iks[i];
+         renderNodeAxes( ik.targetId, ColorF::BLUE );
+         renderNodeAxes( ik.destId, ColorF::RED );
       }
 
       // Render the hovered node

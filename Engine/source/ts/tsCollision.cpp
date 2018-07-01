@@ -1460,7 +1460,7 @@ void TSMesh::prepOpcodeCollision()
 
    for( S32 i = 0; i < mi->GetNbVertices(); i++ )
       if( mVertexData.isReady() )
-         pts[i].Set( mVertexData[i].vert().x, mVertexData[i].vert().y, mVertexData[i].vert().z );
+         pts[i].Set( mVertexData.getBase(i).vert().x, mVertexData.getBase(i).vert().y, mVertexData.getBase(i).vert().z );
       else
          pts[i].Set( verts[i].x, verts[i].y, verts[i].z );
 

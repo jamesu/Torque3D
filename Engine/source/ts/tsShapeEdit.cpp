@@ -896,6 +896,9 @@ TSMesh* TSShape::copyMesh( const TSMesh* srcMesh ) const
    mesh->mVertSize = mVertSize;
    mesh->mVertexFormat = &mVertexFormat;
 
+   mesh->edgeOffset = srcMesh->edgeOffset;
+   mesh->startEdgePrims = srcMesh->startEdgePrims;
+
    if ( !srcMesh )
       return mesh;      // return an empty mesh
 
@@ -912,7 +915,7 @@ TSMesh* TSShape::copyMesh( const TSMesh* srcMesh ) const
 
    if ( srcMesh->mVertexData.isReady() )
    {
-      mesh->mVertexData.set( NULL, 0, 0, false );
+      mesh->mVertexData.set( NULL, 0, 0, srcMesh->mVertexData.getColorOffset(), srcMesh->mVertexData.getBoneOffset(), false );
       void *aligned_mem = dMalloc_aligned( mVertSize * srcMesh->mVertexData.size(), 16 );
 
       // Copy the source data (note that the destination shape may have different vertex size)
@@ -931,7 +934,7 @@ TSMesh* TSShape::copyMesh( const TSMesh* srcMesh ) const
             dest += mVertSize;
          }
       }
-      mesh->mVertexData.set( aligned_mem, mVertSize, srcMesh->mVertexData.size() );
+      mesh->mVertexData.set( aligned_mem, mVertSize, srcMesh->mVertexData.size(), srcMesh->mVertexData.getColorOffset(), srcMesh->mVertexData.getBoneOffset() );
       mesh->mVertexData.setReady( true );
    }
    else
@@ -1348,7 +1351,7 @@ bool TSShape::removeDetail( S32 size )
 //-----------------------------------------------------------------------------
 bool TSShape::addSequence(const Torque::Path& path, const String& fromSeq,
                           const String& name, S32 startFrame, S32 endFrame,
-                          bool padRotKeys, bool padTransKeys)
+                          bool padRotKeys, bool padTransKeys, bool isRelative)
 {
    String oldName(fromSeq);
 
@@ -1429,7 +1432,8 @@ bool TSShape::addSequence(const Torque::Path& path, const String& fromSeq,
    TSShape* srcShape = this;        // Assume we are copying an existing sequence
 
    if (path.getExtension().equal("dts", String::NoCase) ||
-       path.getExtension().equal("dae", String::NoCase))
+       path.getExtension().equal("dae", String::NoCase)||
+       path.getExtension().equal("vmd", String::NoCase))
    {
       // DTS or DAE source file
       char filenameBuf[1024];
@@ -1492,6 +1496,11 @@ bool TSShape::addSequence(const Torque::Path& path, const String& fromSeq,
    Vector<S32> objectMap(srcShape->objects.size());
    for (S32 i = 0; i < srcShape->objects.size(); i++)
       objectMap.push_back(findObject(srcShape->getName(srcShape->objects[i].nameIndex)));
+
+   // Create array to map source morphs to our morphs
+   Vector<S32> morphMap(srcShape->morphs.size());
+   for (S32 i = 0; i < srcShape->morphs.size(); i++)
+      morphMap.push_back(findMorph(srcShape->getName(srcShape->morphs[i].nameIndex)));
 
    // Copy the source sequence (need to do it this ugly way instead of just
    // using push_back since srcSeq pointer may change if copying a sequence
@@ -1583,6 +1592,46 @@ bool TSShape::addSequence(const Torque::Path& path, const String& fromSeq,
          triggers.push_back(srcTrig);
          triggers.last().pos -= seqStartPos;
          seq.numTriggers++;
+      }
+   }
+
+   // Add morphs
+   seq.firstMorph = morphWeights.size();
+   seq.morphMatters.clearAll();
+
+   // Determine morphs actually active
+   for (S32 i=0; i<morphMap.size(); i++)
+   {
+      if (morphMap[i] < 0)
+         break;
+
+      if (srcSeq->morphMatters.test(i))
+         seq.morphMatters.set(morphMap[i]);
+   }
+
+   U32 srcNumMorphFrames = (seq.numKeyframes * srcSeq->morphMatters.count());
+   U32 dstNumMorphFrames = (seq.numKeyframes * seq.morphMatters.count());
+   U32 srcStride = srcSeq->morphMatters.count();
+
+   morphWeights.reserve(morphWeights.size() + dstNumMorphFrames);
+
+   // Remap morph matters array
+   for (U32 i=0; i<seq.numKeyframes; i++)
+   {
+      U32 count = 0;
+
+      // Add each active node
+      for (U32 j=0; j<morphMap.size(); j++)
+      {
+         if (srcSeq->morphMatters.test(j))
+         {
+            // Add it if possible
+            if (morphMap[j] < 0)
+               continue;
+
+            morphWeights.push_back(srcShape->morphWeights[srcSeq->firstMorph + (i * srcStride) + count]);
+            count++;
+         }
       }
    }
 
@@ -1762,6 +1811,8 @@ bool TSShape::addSequence(const Torque::Path& path, const String& fromSeq,
       seq.dirtyFlags |= TSShapeInstance::FrameDirty;
    if (seq.matFrameMatters.testAll())
       seq.dirtyFlags |= TSShapeInstance::MatFrameDirty;
+   if (seq.morphMatters.testAll())
+      seq.dirtyFlags |= TSShapeInstance::MorphDirty;
 
    // Store information about how this sequence was created
    seq.sourceData.from = String::ToString("%s\t%s", path.getFullPath().c_str(), oldName.c_str());

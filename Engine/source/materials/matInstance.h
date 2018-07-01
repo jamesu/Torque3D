@@ -71,6 +71,7 @@ public:
    virtual bool isInstanced() const;
    virtual bool stepInstance();
    virtual bool isForwardLit() const { return mIsForwardLit; }
+   virtual bool needsEdges() const { return mNeedsEdges; }
    virtual void setUserObject( SimObject *userObject ) { mUserObject = userObject; }
    virtual SimObject* getUserObject() const { return mUserObject; }
    virtual Material *getMaterial() { return mMaterial; }
@@ -111,6 +112,9 @@ protected:
 
    /// If the processed material requires forward lighting or not.
    bool mIsForwardLit;
+
+   /// Returns true if we need to render the mesh edges in the edge bin
+   bool mNeedsEdges;
 
    S32               mCurPass;
    U32               mMaxStages;

@@ -91,6 +91,10 @@ void ShaderConstHandles::init( GFXShader *shader, CustomMaterial* mat /*=NULL*/ 
    mImposterUVs = shader->getShaderConstHandle( "$imposterUVs" );
    mImposterLimits = shader->getShaderConstHandle( "$imposterLimits" );
 
+   // MFT_EdgeRender
+   mEdgeColor = shader->getShaderConstHandle( "$edgeColor" );
+   mEdgeSize = shader->getShaderConstHandle( "$edgeSize" );
+
    for (S32 i = 0; i < TEXTURE_STAGE_COUNT; ++i)
       mRTParamsSC[i] = shader->getShaderConstHandle( String::ToString( "$rtParams%d", i ) );
 
@@ -272,6 +276,9 @@ U32 ProcessedShaderMaterial::getNumStages()
       if( mMaterial->mVertLit[i] )
          stageActive = true;
 
+      if (mMaterial->mEdge && i == 0)
+         stageActive = true;
+
       // Increment the number of active stages
       numStages += stageActive;
    }
@@ -336,6 +343,13 @@ void ProcessedShaderMaterial::_determineFeatures(  U32 stageNum,
 
    if ( mMaterial->mEmissive[stageNum] )
       fd.features.addFeature( MFT_IsEmissive );
+   else if (mMaterial->mToonShade[stageNum] )
+   {
+      fd.features.addFeature( MFT_ToonShade );
+      fd.features.addFeature( MFT_ToonShadeMap );
+      fd.features.addFeature( MFT_ForwardShading );
+      fd.features.addFeature( MFT_RTLighting );
+   }
    else
       fd.features.addFeature( MFT_RTLighting );
 
@@ -582,6 +596,12 @@ bool ProcessedShaderMaterial::_addPass( ShaderRenderPassData &rpd,
    rpd.mNumTex = texIndex;
    rpd.mStageNum = stageNum;
    rpd.mGlow |= mMaterial->mGlow[stageNum];
+   rpd.mEdge = fd.features.hasFeature(MFT_EdgeRender);
+
+   if (rpd.mEdge)
+   {
+      rpd.mBlendOp = Material::None;
+   }
 
    // Copy over features
    rpd.mFeatureData.materialFeatures = fd.features;
@@ -978,6 +998,17 @@ void ProcessedShaderMaterial::_setShaderConstants(SceneRenderState * state, cons
    }
 
    shaderConsts->setSafe( handles->mAccumTimeSC, MATMGR->getTotalTime() );
+
+   // MFT_EdgeRender
+   if ( handles->mEdgeColor->isValid() )
+   {
+      shaderConsts->set( handles->mEdgeColor, ColorI(0,0,0,255) );
+   }
+
+   if ( handles->mEdgeSize->isValid() )
+   {
+      shaderConsts->set( handles->mEdgeSize, 0.045f );
+   }
 
    // If the shader constants have not been lost then
    // they contain the content from a previous render pass.

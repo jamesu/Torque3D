@@ -174,6 +174,8 @@ public:
    /// a list of lights which affect it when rendering.
    virtual bool isForwardLit() const = 0;
 
+   virtual bool needsEdges() const = 0;
+
    /// Sets a SimObject which will passed into ShaderFeature::createConstHandles.
    /// Normal features do not make use of this, it is for special class specific
    /// or user designed features.

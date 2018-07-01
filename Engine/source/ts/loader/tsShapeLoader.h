@@ -42,6 +42,29 @@
 #include "ts/loader/appSequence.h"
 #endif
 
+class MikuIKChain;
+
+// Morph target info
+class AppMorph
+{
+public:
+
+   AppMorph()
+   {
+   }
+
+   virtual ~AppMorph()
+   {
+   }
+
+   virtual const char* getName() const { return "morph"; }
+   virtual F32 getWeightAtPos(F32 time) { return 0.0f; }
+
+   virtual bool isAnimated(F32 startTime, F32 endTime) { return false; }
+
+   virtual U8 getType() { return 0; }
+};
+
 class TSShapeLoader
 {
 
@@ -58,6 +81,7 @@ public:
       Load_GenerateSkins,
       Load_GenerateMaterials,
       Load_GenerateSequences,
+      Load_GenerateIKs,
       Load_InitShape,
       NumLoadPhases,
       Load_Complete = NumLoadPhases
@@ -98,7 +122,10 @@ protected:
    Vector<AppNode*>              appNodes;            ///< Nodes in the loaded shape
    Vector<AppSequence*>          appSequences;
 
+   Vector<AppMorph*>             appMorphs;
+
    Vector<Subshape*>             subshapes;
+   Vector<MikuIKChain*>              ikChains;
 
    Vector<QuatF*>                nodeRotCache;
    Vector<Point3F*>              nodeTransCache;
@@ -114,6 +141,20 @@ protected:
    bool processNode(AppNode* node);
    virtual bool ignoreNode(const String& name) { return false; }
    virtual bool ignoreMesh(const String& name) { return false; }
+
+   S32 getIndexOfNode(AppNode *n)
+   {
+      if (n == NULL)
+         return -1;
+
+      for (S32 iNode = 0; iNode < appNodes.size(); iNode++)
+      {
+         if (appNodes[iNode]->isEqual(n))
+            return iNode;
+      }
+
+      return -1;
+   }
 
    void addSkin(AppMesh* mesh);
    void addDetailMesh(AppMesh* mesh);
@@ -141,6 +182,8 @@ protected:
 
    void generateSequences();
 
+   void generateIKChains();
+
    // Determine what is actually animated in the sequence
    void setNodeMembership(TSShape::Sequence& seq, const AppSequence* appSeq);
    void setRotationMembership(TSShape::Sequence& seq);
@@ -164,6 +207,7 @@ protected:
    void generateObjectAnimation(TSShape::Sequence& seq, const AppSequence* appSeq);
    void generateGroundAnimation(TSShape::Sequence& seq, const AppSequence* appSeq);
    void generateFrameTriggers(TSShape::Sequence& seq, const AppSequence* appSeq);
+   void generateMorphs(TSShape::Sequence& seq, const AppSequence* appSeq);
 
    // Shape construction
    void sortDetails();

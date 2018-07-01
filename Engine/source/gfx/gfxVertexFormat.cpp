@@ -37,6 +37,7 @@ namespace GFXSemantic
    const String TANGENTW = String( "TANGENTW" ).intern();
    const String COLOR = String( "COLOR" ).intern();
    const String TEXCOORD = String( "TEXCOORD" ).intern();
+   const String EDGEWEIGHT = String( "EDGEWEIGHT" ).intern();
 }
 
 

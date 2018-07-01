@@ -88,6 +88,9 @@ TSShape::TSShape()
    VECTOR_SET_ASSOCIATION(detailCollisionAccelerators);
    VECTOR_SET_ASSOCIATION(names);
 
+   VECTOR_SET_ASSOCIATION(morphs);
+   VECTOR_SET_ASSOCIATION(morphWeights);
+
    VECTOR_SET_ASSOCIATION( nodes );
    VECTOR_SET_ASSOCIATION( objects );
    VECTOR_SET_ASSOCIATION( objectStates );
@@ -255,6 +258,14 @@ S32 TSShape::findSequence(S32 nameIndex) const
 {
    for (S32 i=0; i<sequences.size(); i++)
       if (sequences[i].nameIndex==nameIndex)
+         return i;
+   return -1;
+}
+
+S32 TSShape::findMorph(S32 nameIndex) const
+{
+   for (S32 i=0; i<morphs.size(); i++)
+      if (morphs[i].nameIndex==nameIndex)
          return i;
    return -1;
 }
@@ -553,6 +564,7 @@ void TSShape::initVertexFeatures()
 {
    bool hasColors = false;
    bool hasTexcoord2 = false;
+   bool hasEdges = false;
 
    Vector<TSMesh*>::iterator iter = meshes.begin();
    for ( ; iter != meshes.end(); iter++ )
@@ -565,17 +577,18 @@ void TSShape::initVertexFeatures()
          if ( mesh->mVertexData.isReady() )
          {
             hasColors |= mesh->mHasColor;
+            hasEdges |= !mesh->edgeVerts.empty();
             hasTexcoord2 |= mesh->mHasTVert2;
          }
          else
          {
             hasColors |= !mesh->colors.empty();
+            hasEdges |= !mesh->edgeVerts.empty();
             hasTexcoord2 |= !mesh->tverts2.empty();
          }
       }
    }
 
-   mVertSize = ( hasTexcoord2 || hasColors ) ? sizeof(TSMesh::__TSMeshVertex_3xUVColor) : sizeof(TSMesh::__TSMeshVertexBase);
    mVertexFormat.clear();
   
    mVertexFormat.addElement( GFXSemantic::POSITION, GFXDeclType_Float3 );
@@ -585,12 +598,14 @@ void TSShape::initVertexFeatures()
 
    mVertexFormat.addElement( GFXSemantic::TEXCOORD, GFXDeclType_Float2, 0 );
 
-   if(hasTexcoord2 || hasColors)
+   if(hasTexcoord2 || hasColors || hasEdges)
    {
       mVertexFormat.addElement( GFXSemantic::TEXCOORD, GFXDeclType_Float2, 1 );
       mVertexFormat.addElement( GFXSemantic::COLOR, GFXDeclType_Color );
       mVertexFormat.addElement( GFXSemantic::TEXCOORD, GFXDeclType_Float, 2 );
    }
+
+   mVertSize = mVertexFormat.getSizeInBytes();
 
    // Go fix up meshes to include defaults for optional features
    // and initialize them if they're not a skin mesh.
@@ -606,6 +621,10 @@ void TSShape::initVertexFeatures()
       // Set the flags.
       mesh->mVertexFormat = &mVertexFormat;
       mesh->mVertSize = mVertSize;
+
+      // Edge verts
+      mesh->edgeOffset = 0;
+      mesh->startEdgePrims = 0;
 
       // Create and fill aligned data structure
       mesh->convertToAlignedMeshData();
@@ -1914,6 +1933,9 @@ void TSShape::createEmptyShape()
    groundTranslations.set(NULL, 0);
    triggers.set(NULL, 0);
    billboardDetails.set(NULL, 0);
+   
+   morphs.set(NULL, 0);
+   morphWeights.set(NULL, 0);
 
    names.setSize(3);
       names[0] = StringTable->insert("Detail2");
@@ -1999,7 +2021,7 @@ template<> void *Resource<TSShape>::create(const Torque::Path &path)
       ret = new TSShape;
       readSuccess = ret->read(&stream);
    }
-   else if ( extension.equal( "dae", String::NoCase ) || extension.equal( "kmz", String::NoCase ) )
+   else if ( extension.equal( "dae", String::NoCase ) || extension.equal( "kmz", String::NoCase ) || extension.equal( "pmd", String::NoCase ) || extension.equal( "vmd", String::NoCase ) )
    {
 #ifdef TORQUE_COLLADA
       // Attempt to load the DAE file

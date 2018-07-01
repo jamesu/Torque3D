@@ -366,7 +366,7 @@ public:
    const char* getSequenceBlend( const char* name );
    bool setSequenceBlend( const char* name, bool blend, const char* blendSeq, S32 blendFrame );
    bool renameSequence( const char* oldName, const char* newName );
-   bool addSequence( const char* source, const char* name, S32 start=0, S32 end=-1, bool padRot=true, bool padTrans=false );
+   bool addSequence( const char* source, const char* name, S32 start=0, S32 end=-1, bool padRot=true, bool padTrans=false, bool isRelative=false );
    bool removeSequence( const char* name );
    ///@}
 

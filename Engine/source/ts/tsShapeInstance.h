@@ -114,6 +114,8 @@ class TSShapeInstance
       /// look for the transforms...gets set be shape instance 'setStatics' method
       const Vector<MatrixF> *mTransforms;
 
+      const Vector<F32> *mMorphWeights;
+
       S32 nodeIndex;
      
       /// Gets the transform of this object
@@ -207,6 +209,9 @@ class TSShapeInstance
 
    /// storage space for node transforms
    Vector<MatrixF> mNodeTransforms;
+
+   /// storage space for current morph target weights
+   Vector<F32> mMorphWeights;
 
    /// @name Reference Transform Vectors
    /// unused until first transition
@@ -303,12 +308,20 @@ protected:
    TSIntegerSet mDisableBlendNodes;
    TSIntegerSet mHandsOffNodes;        ///< Nodes that aren't animated through threads automatically
    TSIntegerSet mCallbackNodes;
+   TSIntegerSet mLimitNodeAngleX;
 
    // node callbacks
    Vector<TSCallbackRecord> mNodeCallbacks;
 
    /// state variables
    U32 mTriggerStates;
+
+
+   // IK
+   bool mIKEnabled;
+   void enableIK();
+   void disableIK();
+   void solveIK(TSShape::Ik &ik);
 
    bool initGround();
    void addPath(TSThread * gt, F32 start, F32 end, MatrixF * mat = NULL);
@@ -494,6 +507,8 @@ protected:
    void animateVisibility(S32 ss);
    void animateFrame(S32 ss);
    void animateMatFrame(S32 ss);
+   void animateMorphs(TSThread *thread);
+
    void animateSubtrees(bool forceFull = true);
    void animateNodeSubtrees(bool forceFull = true);
 
@@ -560,7 +575,8 @@ protected:
       FrameDirty =      BIT(2),
       MatFrameDirty =   BIT(3),
       ThreadDirty =     BIT(4),
-      AllDirtyMask = TransformDirty | VisDirty | FrameDirty | MatFrameDirty | ThreadDirty
+      MorphDirty =      BIT(5),
+      AllDirtyMask = TransformDirty | VisDirty | FrameDirty | MatFrameDirty | ThreadDirty | MorphDirty
    };
    U32 * mDirtyFlags;
    void setDirty(U32 dirty);

@@ -1613,9 +1613,9 @@ void VertPositionHLSL::processVert( Vector<ShaderComponent*> &componentList,
    MultiLine *meta = new MultiLine;
 
    Var *modelview = getModelView( componentList, fd.features[MFT_UseInstancing], meta ); 
-
+   
    meta->addStatement( new GenOp( "   @ = mul(@, float4(@.xyz,1));\r\n", 
-      outPosition, modelview, inPosition ) );
+         outPosition, modelview, inPosition ) );
 
    output = meta;
 }
@@ -2055,16 +2055,35 @@ void RTLightingFeatHLSL::processPix(   Vector<ShaderComponent*> &componentList,
    ambient->uniform = true;
    ambient->constSortPos = cspPass;
 
-   // Calculate the diffuse shading and specular powers.
-   meta->addStatement( new GenOp( "   compute4Lights( @, @, @, @,\r\n"
-                                  "      @, @, @, @, @, @, @, @,\r\n"
-                                  "      @, @ );\r\n", 
-      wsView, wsPosition, wsNormal, lightMask,
-      inLightPos, inLightInvRadiusSq, inLightColor, inLightSpotDir, inLightSpotAngle, lightSpotFalloff, specularPower, specularColor,
-      rtShading, specular ) );
 
    // Apply the lighting to the diffuse color.
-   LangElement *lighting = new GenOp( "float4( @.rgb + @.rgb, 1 )", rtShading, ambient );
+   LangElement *lighting = NULL;
+   
+   if (fd.features.hasFeature(MFT_ToonShadeMap))
+   {
+      Var *toonMap = (Var*)LangElement::find("toonShadeMap");
+      meta->addStatement( new GenOp( "   compute4LightsToon( @, @, @, @,\r\n"
+                                     "      @, @, @, @, @, @, @, @,\r\n"
+                                     "      @, @, @ );\r\n", 
+         wsView, wsPosition, wsNormal, lightMask,
+         inLightPos, inLightInvRadiusSq, inLightColor, inLightSpotDir, inLightSpotAngle, lightSpotFalloff, specularPower, specularColor,
+         rtShading, specular, toonMap ) );
+
+
+
+      lighting = new GenOp( "float4( @.rgb + @.rgb, 1 )", rtShading, ambient );
+   }
+   else
+   {      meta->addStatement( new GenOp( "   compute4Lights( @, @, @, @,\r\n"
+                                     "      @, @, @, @, @, @, @, @,\r\n"
+                                     "      @, @ );\r\n", 
+         wsView, wsPosition, wsNormal, lightMask,
+         inLightPos, inLightInvRadiusSq, inLightColor, inLightSpotDir, inLightSpotAngle, lightSpotFalloff, specularPower, specularColor,
+         rtShading, specular ) );
+
+      lighting = new GenOp( "float4( @.rgb + @.rgb, 1 )", rtShading, ambient );
+   }
+
    meta->addStatement( new GenOp( "   @;\r\n", assignColor( lighting, Material::Mul ) ) );
    output = meta;  
 }
@@ -2089,7 +2108,6 @@ ShaderFeature::Resources RTLightingFeatHLSL::getResources( const MaterialFeature
 
    return res;
 }
-
 
 //****************************************************************************
 // Fog
@@ -2702,3 +2720,151 @@ void ImposterVertFeatureHLSL::determineFeature( Material *material,
       outFeatureData->features.addFeature( MFT_ImposterVert );
 }
 
+
+//****************************************************************************
+// EdgeRenderFeatureHLSL
+//****************************************************************************
+
+EdgeRenderFeatureHLSL::EdgeRenderFeatureHLSL()
+{
+}
+
+void EdgeRenderFeatureHLSL::processVert(   Vector<ShaderComponent*> &componentList, 
+                                             const MaterialFeatureData &fd )
+{  
+   MultiLine *meta = new MultiLine;
+
+   // First check for an input position from a previous feature
+   // then look for the default vertex position.
+   Var *outPosition = (Var*)LangElement::find( "inPosition" );
+   if (!outPosition)
+   {
+      outPosition = new Var();
+      outPosition->setType( "float3" );
+      outPosition->setName( "inPosition" );
+      meta->addStatement( new GenOp("   @ = @.xyz;\r\n", new DecOp( outPosition ), (Var*)LangElement::find( "position" ) ) );
+   }
+
+   Var *edgeWidth = (Var*)LangElement::find( "edgeSize" );
+   Var *normal = (Var*) LangElement::find("normal");
+
+   if (!edgeWidth)
+   {
+      edgeWidth = new Var();
+      edgeWidth->setType( "float" );
+      edgeWidth->setName( "edgeSize" );    
+      edgeWidth->uniform = true;
+      edgeWidth->constSortPos = cspPotentialPrimitive;     
+   }
+
+   LangElement *inWeight = LangElement::find("texCoord3");
+   if (!inWeight)
+   {
+      AssertFatal(false, "Format does not have texcoord 3!");
+   }
+
+   Var *modelview = getModelView( componentList, fd.features[MFT_UseInstancing], meta ); 
+
+   meta->addStatement( new GenOp( "   @.xyz += @ * @ * @;\r\n", 
+      outPosition, inWeight, normal, edgeWidth ) );
+
+   output = meta;
+}
+
+void EdgeRenderFeatureHLSL::processPix( Vector<ShaderComponent*> &componentList,
+                                          const MaterialFeatureData &fd )
+{
+   Var *diffuseMaterialColor  = new Var;
+   diffuseMaterialColor->setType( "float4" );
+   diffuseMaterialColor->setName( "edgeColor" );
+   diffuseMaterialColor->uniform = true;
+   diffuseMaterialColor->constSortPos = cspPotentialPrimitive;
+
+   MultiLine * meta = new MultiLine;
+   meta->addStatement( new GenOp( "   @;\r\n", assignColor( diffuseMaterialColor, Material::Mul ) ) );
+   output = meta;
+}
+
+void EdgeRenderFeatureHLSL::determineFeature( Material *material, 
+                                                const GFXVertexFormat *vertexFormat, 
+                                                U32 stageNum, 
+                                                const FeatureType &type, 
+                                                const FeatureSet &features, 
+                                                MaterialFeatureData *outFeatureData )
+{
+}
+
+
+//****************************************************************************
+// ToonShadeFeatureHLSL
+//****************************************************************************
+
+ToonShadeFeatureHLSL::ToonShadeFeatureHLSL()
+{
+}
+
+void ToonShadeFeatureHLSL::processVert(   Vector<ShaderComponent*> &componentList, 
+                                             const MaterialFeatureData &fd )
+{  
+   MultiLine *meta = new MultiLine;
+
+   // Nothing to do here ATM
+
+   output = meta;
+}
+
+void ToonShadeFeatureHLSL::processPix( Vector<ShaderComponent*> &componentList,
+                                          const MaterialFeatureData &fd )
+{
+   // create texture var
+   Var *toonMap = new Var;
+   toonMap->setType( "sampler2D" );
+   toonMap->setName( "toonShadeMap" );
+   toonMap->uniform = true;
+   toonMap->sampler = true;
+   toonMap->constNum = Var::getTexUnitNum();     // used as texture unit num here
+
+   MultiLine * meta = new MultiLine;
+   //meta->addStatement( new GenOp( "   @;\r\n", assignColor( diffuseMaterialColor, Material::Mul ) ) );
+   output = meta;
+}
+
+void ToonShadeFeatureHLSL::determineFeature( Material *material, 
+                                                const GFXVertexFormat *vertexFormat, 
+                                                U32 stageNum, 
+                                                const FeatureType &type, 
+                                                const FeatureSet &features, 
+                                                MaterialFeatureData *outFeatureData )
+{      /*
+   if ( features.hasFeature( MFT_EdgeRender ) && material->mEdge && stageNum == 0 && vertexFormat->hasColor())
+   {
+      // Limit features
+      outFeatureData->features.clear();
+      
+      outFeatureData->features.addFeature( MFT_HDROut );
+      outFeatureData->features.addFeature( MFT_VertTransform );
+      outFeatureData->features.addFeature( MFT_EdgeRender );
+      //fd.features.addFeature( MFT_Visibility );
+   }
+   else
+      outFeatureData->features.removeFeature( MFT_EdgeRender );*/
+}
+
+ShaderFeature::Resources ToonShadeFeatureHLSL::getResources( const MaterialFeatureData &fd )
+{
+   Resources res; 
+   res.numTex = 1;
+   res.numTexReg = 1;
+
+   return res;
+}
+
+void ToonShadeFeatureHLSL::setTexData(   Material::StageData &stageDat,
+                                       const MaterialFeatureData &fd,
+                                       RenderPassData &passData,
+                                       U32 &texIndex )
+{
+   GFXTextureObject *tex = stageDat.getTex( MFT_ToonShadeMap );
+   if ( tex )
+      passData.mTexSlot[ texIndex++ ].texObject = tex;
+}

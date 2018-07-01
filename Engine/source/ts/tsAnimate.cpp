@@ -62,6 +62,8 @@ void TSShapeInstance::animateNodes(S32 ss)
 {
    PROFILE_SCOPE( TSShapeInstance_animateNodes );
 
+   dMemset(mMorphWeights.address(), '\0', mMorphWeights.size() * sizeof(F32));
+
    if (!mShape->nodes.size())
       return;
 
@@ -189,6 +191,9 @@ void TSShapeInstance::animateNodes(S32 ss)
 
       if (scaleCurrentlyAnimated())
          handleAnimatedScale(th,a,b,scaleBeenSet);
+
+      // Handle morphs
+      animateMorphs(th);
    }
 
    // compute transforms
@@ -241,6 +246,244 @@ void TSShapeInstance::animateNodes(S32 ss)
       else
          mNodeTransforms[i].mul(mNodeTransforms[parentIdx],smNodeLocalTransforms[i]);
    }
+
+   mIKEnabled = true;
+
+   // Handle IK AFTER everything else
+   if (mIKEnabled && mShape->iks.size() != 0)
+   {
+      for (U32 i=0; i<mShape->iks.size(); i++)
+      {
+         TSShape::Ik &ik = mShape->iks[i];
+
+         solveIK(ik);
+      }
+   }
+
+   // DEBUG force morph
+   /*
+   for (U32 i=0; i<mMorphWeights.size(); i++)
+      mMorphWeights[i] = 0.0f;
+
+   static F32 gMorphValue = 0.5f;
+   if (mMorphWeights.size() > 1)
+      mMorphWeights[4] = gMorphValue;
+   
+   gMorphValue += 0.1f;
+   if (gMorphValue > 1.0f)
+      gMorphValue = 0.0f;
+   */
+}
+
+#define PMDIK_MINDISTANCE 0.0001f
+#define PMDIK_MINANGLE    0.00000001f
+#define PMDIK_MINAXIS     0.0000001f
+#define PMDIK_MINROTSUM   0.002f
+#define PMDIK_MINROTATION 0.00001f
+
+Point3F gDebugPosition = Point3F(0,0,0);
+Point3F gDebugPosition2 = Point3F(0,0,0);
+
+F32 gAddRot = 90.0 * M_PI;
+
+void TSShapeInstance::solveIK(TSShape::Ik &ik)
+{
+   S32 i;
+   S32 j;
+   S32 k;
+   unsigned short ite;
+   QuatF tmpRot;
+   QuatF tmpRot2;
+
+   Point4F saveCol;
+   QuatF origTargetRot;
+
+   Point3F destPos; /* destination position */
+   Point3F targetPos;
+   Point3F currentBonePos;
+
+   MatrixF tr;
+   Point3F localDestVec;
+   Point3F localTargetVec;
+
+   float angle, dot;
+
+   Point3F axis;
+   QuatF rot;
+
+   F32 x, y, z;
+   F32 cx, cy, cz;
+   MatrixF mat;
+
+   /* get the global destination point */
+   destPos = mNodeTransforms[ik.destId].getPosition();
+
+   /* save the current rotation of the target bone */
+   /* it will be restored at the end of this function */
+   origTargetRot = QuatF(smNodeLocalTransforms[ik.targetId]);
+
+   /* begin IK iteration */
+   for (ite = 0; ite < ik.maxIterations; ite++)
+   {
+      /* solve each step from leaf bone to root bone */
+      for (k = 0; k < ik.numLinks; k++)
+      {
+         j = mShape->ikLinks[ik.linkListId + k];
+
+         /* get current global target bone location */
+         targetPos = mNodeTransforms[ik.targetId].getPosition(); // m_targetBone->getTransform()->getOrigin();
+         Point3F test = mNodeTransforms[j].getPosition();
+         /* skip if target or destination is idential to current bone */
+         currentBonePos = mNodeTransforms[j].getPosition(); //currentBonePos = m_boneList[j]->getTransform()->getOrigin();
+
+         // Get destPos and targetPos relative to the current bone position
+         MatrixF trans = mNodeTransforms[j];
+         trans.inverse();
+
+         /* calculate local positions of destination position and target position at current bone */
+         localDestVec = destPos;// - currentBonePos;
+         localTargetVec = targetPos;// - currentBonePos;
+         
+         trans.mulP(localDestVec);
+         trans.mulP(localTargetVec);
+
+         localDestVec = -localDestVec;
+         localTargetVec = -localTargetVec;
+
+         Point3F chk1 = destPos - currentBonePos;
+         Point3F chk2 = targetPos - currentBonePos;
+         
+         /* exit if they are close enough */
+         if ((localTargetVec - localDestVec).lenSquared() < PMDIK_MINDISTANCE) {
+            ite = ik.maxIterations;
+            break;
+         }
+
+         /* normalize vectors */
+         localDestVec.normalize();
+         localTargetVec.normalize();
+
+         
+         if (ite == 1 && k == 0)
+         {
+            gDebugPosition = currentBonePos;//localDestVec;
+            gDebugPosition2 = destPos;
+         }
+
+
+         /* get angle */
+         dot = mDot(localTargetVec, localDestVec);
+         if (dot > 1.0f) /* assume angle = 0.0f, skip to next bone */
+            continue;
+
+         //Con::printf("[ite == %i, joint == %i] local vs dest angle == %f", ite, k, dot);
+         angle = -acosf(dot);
+
+         /* if angle is small enough, skip to next bone */
+         if (fabsf(angle) < PMDIK_MINANGLE)
+            continue;
+         /* limit angle per step */
+         if (angle < - ik.maxAngle)
+            angle = -ik.maxAngle;
+         else if (angle > ik.maxAngle)
+            angle = ik.maxAngle;
+
+         /* get rotation axis */
+         mCross(localTargetVec, localDestVec, &axis); //axis = localTargetVec.cross(localDestVec);
+         /* if the axis is too small (= direction of destination and target is so close) and this is not a first iteration, skip to next bone */
+         if (axis.lenSquared() < PMDIK_MINAXIS && ite > 0)
+            continue;
+         /* normalize rotation axis */
+         axis.normalize();
+         /* create quaternion for this step, to rotate the target point to the goal point, from the axis and angle */
+         rot = QuatF(axis, angle);
+
+         //rot *= QuatF(Point3F(0,1,0), gAddRot);
+
+         /* if this bone has limitation for rotation, consult the limitation */
+         if (mLimitNodeAngleX.test(j)) {
+            if (ite == 0) {
+               /* when this is the first iteration, we force rotating to the maximum angle toward limited direction */
+               /* this will help convergence the whole IK step earlier for most of models, especially for legs */
+               rot = QuatF(Point3F(1.0f, 0.0f, 0.0f), angle); // NOTE: negative angle == knees bent correctly
+            } else {
+               /* get euler angles of this rotation */
+               rot.setMatrix(&mat);
+               EulerF e = mat.toEuler(); z = e.z; y = e.y; x = e.x; //  getEulerZYX(z, y, x);
+               /* get euler angles of current bone rotation (specified by the motion) */
+               tmpRot = QuatF(smNodeLocalTransforms[j]);  //m_boneList[j]->getCurrentRotation(&tmpRot);
+               tmpRot.setMatrix(&mat);
+               e = mat.toEuler(); cz = e.z; cy = e.y; cx = e.x; //mat.getEulerZYX(cz, cy, cx);
+               /* y and z should be zero, x should be over 0 */
+               /*if (x + cx > M_PI)
+                  x = M_PI - cx;
+               if (PMDIK_MINROTSUM > x + cx)
+                  x = PMDIK_MINROTSUM - cx;*/  // TODO: fix
+               /* apply the rotation limit factor */
+               if (x < -ik.maxAngle)
+                  x = -ik.maxAngle;
+               if (x > ik.maxAngle)
+                  x = ik.maxAngle;
+               /* if rotation becomes minimal by the limitation, skip to next bone */
+               if (fabsf(x) < PMDIK_MINROTATION)
+                  continue;
+               /* get rotation quaternion from the limited euler angles */
+               rot = QuatF(EulerF(x, 0, 0));
+            }
+
+            /* apply the limited rotation to current bone */
+            tmpRot = QuatF(smNodeLocalTransforms[j]); //  m_boneList[j]->getCurrentRotation(&tmpRot);
+            tmpRot2 = rot;
+            tmpRot2 *= tmpRot;
+            smNodeLocalTransforms[j].getColumn(3, &saveCol);
+            tmpRot2.setMatrix(&smNodeLocalTransforms[j]); //m_boneList[j]->setCurrentRotation(&tmpRot);
+            smNodeLocalTransforms[j].setColumn(3, saveCol);
+         } else {
+            /* apply the rotation to current bone */
+            smNodeLocalTransforms[j].getColumn(3, &saveCol);
+            tmpRot = QuatF(smNodeLocalTransforms[j]); //  m_boneList[j]->getCurrentRotation(&tmpRot);
+            tmpRot *= rot;
+            tmpRot.setMatrix(&smNodeLocalTransforms[j]); //m_boneList[j]->setCurrentRotation(&tmpRot);
+            smNodeLocalTransforms[j].setColumn(3, saveCol);
+         }
+
+
+         /* update transform matrices for relevant (child) bones */
+         for (i = k; i >= 0; i--)
+         {
+            S32 realI = mShape->ikLinks[ik.linkListId + i];
+            S32 parentIdx = mShape->nodes[realI].parentIndex;
+            if (parentIdx < 0)
+               mNodeTransforms[realI] = smNodeLocalTransforms[realI];
+            else
+               mNodeTransforms[realI].mul(mNodeTransforms[parentIdx],smNodeLocalTransforms[realI]);
+         }
+
+            S32 parentIdx = mShape->nodes[ik.targetId].parentIndex;
+            if (parentIdx < 0)
+               mNodeTransforms[ik.targetId] = smNodeLocalTransforms[ik.targetId];
+            else
+               mNodeTransforms[ik.targetId].mul(mNodeTransforms[parentIdx],smNodeLocalTransforms[ik.targetId]);
+         
+        // break;
+
+      }
+
+         //if (ite > 0)
+        // break;
+
+         //if (ite == 1)
+         //   break;
+   }
+
+   /* restore the original rotation of the target bone */
+   smNodeLocalTransforms[ik.targetId].getColumn(3, &saveCol);
+   origTargetRot.setMatrix(&smNodeLocalTransforms[ik.targetId]);
+   smNodeLocalTransforms[ik.targetId].setColumn(3, saveCol);
+   if (mShape->nodes[ik.targetId].parentIndex < 0)
+      mNodeTransforms[ik.targetId] = smNodeLocalTransforms[ik.targetId];
+   else
+      mNodeTransforms[ik.targetId].mul(mNodeTransforms[mShape->nodes[ik.targetId].parentIndex],smNodeLocalTransforms[ik.targetId]);
 }
 
 void TSShapeInstance::handleDefaultScale(S32 a, S32 b, TSIntegerSet & scaleBeenSet)
@@ -651,6 +894,8 @@ void TSShapeInstance::handleBlendSequence(TSThread * thread, S32 a, S32 b)
       smNodeLocalTransforms[nodeIndex].mul(mat);
       smNodeLocalTransformDirty.set(nodeIndex);
    }
+
+   animateMorphs(thread);
 }
 
 //-------------------------------------------------------------------------------------
@@ -829,6 +1074,31 @@ void TSShapeInstance::animateMatFrame(S32 ss)
       }
    }
 }
+
+// Morphs
+void TSShapeInstance::animateMorphs(TSThread *thread)
+{
+   // Check morphs
+   const U32 morphStart = thread->getSequence()->morphMatters.start();
+   const U32 morphEnd = thread->getSequence()->morphMatters.end();
+   const U32 morphStride = thread->getSequence()->morphMatters.count();
+   const TSIntegerSet morphMatters = thread->getSequence()->morphMatters;
+   U32 startMorphIdx = thread->getSequence()->firstMorph;
+
+   U32 morphCount = 0;
+   for (U32 i=morphStart; i<morphEnd; i++)
+   {
+      if (morphMatters.test(i))
+      {
+         F32 state1 = mShape->morphWeights[startMorphIdx + (thread->keyNum1 * morphStride) + morphCount];
+         F32 state2 = mShape->morphWeights[startMorphIdx + (thread->keyNum2 * morphStride) + morphCount];
+
+         mMorphWeights[i] = (1.0f-thread->keyPos) * state1 + thread->keyPos * state2;
+         morphCount++;
+      }
+   }
+}
+
 
 //-------------------------------------------------------------------------------------
 // Animate (and initialize detail levels)

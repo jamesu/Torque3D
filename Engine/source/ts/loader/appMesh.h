@@ -50,6 +50,8 @@ public:
    Vector<TSDrawPrimitive> primitives;
    Vector<U32> indices;
 
+   Vector<bool> edgeVerts;
+
    // Skin elements
    Vector<F32> weight;
    Vector<S32> boneIndex;
@@ -58,6 +60,10 @@ public:
    Vector<MatrixF> initialTransforms;
    Vector<Point3F> initialVerts;
    Vector<Point3F> initialNorms;
+
+   Vector<S32> baseMorphIndexes;
+   Vector<S32> morphIndexes;
+   Vector<Point3F> morphVerts;
 
    U32 flags;
    U32 vertsPerFrame;

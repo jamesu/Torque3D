@@ -206,6 +206,10 @@ public:
 
    FileName mSpecularMapFilename[MAX_STAGES];
 
+   bool mToonShade[MAX_STAGES];
+
+   FileName mToonShadeTexture[MAX_STAGES];
+
    /// A second normal map which repeats at the detail map
    /// scale and blended with the base normal map.
    FileName mDetailNormalMapFilename[MAX_STAGES];
@@ -262,6 +266,7 @@ public:
    
    bool mGlow[MAX_STAGES];          // entire stage glows
    bool mEmissive[MAX_STAGES];
+   bool mEdge;
 
    Point2I mCellIndex[MAX_STAGES];
    Point2I mCellLayout[MAX_STAGES];
